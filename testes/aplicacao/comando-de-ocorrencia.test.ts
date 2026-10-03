@@ -17,7 +17,9 @@ import {
   OcorrenciaNaoEncontrada,
   pausarOcorrencia,
   PrioridadeImutavelEmEstadoTerminal,
-  registrarAberturaDoCompartilhamento,
+  marcarComoNaoLida,
+  registrarLeitura,
+  verSino,
   registrarSolucaoAplicada,
   resolverOcorrencia,
   ResponsavelNaoAtribuido,
@@ -31,6 +33,7 @@ import {
   type CompartilhamentoLido,
   type OcorrenciaCarregada,
   type OcorrenciaLida,
+  type PerguntaDoSino,
   type RepositorioEscopadoDeOcorrencias,
   type ResultadoDaAtribuicao,
   type ResultadoDaAvaliacao,
@@ -2039,12 +2042,12 @@ describe("88 · registrar a abertura", () => {
   it("chama a porta com a ocorrência e com quem lê, e nada mais", async () => {
     const chamadas: Array<[string, string]> = [];
     const repo = {
-      marcarCompartilhamentoAberto: async (ocorrenciaId: string, comPessoaId: string) => {
-        chamadas.push([ocorrenciaId, comPessoaId]);
+      registrarLeitura: async (ocorrenciaId: string, pessoaId: string) => {
+        chamadas.push([ocorrenciaId, pessoaId]);
       },
     };
 
-    await registrarAberturaDoCompartilhamento(repo, "oc-1", { pessoaId: "p-1" });
+    await registrarLeitura(repo, "oc-1", { pessoaId: "p-1" });
 
     expect(chamadas).toStrictEqual([["oc-1", "p-1"]]);
   });
@@ -2052,11 +2055,49 @@ describe("88 · registrar a abertura", () => {
   it("não pede nada além da porta que escreve", async () => {
     // **Se a função lesse a ocorrência antes de marcar**, este duplo — que só tem um método — quebraria.
     // É a asserção de que a autorização não é uma leitura prévia, e sim a linha do par.
-    const repo = { marcarCompartilhamentoAberto: async () => undefined };
+    const repo = { registrarLeitura: async () => undefined };
 
     await expect(
-      registrarAberturaDoCompartilhamento(repo, "oc-2", { pessoaId: "p-2" }),
+      registrarLeitura(repo, "oc-2", { pessoaId: "p-2" }),
     ).resolves.toBeUndefined();
+  });
+});
+
+/**
+ * ============================================================================
+ *  117 · o sino
+ * ============================================================================
+ *
+ * **O que esta camada prova:** que quem olha vira a pergunta certa. A regra de destinatários é da consulta,
+ * e tem teste contra Postgres em `testes/integracao/ocorrencia.test.ts`.
+ */
+describe("o sino — item 117", () => {
+  const AGORA = new Date("2026-10-03T12:00:00.000Z");
+
+  it("pergunta com a janela de 30 dias, o limite, o papel e a leitura", async () => {
+    const perguntas: PerguntaDoSino[] = [];
+    const repo = { sino: async (p: PerguntaDoSino) => (perguntas.push(p), { novidades: [], naoLidas: 0 }) };
+    await verSino(repo, { pessoaId: "g-1", permissoes: ["ocorrencia.ler_todas"], papel: "gestor" }, AGORA);
+    expect(perguntas).toStrictEqual([
+      { pessoaId: "g-1", podeLerTodas: true, ehGestor: true, desde: "2026-09-03T12:00:00.000Z", limite: 50 },
+    ]);
+  });
+
+  it("o Solicitante não liga a criação nem a responsabilidade", async () => {
+    const perguntas: PerguntaDoSino[] = [];
+    const repo = { sino: async (p: PerguntaDoSino) => (perguntas.push(p), { novidades: [], naoLidas: 0 }) };
+    await verSino(repo, { pessoaId: "s-1", permissoes: ["ocorrencia.ler_propria"], papel: "solicitante" }, AGORA);
+    expect(perguntas[0]).toMatchObject({ podeLerTodas: false, ehGestor: false });
+  });
+
+  it("marcar como não lida desfaz a leitura de quem pediu, e só dela", async () => {
+    const chamadas: [string, string][] = [];
+    await marcarComoNaoLida(
+      { desfazerLeitura: async (o, p) => void chamadas.push([o, p]) },
+      "oc-1",
+      { pessoaId: "p-1" },
+    );
+    expect(chamadas).toStrictEqual([["oc-1", "p-1"]]);
   });
 });
 

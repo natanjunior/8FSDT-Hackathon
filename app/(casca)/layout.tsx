@@ -2,12 +2,17 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
+import { verSino, type QuemOlhaOSino } from "@/aplicacao/ocorrencia";
 import { listarPedidosDeEntrada } from "@/aplicacao/organizacao";
 import type { Permissao } from "@/dominio/organizacao";
+import { acaoDeMarcarComoNaoLida, acaoDeRegistrarLeitura } from "@/interface/acoes";
 import { BarraSuperior } from "@/interface/componentes/casca/barra-superior";
 import { Navegacao } from "@/interface/componentes/casca/navegacao";
 import { PeDaBarra } from "@/interface/componentes/casca/pe-da-barra";
+import { Sino } from "@/interface/componentes/casca/sino";
 import { ID_DO_CONTEUDO, PularParaOConteudo } from "@/interface/componentes/pular-para-o-conteudo";
+import { projetarSino } from "@/interface/componentes/sino";
+import { instanteDoServidor } from "@/interface/componentes/tempo-relativo";
 import {
   Sidebar,
   SidebarContent,
@@ -16,7 +21,10 @@ import {
   SidebarTrigger,
 } from "@/interface/componentes/ui/sidebar";
 import { resolverEscopoParaTela } from "@/interface/http";
-import { projetarContexto } from "@/interface/projecoes";
+import { projetarContexto, type LenteDeRotulo } from "@/interface/projecoes";
+
+/** As duas ações do sino (item 117). *Marcar como lida* é a mesma ação de abrir T-05: é o mesmo gesto. */
+const ACOES_DO_SINO = { marcarComoLida: acaoDeRegistrarLeitura, marcarComoNaoLida: acaoDeMarcarComoNaoLida };
 
 /**
  * ============================================================================
@@ -47,7 +55,7 @@ export default async function LayoutDaCasca({ children }: { children: React.Reac
   if (escopo.situacao === "sem-organizacao") redirect("/organizacao");
   if (escopo.situacao === "sem-permissao") redirect("/");
 
-  const { ctx, repos, resolucao } = escopo;
+  const { ctx, repos, resolucao, lente } = escopo;
   const projetado = projetarContexto(resolucao);
   const organizacaoAtiva = projetado.organizacaoAtiva;
 
@@ -70,6 +78,11 @@ export default async function LayoutDaCasca({ children }: { children: React.Reac
         organizacaoAtivaId={organizacaoAtiva.id}
         nomeDaPessoa={projetado.pessoa.nome}
         emailDaPessoa={resolucao.sessao.email}
+        sino={
+          <Suspense fallback={<Sino sino={null} acoes={ACOES_DO_SINO} />}>
+            <SinoComContagem pessoaId={ctx.pessoaId} vinculo={ctx.vinculo} ocorrencias={repos.ocorrencias} lente={lente} />
+          </Suspense>
+        }
       >
         <SidebarTrigger aria-label="Abrir navegação" className="size-11 md:hidden" />
       </BarraSuperior>
@@ -159,4 +172,24 @@ async function NavegacaoComContagem({
       podeConfigurar={vinculo.pode("organizacao.configurar")}
     />
   );
+}
+
+/**
+ * **O sino, e ele espera o banco como a contagem de pedidos** (item 117): dentro do `Suspense` a casca
+ * pinta na hora e o número chega depois. **A lista vem junto, da mesma consulta**: com a lista numa tela à
+ * parte, ela e o número da barra discordariam, porque o layout não se renderiza de novo na navegação.
+ */
+async function SinoComContagem({
+  pessoaId,
+  vinculo,
+  ocorrencias,
+  lente,
+}: {
+  pessoaId: string;
+  vinculo: Pick<QuemOlhaOSino, "permissoes" | "papel">;
+  ocorrencias: Parameters<typeof verSino>[0];
+  lente: LenteDeRotulo;
+}) {
+  const sino = await verSino(ocorrencias, { pessoaId, permissoes: vinculo.permissoes, papel: vinculo.papel });
+  return <Sino sino={projetarSino(sino, { pessoaId, lente }, instanteDoServidor())} acoes={ACOES_DO_SINO} />;
 }

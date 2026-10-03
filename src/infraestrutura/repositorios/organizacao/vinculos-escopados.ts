@@ -287,7 +287,7 @@ export function repositorioEscopadoDeVinculos(
       // **Uma consulta só, partindo de `vinculos`.** É a quinta leitura de T-08 — tela grande, trabalho de
       // escritório, uma vez por semana (inventário, T-08). O RNF6 cronometra T-04, não esta.
       //
-      // **Os doze `exists` do `tem_historico` cobrem as DOZE tabelas** que apontam para
+      // **Os doze `exists` do `tem_historico` cobrem doze das TREZE tabelas** que apontam para
       // `vinculos (pessoa_id, organizacao_id)`, por dezessete colunas: `atribuicoes`, `categorias` e
       // `organizacoes` com duas, `areas` com três, e as outras oito com uma. O `exists` de fora é o do
       // último Gestor. A lista não sai da prosa do contrato, que
@@ -298,6 +298,9 @@ export function repositorioEscopadoDeVinculos(
       // aparece nomeado na tela de quem olha a ocorrência — e a chave é `on delete restrict`;
       // `com_pessoa_id` apaga em cascata, porque o que a pessoa recebeu não é rastro, e uma remoção não
       // precisa ser recusada por causa dele.
+      //
+      // **`leituras_de_ocorrencia` fica fora** (item 117), pela razão de `com_pessoa_id`: leitura não é
+      // rastro, e a chave apaga em cascata.
       //
       // **`vinculos_etiquetas` tem duas pontas e só uma entra aqui** (item 115), pela razão de
       // `compartilhamentos`: quem atribuiu é rastro e a chave é `restrict`; quem recebeu apaga em cascata.

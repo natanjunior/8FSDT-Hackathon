@@ -1370,15 +1370,13 @@ describe("as consultas de configuração não atravessam organizações", () => 
       // Sem o recorte de autor, a organização inteira é contada — é o COUNT ingênuo, e ele existe.
       expect(semRecorte.totalFiltrado).toBeGreaterThan(comVisibilidade.totalFiltrado);
 
-      // **Com ele, nenhum dos SETE números passa de 2** — nem `emAberto`, nem `semResponsavel`.
+      // **Com ele, nenhum dos SEIS números passa de 2** — nem `emAberto`, nem `semResponsavel`.
       expect(comVisibilidade.totalFiltrado).toBe(2);
       expect(comVisibilidade.todas).toBe(2);
       expect(comVisibilidade.minhas).toBe(2);
       expect(comVisibilidade.emAberto).toBe(2);
       expect(comVisibilidade.semResponsavel).toBe(2);
       expect(comVisibilidade.novas).toBe(0);
-      // O sétimo (item 88) não foi pedido: sem `naoAbertasDePessoaId` a subconsulta não roda e vem `0`.
-      expect(comVisibilidade.compartilhadasNaoAbertas).toBe(0);
     });
 
     it("as contagens de A não enxergam B — nem por um número", async () => {
@@ -1408,64 +1406,6 @@ describe("as consultas de configuração não atravessam organizações", () => 
       expect(emB.totalFiltrado).toBe(listadasEmB.length);
       // E os dois lados não são o mesmo conjunto — sem isto o caso passaria por vacuidade.
       expect(emA.totalFiltrado).toBeGreaterThan(emB.totalFiltrado);
-    });
-
-    /**
-     * **A entrada de isolamento do item 88.** A mesma Pessoa recebe um compartilhamento em cada
-     * organização; sem o `organizacao_id` no `where` da subconsulta, os dois lados viriam 2.
-     *
-     * **Os `insert` são crus, e em Aurora o par `com`/`por` é a mesma Pessoa** — a Aplicação recusa isso,
-     * e o esquema não: ela é a única com vínculo lá. O que está sob teste é o `where` da contagem, não a
-     * regra de quem pode compartilhar com quem.
-     */
-    it("88 · o contador de não abertas conta só a organização ativa", async () => {
-      const [daAurora] = await consulta<{ id: string }>(
-        `insert into ocorrencias
-           (organizacao_id, categoria_id, area_id, area_tipo, titulo, descricao, autor_pessoa_id)
-         select $1, c.id, a.id, 'comum', $2, $3, $4
-           from categorias c, areas a
-          where c.organizacao_id = $1 and a.organizacao_id = $1
-          limit 1
-        returning id`,
-        [idAurora, `Grelha da Aurora ${SUFIXO}`, "Semeada para o item 88.", idSindica],
-      );
-      const [deRecanto] = await consulta<{ id: string }>(
-        `select id from ocorrencias where organizacao_id = $1 and autor_pessoa_id = $2 limit 1`,
-        [idRecanto, idMoradora],
-      );
-
-      await consulta(
-        `insert into compartilhamentos (organizacao_id, ocorrencia_id, com_pessoa_id, por_pessoa_id)
-         values ($1, $2, $3, $4)`,
-        [idRecanto, deRecanto!.id, idSindica, idMoradora],
-      );
-      await consulta(
-        `insert into compartilhamentos (organizacao_id, ocorrencia_id, com_pessoa_id, por_pessoa_id)
-         values ($1, $2, $3, $3)`,
-        [idAurora, daAurora!.id, idSindica],
-      );
-
-      const emRecanto = await portasDe(idRecanto).ocorrencias.contar({
-        pessoaIdDeQuemPergunta: idSindica,
-        naoAbertasDePessoaId: idSindica,
-        ate: NO_FUTURO,
-      });
-      const emAurora = await portasDe(idAurora).ocorrencias.contar({
-        pessoaIdDeQuemPergunta: idSindica,
-        naoAbertasDePessoaId: idSindica,
-        ate: NO_FUTURO,
-      });
-
-      expect(emRecanto.compartilhadasNaoAbertas).toBe(1);
-      expect(emAurora.compartilhadasNaoAbertas).toBe(1);
-
-      // E a outra ponta: quem compartilhou não é contada.
-      const daMoradora = await portasDe(idRecanto).ocorrencias.contar({
-        pessoaIdDeQuemPergunta: idMoradora,
-        naoAbertasDePessoaId: idMoradora,
-        ate: NO_FUTURO,
-      });
-      expect(daMoradora.compartilhadasNaoAbertas).toBe(0);
     });
   });
 });
@@ -2714,5 +2654,76 @@ describe("a chave de parada no banco — item 101", () => {
                                atualizado_por_pessoa_id = $2 where id = $1`,
       [idAurora, idSindica],
     );
+  });
+});
+
+/**
+ * ============================================================================
+ *  O sino não atravessa organizações — item 117, critérios 9 e 10
+ * ============================================================================
+ *
+ * **No fim do arquivo, e não por `casosDeIsolamento`**, pela razão do 14b.6: a suíte compara o conjunto
+ * exato, e o sino da síndica em Recanto, Gestora lá, tem *Nova ocorrência* de toda ocorrência que os
+ * outros casos do arquivo semeiam. **E não toca no mundo da
+ * suíte:** o que semeia é uma ocorrência nova em Recanto, registrada pela moradora, que a síndica, Gestora
+ * de Recanto, recebe como *Nova ocorrência*.
+ *
+ * **A prova em Aurora é fraca pelo lado do conteúdo, e está dita:** o mundo não tem, em Aurora, ninguém
+ * além da síndica. O que o caso prova é que o laço da criação, ligado, não traz a ocorrência de Recanto.
+ */
+describe("o sino não atravessa organizações — item 117", () => {
+  let novaEmRecanto: string;
+
+  beforeAll(async () => {
+    const portas = portasDe(idRecanto);
+    const [categoria] = await portas.categorias.listar({ apenasAtivas: true });
+    const [area] = await portas.areas.listar({ apenasAtivas: true });
+    novaEmRecanto = (
+      await registrarOcorrencia(
+        portas,
+        { pessoaId: idMoradora, organizacaoId: idRecanto },
+        {
+          titulo: "Portão da garagem travando",
+          descricao: "Do sino.",
+          categoriaId: categoria!.id,
+          areaId: area!.id,
+          localizacaoComplemento: null,
+        },
+      )
+    ).id;
+  });
+
+  // **Gestor e leitura de todas ligados nas DUAS chamadas**, de propósito: em Aurora a síndica é
+  // Solicitante, e com o laço da criação desligado um `$1` perdido nele não apareceria.
+  const sinoDaSindica = (organizacaoId: string) =>
+    portasDe(organizacaoId).ocorrencias.sino({
+      pessoaId: idSindica,
+      podeLerTodas: true,
+      ehGestor: true,
+      desde: "2000-01-01T00:00:00.000Z",
+      limite: 500,
+    });
+
+  const idsDe = async (organizacaoId: string) =>
+    new Set(
+      (await consulta<{ id: string }>(`select id from ocorrencias where organizacao_id = $1`, [organizacaoId])).map(
+        (linha) => linha.id,
+      ),
+    );
+
+  it("em Recanto, a ocorrência nova da moradora está no sino da síndica", async () => {
+    const sino = await sinoDaSindica(idRecanto);
+    expect(sino.novidades.map((n) => n.ocorrenciaId)).toContain(novaEmRecanto);
+  });
+
+  it("em Aurora, nenhuma linha é de ocorrência de Recanto, e toda linha é de Aurora", async () => {
+    const [deRecanto, deAurora] = await Promise.all([idsDe(idRecanto), idsDe(idAurora)]);
+    const sino = await sinoDaSindica(idAurora);
+    for (const novidade of sino.novidades) {
+      expect(deRecanto.has(novidade.ocorrenciaId), novidade.ocorrenciaId).toBe(false);
+      expect(deAurora.has(novidade.ocorrenciaId), novidade.ocorrenciaId).toBe(true);
+    }
+    // O número também: ele sai da mesma instrução, e um `$1` perdido no `count` o inflaria.
+    expect(sino.naoLidas).toBe(sino.novidades.filter((n) => n.naoLida).length);
   });
 });

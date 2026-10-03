@@ -1,15 +1,15 @@
 ---
 title: "Banco de dados"
-description: "As dezenove tabelas, como o esquema torna impossível uma ocorrência apontar para a categoria de outra organização, e por que a trilha não pode ser alterada."
+description: "As vinte tabelas, como o esquema torna impossível uma ocorrência apontar para a categoria de outra organização, e por que a trilha não pode ser alterada."
 ---
 
 # Banco de dados
 
-PostgreSQL, dezenove tabelas, migrações versionadas em arquivo e aplicadas pela esteira antes de a imagem
+PostgreSQL, vinte tabelas, migrações versionadas em arquivo e aplicadas pela esteira antes de a imagem
 nova subir. O esquema não é um espelho do código: ele carrega garantias próprias, e as que ele carrega são
 as que não dependem de ninguém lembrar.
 
-## As dezenove tabelas
+## As vinte tabelas
 
 | Tabela | O que guarda |
 |---|---|
@@ -29,6 +29,7 @@ as que não dependem de ninguém lembrar.
 | `mensagens` | o texto trocado dentro de um canal |
 | `anexos` | a imagem reivindicada por uma ocorrência, com a miniatura |
 | `compartilhamentos` | quem, além do autor e dos Gestores, pode ler uma ocorrência |
+| `leituras_de_ocorrencia` | até onde cada pessoa leu cada ocorrência, que é de onde o sino tira o que está não lido |
 | `etiquetas_participante` | os rótulos livres que o Gestor dá aos participantes, uma lista por organização |
 | `vinculos_etiquetas` | quais etiquetas cada participante tem, quem atribuiu e quando |
 | `autorizacoes_de_upload` | o livro-caixa das credenciais de upload emitidas, para conter abuso |
@@ -60,6 +61,7 @@ erDiagram
     OCORRENCIAS ||--o{ CANAIS_CONVERSA : "conversa"
     OCORRENCIAS ||--o{ ANEXOS : "evidencia"
     OCORRENCIAS ||--o{ COMPARTILHAMENTOS : "abre a"
+    OCORRENCIAS ||--o{ LEITURAS_DE_OCORRENCIA : "lida até"
     OCORRENCIAS ||--o{ OCORRENCIAS : "origem"
 ```
 
@@ -175,6 +177,7 @@ Não há índice criado por precaução. Cada um existe porque uma consulta da a
 | ocorrências por organização e status | a fila de triagem, que é o filtro mais usado do Gestor |
 | ocorrências por organização e autor | a lista de quem abriu, que é a tela inicial do Solicitante |
 | registros por organização e data | a trilha e o tempo de resolução do painel |
+| registros por ocorrência, do mais recente ao mais antigo | o sino, que busca a última mudança de cada ocorrência sem varrer a trilha da organização |
 | etiqueta por nome, única por organização, sem distinguir maiúscula | impede duas etiquetas com a mesma grafia; acento conta |
 | atribuição vigente, única por ocorrência | garante que não existam dois responsáveis ao mesmo tempo |
 | canal por tipo, único por ocorrência | garante um canal de cada tipo por ocorrência |
@@ -198,10 +201,15 @@ ocorrência, então conta como histórico, a chave recusa a remoção, e o camin
 atualização e não apaga linha nenhuma. É o que faz a pessoa readmitida voltar a ver o que já estava
 compartilhado com ela.
 
-A tabela tem uma coluna de leitura, `aberto_em`: quando quem recebeu abriu a ocorrência pela primeira
-vez, e nulo antes disso. É estado por linha, e não uma data única de última visita: desfazer e refazer o
-compartilhamento devolve a ocorrência à contagem sem nenhuma escrita a mais. Fora dela a tabela não tem
-estado e não tem trilha: desfazer apaga a linha.
+A tabela não guarda se quem recebeu já abriu a ocorrência. A leitura mora em `leituras_de_ocorrencia`, a
+mesma que o sino lê, e a ocorrência compartilhada está *não vista* quando não há leitura dela depois de
+compartilhada. Refazer o compartilhamento grava uma data nova, mais nova que qualquer leitura, e devolve o
+selo sem nenhuma escrita a mais. A tabela não tem outro estado e não tem trilha: desfazer apaga a linha.
+
+`leituras_de_ocorrencia` segue o mesmo padrão de chaves: as duas compostas carregam `organizacao_id`, e a
+que aponta para o vínculo apaga em cascata, porque ler não é rastro e não pode impedir a remoção de um
+vínculo. Ela fica fora do agregado: não muda status e não grava trilha. Abrir, agir e marcar como lida
+gravam o instante; marcar como não lida apaga a linha.
 
 ## As etiquetas dos participantes
 

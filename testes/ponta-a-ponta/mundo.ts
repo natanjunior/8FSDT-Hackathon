@@ -226,3 +226,32 @@ export async function fecharOMenu(pagina: Page): Promise<void> {
   await pagina.keyboard.press("Escape");
   await expect(menu).toHaveCount(0);
 }
+
+/** O botão do sino. O nome leva o número exato (item 117): `Avisos` ou `Avisos, N não lidos`. */
+export function botaoDoSino(pagina: Page): Locator {
+  return pagina.getByRole("button", { name: /^Avisos(,|$)/u });
+}
+
+/**
+ * Quantas não lidas o nome do botão diz agora. **Espera o número chegar**: na espera do `Suspense` o botão
+ * está `aria-busy`, e o nome sem número ali não é zero.
+ */
+export async function naoLidasNoSino(pagina: Page): Promise<number> {
+  await expect(botaoDoSino(pagina)).not.toHaveAttribute("aria-busy", "true");
+  const nome = (await botaoDoSino(pagina).getAttribute("aria-label")) ?? "Avisos";
+  return Number(/,\s*(\d+)/u.exec(nome)?.[1] ?? "0");
+}
+
+/**
+ * A lista aberta: o `Popover` na tela grande, o `Dialog` no celular.
+ *
+ * **Idempotente.** Depois de *Marcar como lida*, a ação de servidor revalida a casca e o componente de
+ * cliente **guarda o estado aberto**; clicar no botão de novo o fecharia.
+ */
+export async function abrirOSino(pagina: Page): Promise<Locator> {
+  const dialogo = pagina.getByRole("dialog", { name: "Avisos" });
+  const balao = pagina.locator("[data-slot=popover-content]");
+  if (!(await dialogo.isVisible()) && !(await balao.isVisible())) await botaoDoSino(pagina).click();
+  await expect(dialogo.or(balao)).toBeVisible();
+  return (await dialogo.isVisible()) ? dialogo : balao;
+}

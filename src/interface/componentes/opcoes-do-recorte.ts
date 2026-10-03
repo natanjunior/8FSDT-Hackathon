@@ -21,36 +21,22 @@ import { RECORTE_COMPARTILHADAS, RECORTE_MINHAS, RECORTE_TODAS } from "./rotulos
  * sai dele.
  */
 
-/**
- * **Duas formas, e a diferença é de significado** (item 88). `"total"` conta um conjunto que a pessoa pode
- * escolher ver; `"nao-vistas"` conta uma pendência, e pendência zero não é número, é ausência.
- */
-export type FormaDoNumero = "total" | "nao-vistas";
-
 export type OpcaoDoRecorte = {
   readonly valor: "todas" | "minhas" | "compartilhadas";
   readonly rotulo: string;
-  /**
-   * `null` quando a opção não mostra número. **O campo e a forma andam juntos** porque um sem o outro é
-   * estado impossível: a pílula neutra conta o conjunto, o selo da marca conta o que ainda não foi visto.
-   */
-  readonly contagem: { readonly campo: keyof ContagensDoRecorte; readonly forma: FormaDoNumero } | null;
+  /** `null` quando a opção não mostra número. */
+  readonly contagem: { readonly campo: keyof ContagensDoRecorte } | null;
 };
 
-/**
- * Os números do painel que o seletor imprime. `todas` e `minhas` medem o mesmo conjunto; a terceira mede
- * outra coisa, e por isso o desenho dela é outro.
- */
+/** Os números do painel que o seletor imprime. Os dois medem o mesmo conjunto. */
 export type ContagensDoRecorte = {
   readonly todas: number;
   readonly minhas: number;
-  /** item 88 — as não abertas de quem recebe. `0` para quem tem `ler_todas`. */
-  readonly compartilhadasNaoAbertas: number;
 };
 
 /**
- * **O número de *Compartilhadas comigo* conta as NÃO ABERTAS** (item 88), e por isso ele tem forma própria:
- * na mesma peça, com a cara do total, *Compartilhadas comigo 3* seria lido como *"3 compartilhadas"*.
+ * ***Compartilhadas comigo* não tem número desde o item 117.** O do item 88 contava as não abertas, e
+ * passou a ser o do sino: um número só na tela. O selo *Não vista* continua na linha da aba.
  *
  * **Minhas continua sem número:** para quem não lê todas, *Minhas* é o padrão, e um número ali seria o
  * mesmo que o `total` da página, dois centímetros ao lado.
@@ -62,17 +48,13 @@ export type ContagensDoRecorte = {
 export function opcoesDoRecorte(podeLerTodas: boolean): readonly OpcaoDoRecorte[] {
   if (podeLerTodas) {
     return [
-      { valor: "todas", rotulo: RECORTE_TODAS, contagem: { campo: "todas", forma: "total" } },
-      { valor: "minhas", rotulo: RECORTE_MINHAS, contagem: { campo: "minhas", forma: "total" } },
+      { valor: "todas", rotulo: RECORTE_TODAS, contagem: { campo: "todas" } },
+      { valor: "minhas", rotulo: RECORTE_MINHAS, contagem: { campo: "minhas" } },
     ];
   }
   return [
     { valor: "minhas", rotulo: RECORTE_MINHAS, contagem: null },
-    {
-      valor: "compartilhadas",
-      rotulo: RECORTE_COMPARTILHADAS,
-      contagem: { campo: "compartilhadasNaoAbertas", forma: "nao-vistas" },
-    },
+    { valor: "compartilhadas", rotulo: RECORTE_COMPARTILHADAS, contagem: null },
   ];
 }
 

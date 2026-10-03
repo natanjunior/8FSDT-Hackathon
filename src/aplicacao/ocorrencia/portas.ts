@@ -15,6 +15,38 @@ import type {
 /** Como uma Pessoa aparece **dentro** de um recurso escopado. Nunca traz contato (contrato §4.6). */
 export type PessoaReferencia = { pessoaId: string; nome: string };
 
+/** Os cinco tipos de novidade do sino (spec do item 117, §3.1). */
+export type TipoDeNovidade = "criacao" | "status" | "comentario" | "atribuicao" | "compartilhamento";
+
+/** Uma linha do sino: a novidade mais recente de outra pessoa numa ocorrência ligada a quem pergunta. */
+export type NovidadeLida = {
+  ocorrenciaId: string;
+  titulo: string;
+  tipo: TipoDeNovidade;
+  /** ISO 8601. */
+  em: string;
+  por: PessoaReferencia;
+  /** Só em `status`. */
+  statusNovo: StatusOcorrencia | null;
+  motivoPausa: MotivoPausa | null;
+  /** Em `atribuicao`, o novo responsável; em `compartilhamento`, quem recebeu. */
+  alvo: PessoaReferencia | null;
+  naoLida: boolean;
+};
+
+export type SinoLido = { novidades: readonly NovidadeLida[]; naoLidas: number };
+
+export type PerguntaDoSino = {
+  pessoaId: string;
+  /** Liga o laço de responsável: responsável sem leitura não vê (spec §3.2). */
+  podeLerTodas: boolean;
+  /** Papel `gestor`: liga o laço da criação (decisão 3). */
+  ehGestor: boolean;
+  /** ISO 8601 — o início da janela de 30 dias. */
+  desde: string;
+  limite: number;
+};
+
 /** Uma pessoa dentro do compartilhamento: a referência de sempre, mais o papel NESTA organização. */
 export type PessoaComPapel = PessoaReferencia & { papel: Papel };
 
@@ -348,12 +380,6 @@ export type FiltroDeContagem = {
    * quatro números do painel continuam medindo o que mediam.
    */
   compartilhadaComPessoaIdDaPagina?: string;
-  /**
-   * Quem recebe, quando o número das não abertas é pedido (item 88). **Ausente é "não calcule"**, e o
-   * campo volta `0`: é o caso de quem tem `ocorrencia.ler_todas`, que não recebe compartilhamento e não
-   * tem a terceira opção no controle.
-   */
-  naoAbertasDePessoaId?: string;
   pessoaIdDeQuemPergunta: string;
   ate: string;
   /**
@@ -366,10 +392,8 @@ export type FiltroDeContagem = {
 };
 
 /**
- * As sete contagens, como o repositório as devolve.
- *
- * **A sétima não é um `FILTER` das outras seis** (item 88): as seis contam linhas de `ocorrencias`, e ela
- * conta linhas de `compartilhamentos`.
+ * As seis contagens, como o repositório as devolve. **O número das não vistas do item 88 saiu no 117**: é
+ * o do sino.
  */
 export type ContagensLidas = {
   /**
@@ -392,8 +416,6 @@ export type ContagensLidas = {
   semResponsavel: number;
   /** As que ficaram **fora** do corte — `registrada_em > ate`, sob o recorte da página. */
   novas: number;
-  /** Quantas linhas de `compartilhamentos` de quem pergunta estão sem abertura, nesta organização. */
-  compartilhadasNaoAbertas: number;
 };
 
 /**
@@ -755,12 +777,10 @@ export interface RepositorioEscopadoDeOcorrencias {
   ): Promise<ResultadoDoCompartilhamento>;
   /** Apaga a linha do par. **Sem desfecho**: a linha que não existe é o mesmo sucesso da que foi apagada. */
   desfazerCompartilhamento(ocorrenciaId: string, comPessoaId: string): Promise<void>;
-  /**
-   * Marca a primeira abertura de uma ocorrência compartilhada (item 88). **Uma instrução, idempotente:**
-   * sem linha do par, ou com a linha já aberta, não faz nada e não erra. Duas abas abrindo juntas terminam
-   * com a mesma linha.
-   */
-  marcarCompartilhamentoAberto(ocorrenciaId: string, comPessoaId: string): Promise<void>;
+  /** Grava `lido_ate = now()` de quem leu (item 117); upsert idempotente, e ocorrência de fora não grava nem erra. */
+  registrarLeitura(ocorrenciaId: string, pessoaId: string): Promise<void>;
+  /** Apaga a leitura de quem pediu (critério 117.5); sem linha, não faz nada. */
+  desfazerLeitura(ocorrenciaId: string, pessoaId: string): Promise<void>;
   /**
    * Quem, nesta organização, casa a busca e tem um dos papéis pedidos — com a marca de quem já recebeu.
    *
@@ -783,7 +803,12 @@ export interface RepositorioEscopadoDeOcorrencias {
    */
   listar(filtro: FiltroDeListagem): Promise<readonly OcorrenciaResumoLida[]>;
   /**
-   * As sete contagens de `GET /ocorrencias` — **todas sob a mesma visibilidade que a listagem aplica**
+   * O sino de quem pergunta (item 117): as linhas e o total de não lidas **numa instrução só**, para os
+   * dois nunca discordarem (critério 4). O total conta todas; as linhas param em `limite`.
+   */
+  sino(pergunta: PerguntaDoSino): Promise<SinoLido>;
+  /**
+   * As seis contagens de `GET /ocorrencias` — **todas sob a mesma visibilidade que a listagem aplica**
    * (item 14b, critério 14b.6).
    *
    * Um `COUNT` sem `autor_pessoa_id` vaza a **existência** de ocorrências que o Solicitante não pode

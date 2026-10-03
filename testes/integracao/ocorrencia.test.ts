@@ -21,6 +21,7 @@ import {
   SolucaoObrigatoria,
   SomenteOGestorCancelaNesteEstado,
   verOcorrencia,
+  type SinoLido,
 } from "@/aplicacao/ocorrencia";
 import { Ocorrencia } from "@/dominio/ocorrencia";
 import { criarConsulta, criarTransacao } from "@/infraestrutura/clientes";
@@ -4551,93 +4552,104 @@ describe("o compartilhamento no banco — item 87", () => {
     expect(semAba.itens).toStrictEqual([]);
   });
 
-  it("a linha nasce sem abertura, e o carimbo é do banco — item 88", async () => {
+  const leituraDe = (ocorrenciaId: string, quem: string) =>
+    consultaCrua<{ lido_ate: Date }>(
+      `select lido_ate from leituras_de_ocorrencia where ocorrencia_id = $1 and pessoa_id = $2`,
+      [ocorrenciaId, quem],
+    );
+
+  it("a coluna aberto_em não existe mais — item 117, spec §3.17", async () => {
+    const colunas = await consultaCrua<{ column_name: string }>(
+      `select column_name from information_schema.columns
+        where table_name = 'compartilhamentos' and column_name = 'aberto_em'`,
+    );
+    expect(colunas).toStrictEqual([]);
+  });
+
+  it("a leitura nasce no upsert, com o relógio do banco, e duas seguidas são uma linha — item 117", async () => {
     const id = await registrada("Bomba do poço fazendo ruído");
-    await inserir(id, recebePessoaId);
-    const [linha] = await consultaCrua<{ aberto_em: Date | null }>(
-      `select aberto_em from compartilhamentos where ocorrencia_id = $1 and com_pessoa_id = $2`,
-      [id, recebePessoaId],
-    );
-    expect(linha!.aberto_em).toBeNull();
-
-    await consultaCrua(
-      `update compartilhamentos set aberto_em = now()
-        where ocorrencia_id = $1 and com_pessoa_id = $2 and aberto_em is null`,
-      [id, recebePessoaId],
-    );
-    const [depois] = await consultaCrua<{ aberto_em: Date | null }>(
-      `select aberto_em from compartilhamentos where ocorrencia_id = $1 and com_pessoa_id = $2`,
-      [id, recebePessoaId],
-    );
-    expect(depois!.aberto_em).toBeInstanceOf(Date);
+    expect(await leituraDe(id, recebePessoaId)).toStrictEqual([]);
+    await portas().ocorrencias.registrarLeitura(id, recebePessoaId);
+    const [primeira] = await leituraDe(id, recebePessoaId);
+    await portas().ocorrencias.registrarLeitura(id, recebePessoaId);
+    const linhas = await leituraDe(id, recebePessoaId);
+    expect(linhas).toHaveLength(1);
+    expect(linhas[0]!.lido_ate.getTime()).toBeGreaterThanOrEqual(primeira!.lido_ate.getTime());
   });
 
-  it("desfazer e refazer devolve a linha sem abertura — critério 88.2, no banco", async () => {
-    const id = await registrada("Corrimão solto na escada");
-    await inserir(id, recebePessoaId);
-    await consultaCrua(
-      `update compartilhamentos set aberto_em = now() where ocorrencia_id = $1 and com_pessoa_id = $2`,
-      [id, recebePessoaId],
-    );
-    await consultaCrua(`delete from compartilhamentos where ocorrencia_id = $1 and com_pessoa_id = $2`, [
-      id,
-      recebePessoaId,
-    ]);
-    await inserir(id, recebePessoaId);
-    const [linha] = await consultaCrua<{ aberto_em: Date | null }>(
-      `select aberto_em from compartilhamentos where ocorrencia_id = $1 and com_pessoa_id = $2`,
-      [id, recebePessoaId],
-    );
-    // **Nenhum código zera nada** (spec §3.1): refazer é `insert` de linha nova.
-    expect(linha!.aberto_em).toBeNull();
+  it("desfazer a leitura apaga a linha, e a segunda vez não erra — item 117", async () => {
+    const id = await registrada("Interfone mudo");
+    await portas().ocorrencias.registrarLeitura(id, recebePessoaId);
+    await portas().ocorrencias.desfazerLeitura(id, recebePessoaId);
+    await portas().ocorrencias.desfazerLeitura(id, recebePessoaId);
+    expect(await leituraDe(id, recebePessoaId)).toStrictEqual([]);
   });
 
-  it("a contagem conta os nulos de quem recebe, e ignora o resto — item 88", async () => {
-    const [nova] = await consultaCrua<{ id: string }>(
+  it("id que não é uuid, ou de outra organização, não grava e não erra — item 117", async () => {
+    await expect(portas().ocorrencias.registrarLeitura("abc", recebePessoaId)).resolves.toBeUndefined();
+    const [deFora] = await consultaCrua<{ id: string }>(`select gen_random_uuid() as id`);
+    await expect(portas().ocorrencias.registrarLeitura(deFora!.id, recebePessoaId)).resolves.toBeUndefined();
+    expect(
+      await consultaCrua(`select 1 from leituras_de_ocorrencia where pessoa_id = $1 and ocorrencia_id = $2`, [
+        recebePessoaId,
+        deFora!.id,
+      ]),
+    ).toStrictEqual([]);
+  });
+
+  it("a chave composta recusa leitura de ocorrência de outra organização — critério 117.7", async () => {
+    const id = await registrada("Portão travando");
+    await expect(
+      consultaCrua(
+        `insert into leituras_de_ocorrencia (organizacao_id, ocorrencia_id, pessoa_id, lido_ate)
+         values ($1, $2, $3, now())`,
+        [outraOrganizacaoId, id, deForaPessoaId],
+      ),
+    ).rejects.toThrow(/leituras_de_ocorrencia_ocorrencia_fk/u);
+  });
+
+  it("remover o vínculo leva as leituras dele junto — item 117, spec §3.7", async () => {
+    const [efemera] = await consultaCrua<{ id: string }>(
       `insert into pessoas (nome) values ($1) returning id`,
-      [`Vizinha do contador ${SUFIXO}`],
+      [`Efêmera ${SUFIXO}`],
     );
     await consultaCrua(
       `insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'solicitante')`,
-      [nova!.id, organizacaoId],
+      [efemera!.id, organizacaoId],
     );
-    const a = await registrada("Fiação exposta no hall");
-    const b = await registrada("Vazamento no subsolo");
-    const c = await registrada("Lâmpada do elevador");
-    await inserir(a, nova!.id);
-    await inserir(b, nova!.id);
-    await inserir(c, recebePessoaId); // outra pessoa: não conta para `nova`
-
-    const quem = { pessoaId: nova!.id, podeLerTodas: false };
-    const antes = await listarOcorrencias(portas().ocorrencias, quem, { limite: 100 });
-    expect(antes.contagens.compartilhadasNaoAbertas).toBe(2);
-
-    await portas().ocorrencias.marcarCompartilhamentoAberto(a, nova!.id);
-    const depois = await listarOcorrencias(portas().ocorrencias, quem, { limite: 100 });
-    expect(depois.contagens.compartilhadasNaoAbertas).toBe(1);
-
-    // Idempotente: a segunda chamada não muda nada, e não erra.
-    await portas().ocorrencias.marcarCompartilhamentoAberto(a, nova!.id);
-    const terceira = await listarOcorrencias(portas().ocorrencias, quem, { limite: 100 });
-    expect(terceira.contagens.compartilhadasNaoAbertas).toBe(1);
+    const id = await registrada("Lixeira quebrada");
+    await portas().ocorrencias.registrarLeitura(id, efemera!.id);
+    await consultaCrua(`delete from vinculos where pessoa_id = $1 and organizacao_id = $2`, [
+      efemera!.id,
+      organizacaoId,
+    ]);
+    expect(await leituraDe(id, efemera!.id)).toStrictEqual([]);
   });
 
-  it("quem compartilhou não vê o contador de quem recebeu — item 88", async () => {
-    // `pessoaId` é o autor e o `por_pessoa_id` de todas as linhas deste `describe`. Filtrar pela ponta
-    // errada faria quem compartilhou ver o contador de quem recebeu.
-    const pagina = await listarOcorrencias(
-      portas().ocorrencias,
-      { pessoaId, podeLerTodas: false },
-      { limite: 100 },
+  it("a tabela nova tem RLS ligada, como todas — item 117", async () => {
+    const [linha] = await consultaCrua<{ relrowsecurity: boolean }>(
+      `select relrowsecurity from pg_class where relname = 'leituras_de_ocorrencia'`,
     );
-    expect(pagina.contagens.compartilhadasNaoAbertas).toBe(0);
+    expect(linha!.relrowsecurity).toBe(true);
   });
 
-  it("marcar sem linha do par não faz nada e não erra — item 88", async () => {
-    // Ocorrência que existe, pessoa que não recebeu: a ausência da linha é a própria autorização.
+  it("desfazer e refazer devolve a não vista, mesmo com leitura antiga — 88.2 sobre a tabela nova", async () => {
+    const id = await registrada("Grelha do ralo solta");
+    await inserir(id, recebePessoaId);
+    await portas().ocorrencias.registrarLeitura(id, recebePessoaId);
+    await portas().ocorrencias.desfazerCompartilhamento(id, recebePessoaId);
+    await inserir(id, recebePessoaId);
+    const lida = await portas().ocorrencias.porId(id);
+    const recebida = lida!.compartilhamentos.find((c) => c.com.pessoaId === recebePessoaId);
+    expect(recebida!.abertoEm).toBeNull();
+  });
+
+  it("ler sem linha do par não cria compartilhamento e não erra — itens 88 e 117", async () => {
+    // Ocorrência que existe, pessoa da organização que não recebeu: desde o item 117 a leitura grava para
+    // quem abre, recebida ou não, e o par continua sem linha.
     const id = await registrada("Portaria sem interfone");
     await expect(
-      portas().ocorrencias.marcarCompartilhamentoAberto(id, deForaPessoaId),
+      portas().ocorrencias.registrarLeitura(id, recebePessoaId),
     ).resolves.toBeUndefined();
     const linhas = await consultaCrua(`select 1 from compartilhamentos where ocorrencia_id = $1`, [id]);
     expect(linhas).toHaveLength(0);
@@ -4662,7 +4674,7 @@ describe("o compartilhamento no banco — item 87", () => {
     );
     expect(naAba.itens.map((i) => [i.id, i.naoAberta])).toStrictEqual([[compartilhada, true]]);
 
-    await portas().ocorrencias.marcarCompartilhamentoAberto(compartilhada, outra!.id);
+    await portas().ocorrencias.registrarLeitura(compartilhada, outra!.id);
     const depois = await listarOcorrencias(
       portas().ocorrencias,
       { pessoaId: outra!.id, podeLerTodas: false },
@@ -4682,7 +4694,7 @@ describe("o compartilhamento no banco — item 87", () => {
   it("compartilhar de novo, sem desfazer, não zera a abertura — item 88", async () => {
     const id = await registrada("Tampa do hidrômetro solta");
     await inserir(id, recebePessoaId);
-    await portas().ocorrencias.marcarCompartilhamentoAberto(id, recebePessoaId);
+    await portas().ocorrencias.registrarLeitura(id, recebePessoaId);
 
     // `compartilharOcorrencia` devolve a linha que existe (`on conflict do nothing`, 87): nada zera.
     await compartilharOcorrencia(
@@ -4691,11 +4703,10 @@ describe("o compartilhamento no banco — item 87", () => {
       { ocorrenciaId: id, pessoaId: recebePessoaId },
     );
 
-    const [linha] = await consultaCrua<{ aberto_em: Date | null }>(
-      `select aberto_em from compartilhamentos where ocorrencia_id = $1 and com_pessoa_id = $2`,
-      [id, recebePessoaId],
-    );
-    expect(linha!.aberto_em).toBeInstanceOf(Date);
+    // Desde o item 117 a abertura é derivada da leitura; `compartilhado_em` não andou, e ela continua.
+    const lida = await portas().ocorrencias.porId(id);
+    const recebida = lida!.compartilhamentos.find((c) => c.com.pessoaId === recebePessoaId);
+    expect(recebida!.abertoEm).not.toBeNull();
   });
 
   it("revogar e readmitir não mexe na abertura — item 88", async () => {
@@ -4709,7 +4720,7 @@ describe("o compartilhamento no banco — item 87", () => {
     );
     const id = await registrada("Sensor do portão desalinhado");
     await inserir(id, ida!.id);
-    await portas().ocorrencias.marcarCompartilhamentoAberto(id, ida!.id);
+    await portas().ocorrencias.registrarLeitura(id, ida!.id);
 
     // Revogar é `update` e não apaga linha nenhuma (item 84), então a abertura atravessa.
     await consultaCrua(
@@ -4721,12 +4732,9 @@ describe("o compartilhamento no banco — item 87", () => {
       [ida!.id, organizacaoId],
     );
 
-    const pagina = await listarOcorrencias(
-      portas().ocorrencias,
-      { pessoaId: ida!.id, podeLerTodas: false },
-      { limite: 100 },
-    );
-    expect(pagina.contagens.compartilhadasNaoAbertas).toBe(0);
+    // Desde o item 117 o número saiu da lista; o que atravessa é a leitura, e com ela a abertura.
+    const lida = await portas().ocorrencias.porId(id);
+    expect(lida!.compartilhamentos.find((c) => c.com.pessoaId === ida!.id)!.abertoEm).not.toBeNull();
   });
 });
 
@@ -5119,5 +5127,256 @@ describe("a ocorrência parada — item 101", () => {
     expect(comFiltro.totalFiltrado).toBeLessThan(semFiltro.totalFiltrado);
     expect(comFiltro.todas).toBe(semFiltro.todas);
     expect(comFiltro.emAberto).toBe(semFiltro.emAberto);
+  });
+});
+
+/**
+ * ============================================================================
+ *  O sino — item 117
+ * ============================================================================
+ *
+ * **A ordem dos instantes é o que os casos provam**, então todo evento é gravado com instante explícito, e
+ * a leitura usa o relógio do banco.
+ */
+describe("o sino — item 117", () => {
+  // Os papéis da spec. `pessoaId` (a Helena do arquivo) é Gestora; aqui nascem mais quatro.
+  let solicitante: string;
+  let vizinho: string;
+  let outraGestora: string;
+  let encarregado: string;
+  // **O passado, e não o futuro.** A leitura grava `now()` do banco; todo evento do caso tem de ser
+  // ANTERIOR a ela, ou "ler tira do número" falharia com a leitura mais velha que a novidade.
+  const AGORA = new Date();
+  const antes = (minutos: number) => new Date(AGORA.getTime() - minutos * 60_000).toISOString();
+  const DESDE = new Date(AGORA.getTime() - 30 * 24 * 60 * 60_000).toISOString();
+
+  async function pessoa(nome: string, papel: "gestor" | "solicitante" | "encarregado") {
+    const [linha] = await consultaCrua<{ id: string }>(`insert into pessoas (nome) values ($1) returning id`, [
+      `${nome} ${SUFIXO}`,
+    ]);
+    await consultaCrua(`insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, $3)`, [
+      linha!.id,
+      organizacaoId,
+      papel,
+    ]);
+    return linha!.id;
+  }
+
+  beforeAll(async () => {
+    solicitante = await pessoa("Solicitante do sino", "solicitante");
+    vizinho = await pessoa("Vizinho do 202", "solicitante");
+    outraGestora = await pessoa("Segunda Gestora", "gestor");
+    encarregado = await pessoa("Encarregado do sino", "encarregado");
+  });
+
+  /** Registra com o instante da criação explícito, pela porta, como o arquivo já faz. */
+  async function registradaPor(autor: string, titulo: string, em: string): Promise<string> {
+    const lida = await registrarOcorrencia(
+      portas(),
+      { pessoaId: autor, organizacaoId, agora: em },
+      { titulo: `${titulo} ${SUFIXO}`, descricao: "Do sino.", categoriaId, areaId },
+    );
+    return lida.id;
+  }
+
+  /** Uma transição crua: o sino lê a trilha, e a máquina de estados não é o que se prova aqui. */
+  async function transicao(id: string, autor: string, de: string, para: string, em: string) {
+    const [seq] = await consultaCrua<{ proxima: number }>(
+      `select max(sequencia) + 1 as proxima from registros_transicao where ocorrencia_id = $1`,
+      [id],
+    );
+    await consultaCrua(
+      `insert into registros_transicao
+         (organizacao_id, ocorrencia_id, sequencia, status_anterior, status_novo, autor_pessoa_id, ocorreu_em)
+       values ($1, $2, $3, $4, $5, $6, $7::timestamptz)`,
+      [organizacaoId, id, seq!.proxima, de, para, autor, em],
+    );
+  }
+
+  const comentario = (id: string, autor: string, em: string) =>
+    portas().ocorrencias.comentar(id, { autorPessoaId: autor, texto: "Do sino.", em });
+
+  const atribuir = (id: string, responsavel: string, por: string, em: string) =>
+    consultaCrua(
+      `insert into atribuicoes (organizacao_id, ocorrencia_id, responsavel_pessoa_id, atribuido_por_pessoa_id, atribuido_em)
+       values ($1, $2, $3, $4, $5::timestamptz)`,
+      [organizacaoId, id, responsavel, por, em],
+    );
+
+  const compartilhar = (id: string, com: string, por: string, em: string) =>
+    consultaCrua(
+      `insert into compartilhamentos (organizacao_id, ocorrencia_id, com_pessoa_id, por_pessoa_id, compartilhado_em)
+       values ($1, $2, $3, $4, $5::timestamptz)`,
+      [organizacaoId, id, com, por, em],
+    );
+
+  // **Limite largo, e não os 50 da tela:** a Gestora tem *Nova ocorrência* de toda ocorrência do arquivo, e
+  // as dos outros `describe` são mais novas que as daqui. O limite tem caso próprio, no fim.
+  const sinoDe = (quem: string, { gestor = false, lerTodas = gestor }: { gestor?: boolean; lerTodas?: boolean } = {}) =>
+    portas().ocorrencias.sino({ pessoaId: quem, podeLerTodas: lerTodas, ehGestor: gestor, desde: DESDE, limite: 5000 });
+
+  const linhaDe = (sino: SinoLido, id: string) => sino.novidades.find((n) => n.ocorrenciaId === id);
+
+  // **Toda ocorrência deste `describe` é registrada pela Solicitante**, e a Helena do arquivo é Gestora:
+  // pelo laço da criação, ela tem linha *Nova ocorrência* em toda ocorrência daqui com menos de 30 dias.
+
+  it("o índice da trilha por ocorrência existe — critério 117.8", async () => {
+    const [indice] = await consultaCrua<{ indexdef: string }>(
+      `select indexdef from pg_indexes where indexname = 'registros_transicao_ocorrencia_ocorreu_ix'`,
+    );
+    expect(indice!.indexdef).toMatch(/\(ocorrencia_id, ocorreu_em DESC\)/u);
+  });
+
+  it("ação própria não acende; a de outra pessoa sim — critérios 117.1 e 117.2", async () => {
+    const id = await registradaPor(solicitante, "Vazamento na garagem", antes(50));
+    await atribuir(id, pessoaId, pessoaId, antes(45));
+    await transicao(id, pessoaId, "aberta", "em_analise", antes(40));
+
+    // A Gestora mudou o status: a novidade DELA continua sendo a criação, de outra pessoa, e não a própria
+    // transição — que é mais recente e não entra na escolha.
+    expect(linhaDe(await sinoDe(pessoaId, { gestor: true }), id)!.tipo).toBe("criacao");
+    const daSolicitante = linhaDe(await sinoDe(solicitante), id);
+    expect(daSolicitante).toMatchObject({ tipo: "status", statusNovo: "em_analise", naoLida: true });
+    expect(daSolicitante!.por.pessoaId).toBe(pessoaId);
+  });
+
+  it("duas novidades não empilham: a linha é a mais recente — critério 117.1", async () => {
+    const id = await registradaPor(solicitante, "Lâmpada do hall", antes(60));
+    await transicao(id, pessoaId, "aberta", "em_analise", antes(30));
+    await comentario(id, pessoaId, antes(10));
+    const sino = await sinoDe(solicitante);
+    expect(sino.novidades.filter((n) => n.ocorrenciaId === id)).toHaveLength(1);
+    expect(linhaDe(sino, id)!.tipo).toBe("comentario");
+  });
+
+  it("o número conta ocorrências, e vem da mesma chamada — critério 117.4", async () => {
+    const antesDoCaso = (await sinoDe(vizinho)).naoLidas;
+    const a = await registradaPor(solicitante, "Infiltração no 302", antes(90));
+    const b = await registradaPor(solicitante, "Portão da garagem", antes(90));
+    await compartilhar(a, vizinho, solicitante, antes(80));
+    await compartilhar(b, vizinho, solicitante, antes(80));
+    await comentario(a, pessoaId, antes(70));
+    await comentario(a, pessoaId, antes(60));
+    await comentario(a, pessoaId, antes(50));
+    const sino = await sinoDe(vizinho);
+    expect(sino.naoLidas).toBe(antesDoCaso + 2);
+    expect(sino.novidades.filter((n) => n.naoLida)).toHaveLength(sino.naoLidas);
+  });
+
+  it("ocorrência nova avisa todos os Gestores, e só a criação — critério 117.3", async () => {
+    const id = await registradaPor(solicitante, "Portão travando", antes(40));
+    for (const gestora of [pessoaId, outraGestora]) {
+      expect(linhaDe(await sinoDe(gestora, { gestor: true }), id)).toMatchObject({ tipo: "criacao" });
+    }
+    await comentario(id, solicitante, antes(5));
+    // A outra Gestora não é autora nem responsável: o comentário não troca a linha dela.
+    expect(linhaDe(await sinoDe(outraGestora, { gestor: true }), id)!.tipo).toBe("criacao");
+  });
+
+  it("o Gestor sem laço não vê o que acontece numa ocorrência antiga — cenário 5", async () => {
+    const id = await registradaPor(solicitante, "Infiltração antiga", antes(31 * 24 * 60));
+    await comentario(id, vizinho, antes(5));
+    expect(linhaDe(await sinoDe(outraGestora, { gestor: true }), id)).toBeUndefined();
+  });
+
+  it("o responsável vê o comentário do Gestor — cenário 3", async () => {
+    const id = await registradaPor(solicitante, "Bomba do poço", antes(40));
+    await atribuir(id, outraGestora, pessoaId, antes(35));
+    await comentario(id, pessoaId, antes(30));
+    expect(linhaDe(await sinoDe(outraGestora, { gestor: true }), id)).toMatchObject({ tipo: "comentario" });
+  });
+
+  it("atribuída a quem lê traz o alvo — spec §3.13", async () => {
+    const id = await registradaPor(solicitante, "Interfone", antes(40));
+    await atribuir(id, outraGestora, pessoaId, antes(30));
+    const linha = linhaDe(await sinoDe(outraGestora, { gestor: true }), id);
+    expect(linha).toMatchObject({ tipo: "atribuicao" });
+    expect(linha!.alvo!.pessoaId).toBe(outraGestora);
+  });
+
+  it("responsável sem leitura não vê — spec §3.2, achado A-3", async () => {
+    const id = await registradaPor(solicitante, "Poda do jardim", antes(40));
+    await atribuir(id, encarregado, pessoaId, antes(30));
+    await comentario(id, pessoaId, antes(20));
+    expect(linhaDe(await sinoDe(encarregado), id)).toBeUndefined();
+  });
+
+  it("o compartilhamento chega a quem recebeu e ao autor, e não a quem já recebia — §3.2a", async () => {
+    const id = await registradaPor(solicitante, "Escada rachada", antes(60));
+    await compartilhar(id, vizinho, solicitante, antes(50));
+    const terceira = await pessoa("Vizinha do 101", "solicitante");
+    await compartilhar(id, terceira, pessoaId, antes(40)); // a Gestora compartilha
+    expect(linhaDe(await sinoDe(terceira), id)).toMatchObject({ tipo: "compartilhamento" });
+    expect(linhaDe(await sinoDe(solicitante), id)).toMatchObject({ tipo: "compartilhamento" });
+    // Quem já recebia continua com a novidade de antes, e não com a da terceira.
+    const doVizinho = linhaDe(await sinoDe(vizinho), id);
+    expect(doVizinho!.tipo).toBe("compartilhamento");
+    expect(doVizinho!.alvo!.pessoaId).toBe(vizinho);
+  });
+
+  it("desfeito o compartilhamento, a linha some — cenário 14", async () => {
+    const id = await registradaPor(solicitante, "Garagem alagada", antes(60));
+    await compartilhar(id, vizinho, solicitante, antes(50));
+    await transicao(id, pessoaId, "aberta", "em_analise", antes(40));
+    expect(linhaDe(await sinoDe(vizinho), id)).toBeDefined();
+    await portas().ocorrencias.desfazerCompartilhamento(id, vizinho);
+    expect(linhaDe(await sinoDe(vizinho), id)).toBeUndefined();
+  });
+
+  it("ler tira do número e deixa na lista; desfazer devolve — critério 117.5", async () => {
+    const id = await registradaPor(solicitante, "Lixeira quebrada", antes(60));
+    await transicao(id, pessoaId, "aberta", "em_analise", antes(40));
+    const antesDeLer = await sinoDe(solicitante);
+    await portas().ocorrencias.registrarLeitura(id, solicitante);
+    const lida = await sinoDe(solicitante);
+    expect(lida.naoLidas).toBe(antesDeLer.naoLidas - 1);
+    expect(linhaDe(lida, id)).toMatchObject({ naoLida: false, tipo: "status" });
+    await portas().ocorrencias.desfazerLeitura(id, solicitante);
+    expect((await sinoDe(solicitante)).naoLidas).toBe(antesDeLer.naoLidas);
+  });
+
+  it("a janela é de 30 dias pelo instante da novidade — critério 117.6 e achado A-1", async () => {
+    const velha = await registradaPor(solicitante, "Comentário de 31 dias", antes(32 * 24 * 60));
+    await comentario(velha, pessoaId, antes(31 * 24 * 60));
+    expect(linhaDe(await sinoDe(solicitante), velha)).toBeUndefined();
+
+    // Parada há 40 dias, compartilhada agora: `atualizada_em` não andou, e mesmo assim aparece.
+    const parada = await registradaPor(solicitante, "Parada há 40 dias", antes(40 * 24 * 60));
+    await compartilhar(parada, vizinho, solicitante, antes(5));
+    expect(linhaDe(await sinoDe(vizinho), parada)).toMatchObject({ tipo: "compartilhamento" });
+  });
+
+  it("encerrada fica até ser lida — critério 117.6, cenário 12", async () => {
+    const id = await registradaPor(solicitante, "Resolvida há 8 dias", antes(9 * 24 * 60));
+    await transicao(id, pessoaId, "aberta", "resolvida", antes(8 * 24 * 60));
+    expect(linhaDe(await sinoDe(solicitante), id)).toMatchObject({ statusNovo: "resolvida", naoLida: true });
+  });
+
+  it("ligada sem novidade de outra pessoa não aparece — foco da revisão 2", async () => {
+    const id = await registradaPor(solicitante, "Ninguém tocou", antes(10));
+    expect(linhaDe(await sinoDe(solicitante), id)).toBeUndefined();
+  });
+
+  it("o autor revogado continua nomeado — foco da revisão 1", async () => {
+    const quemSai = await pessoa("Gestor que saiu", "gestor");
+    const id = await registradaPor(solicitante, "Comentado por quem saiu", antes(30));
+    await comentario(id, quemSai, antes(20));
+    await consultaCrua(`update vinculos set revogado_em = now() where pessoa_id = $1 and organizacao_id = $2`, [
+      quemSai,
+      organizacaoId,
+    ]);
+    expect(linhaDe(await sinoDe(solicitante), id)!.por.pessoaId).toBe(quemSai);
+  });
+
+  it("o total não para no limite — foco da revisão 5", async () => {
+    const sino = await portas().ocorrencias.sino({
+      pessoaId,
+      podeLerTodas: true,
+      ehGestor: true,
+      desde: DESDE,
+      limite: 1,
+    });
+    expect(sino.novidades).toHaveLength(1);
+    expect(sino.naoLidas).toBeGreaterThan(1);
   });
 });

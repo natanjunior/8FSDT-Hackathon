@@ -5,6 +5,7 @@ import { cobertura, cobre } from "./cobertura";
 import {
   AURORA,
   ciclo,
+  abrirOSino,
   ENCARREGADA_DO_AURORA,
   entrar,
   esperarSituacao,
@@ -1138,7 +1139,14 @@ test("o título longo corta na tela grande e quebra no celular, sem empurrar as 
   await contexto.close();
 });
 
-test("nenhuma tela da casca rola na horizontal em 390 px (critério 92.2)", async ({ browser }) => {
+/**
+ * **A 360 px a medida passou a incluir o sino** (critério 117.11). A pílula é `absolute`, então o número de
+ * não lidas não muda a largura da barra; quem cede é o seletor. Ao fim de cada largura, a medida repete
+ * com a lista do sino aberta, que no celular ocupa a tela inteira.
+ */
+test("nenhuma tela da casca rola na horizontal em 360 e 390 px, com o sino (critérios 92.2 e 117.11)", async ({
+  browser,
+}) => {
   const contexto = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const helena = await contexto.newPage();
 
@@ -1179,11 +1187,19 @@ test("nenhuma tela da casca rola na horizontal em 390 px (critério 92.2)", asyn
     "/configuracao/areas",
     "/meus-dados",
   ];
-  for (const rota of rotas) {
-    await helena.goto(rota);
+  for (const largura of [360, 390]) {
+    await helena.setViewportSize({ width: largura, height: 844 });
+    for (const rota of rotas) {
+      await helena.goto(rota);
+      await assentar(helena);
+      // Suave: uma tela com transbordo não esconde as seguintes.
+      expect.soft(await transbordo(helena), `transbordo em ${rota} a ${largura} px`).toStrictEqual(SEM_TRANSBORDO);
+    }
+    await helena.goto("/ocorrencias");
     await assentar(helena);
-    // Suave: uma tela com transbordo não esconde as seguintes.
-    expect.soft(await transbordo(helena), `transbordo em ${rota}`).toStrictEqual(SEM_TRANSBORDO);
+    await abrirOSino(helena);
+    expect.soft(await transbordo(helena), `transbordo com o sino aberto a ${largura} px`).toStrictEqual(SEM_TRANSBORDO);
+    await helena.keyboard.press("Escape");
   }
 
   await contexto.close();

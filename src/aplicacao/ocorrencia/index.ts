@@ -28,7 +28,6 @@ export {
   buscarCandidatosAoCompartilhamento,
   compartilharOcorrencia,
   desfazerCompartilhamento,
-  registrarAberturaDoCompartilhamento,
   type CandidatoAoCompartilhamento,
   type MotivoDeJaVer,
 } from "./compartilhamento";
@@ -53,11 +52,13 @@ export {
   type FiltroDeListagem,
   type FiltroDeOcorrencias,
   type MotivoEncerramentoDeAtribuicao,
+  type NovidadeLida,
   type OcorrenciaCarregada,
   type OcorrenciaLida,
   type OcorrenciaResumoLida,
   type OrdenacaoDeOcorrencias,
   type PaginaDeMensagens,
+  type PerguntaDoSino,
   type PessoaComPapel,
   type PessoaReferencia,
   type PortasDoRegistro,
@@ -69,9 +70,19 @@ export {
   type ResultadoDaTransicao,
   type ResultadoDoCompartilhamento,
   type ResultadoDoRegistro,
+  type SinoLido,
+  type TipoDeNovidade,
   type TransicaoLida,
 } from "./portas";
 export { reivindicarAnexo, type ReferenciaDeAnexo } from "./reivindicar-anexo";
+export {
+  JANELA_DO_SINO_EM_DIAS,
+  LIMITE_DO_SINO,
+  marcarComoNaoLida,
+  registrarLeitura,
+  verSino,
+  type QuemOlhaOSino,
+} from "./sino";
 export { registrarOcorrencia, type EntradaDeRegistro } from "./registrar-ocorrencia";
 export { registrarSolucaoAplicada } from "./registrar-solucao-aplicada";
 export { resolverOcorrencia } from "./resolver-ocorrencia";

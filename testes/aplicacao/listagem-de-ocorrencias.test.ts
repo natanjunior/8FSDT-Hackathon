@@ -30,8 +30,6 @@ let pedidosDeListagem: FiltroDeListagem[];
 let pedidosDeContagem: FiltroDeContagem[];
 /** O tamanho do conjunto filtrado que o duplo de `contar` declara. */
 let totalFiltrado: number;
-/** Quantas não abertas o duplo declara **quando a contagem é pedida** (item 88). */
-let compartilhadasNaoAbertas: number;
 /** O que o repositório devolve, na ordem — o teste corta pelo deslocamento e pelo limite, como o SQL. */
 let linhas: OcorrenciaResumoLida[];
 
@@ -72,11 +70,6 @@ const repositorio = () =>
         emAberto: 7,
         semResponsavel: 3,
         novas: 5,
-        // **O duplo honra o contrato do campo** (item 88): sem `naoAbertasDePessoaId` o SQL não calcula a
-        // subconsulta e devolve `0`. Um duplo que devolvesse o número sempre faria o caso de quem tem
-        // `ler_todas` passar por acaso.
-        compartilhadasNaoAbertas:
-          filtro.naoAbertasDePessoaId === undefined ? 0 : compartilhadasNaoAbertas,
       };
     },
   }) as unknown as RepositorioEscopadoDeOcorrencias;
@@ -85,7 +78,6 @@ beforeEach(() => {
   pedidosDeListagem = [];
   pedidosDeContagem = [];
   totalFiltrado = 3;
-  compartilhadasNaoAbertas = 0;
   linhas = [resumo(1), resumo(2), resumo(3)];
 });
 
@@ -309,8 +301,6 @@ describe("as contagens chegam ao envelope, e `novas` sai da porta de contagem", 
       minhas: 2,
       emAberto: 7,
       semResponsavel: 3,
-      // Quem tem `ler_todas` não recebe compartilhamento: o número não é calculado e vem `0` (item 88).
-      compartilhadasNaoAbertas: 0,
     });
     expect(pagina.novasDesdeOCorte).toBe(5);
   });
@@ -462,47 +452,22 @@ describe("87 · a aba Compartilhadas comigo", () => {
 
 /**
  * ============================================================================
- *  88 · o número das não abertas
+ *  117 · o número das não vistas saiu da lista
  * ============================================================================
  *
- * **O que só esta camada prova:** que o número é pedido de quem tem a aba e **não** de quem lê todas, e
- * que ele atravessa a Aplicação sem ser recalculado. A subconsulta que o produz tem teste contra Postgres
- * em `testes/integracao/ocorrencia.test.ts`.
+ * **O número do item 88 passou a ser o do sino.** Esta camada prova que a lista não o pede nem o devolve.
  */
-describe("88 · o número das não abertas", () => {
-  it("sem ler_todas, a contagem é pedida para quem pergunta — em Minhas também", async () => {
-    await listarOcorrencias(repositorio(), { pessoaId: ID_PESSOA, podeLerTodas: false });
-
-    expect(pedidosDeContagem[0]?.naoAbertasDePessoaId).toBe(ID_PESSOA);
-  });
-
-  it("com ler_todas, a contagem não é pedida e o número vem zero", async () => {
-    compartilhadasNaoAbertas = 7;
-
-    const pagina = await listarOcorrencias(repositorio(), { pessoaId: ID_PESSOA, podeLerTodas: true });
-
-    expect(pedidosDeContagem[0]?.naoAbertasDePessoaId).toBeUndefined();
-    expect(pagina.contagens.compartilhadasNaoAbertas).toBe(0);
-  });
-
-  it("o número atravessa sem ser recalculado", async () => {
-    compartilhadasNaoAbertas = 3;
-
-    const pagina = await listarOcorrencias(repositorio(), { pessoaId: ID_PESSOA, podeLerTodas: false });
-
-    expect(pagina.contagens.compartilhadasNaoAbertas).toBe(3);
-  });
-
-  it("na aba, o número continua sendo pedido — ele não depende do recorte ativo", async () => {
-    compartilhadasNaoAbertas = 2;
-
+describe("117 · o número das não vistas saiu da lista", () => {
+  it("as contagens do painel não têm mais o número das não vistas — item 117", async () => {
     const pagina = await listarOcorrencias(
       repositorio(),
       { pessoaId: ID_PESSOA, podeLerTodas: false },
       { filtro: { compartilhadasComigo: true } },
     );
 
-    expect(pedidosDeContagem[0]?.naoAbertasDePessoaId).toBe(ID_PESSOA);
-    expect(pagina.contagens.compartilhadasNaoAbertas).toBe(2);
+    expect(Object.keys(pagina.contagens).sort()).toStrictEqual(["emAberto", "minhas", "semResponsavel", "todas"]);
+    for (const pedido of pedidosDeContagem) {
+      expect(Object.keys(pedido)).not.toContain("naoAbertasDePessoaId");
+    }
   });
 });
