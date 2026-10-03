@@ -699,6 +699,10 @@ describe("o sino — item 117", () => {
     // criava a rolagem lateral que o critério 8 proíbe.
     expect(fonte).not.toContain("w-screen");
     expect(fonte).not.toContain("h-dvh");
+    // **Nas duas formas o foco de abertura vai para o conteúdo**, e não para o primeiro tabulável, que
+    // é o botão de ícone da primeira linha: a dica abre no foco e engoliria o primeiro `Esc`, deixando a
+    // lista aberta. Duas ocorrências, uma por forma.
+    expect(fonte.match(/onOpenAutoFocus=\{focarOConteudo\}/gu)).toHaveLength(2);
   });
 
   it("a barra põe o sino entre o seletor e o menu de pessoa", () => {

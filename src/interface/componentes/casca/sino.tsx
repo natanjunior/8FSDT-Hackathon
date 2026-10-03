@@ -47,6 +47,18 @@ export const CLASSE_DA_PILULA =
 export const CLASSE_DA_GAVETA = cn(CONTEUDO_DO_SHEET, "max-h-[85dvh]");
 
 /**
+ * **O foco de abertura fica no próprio conteúdo**, e não no primeiro tabulável da lista, que é o botão de
+ * ícone da primeira linha. A dica do Radix **abre no foco** e o provedor da casca tem `delayDuration` zero
+ * (`ui/tooltip.tsx:8`), então com o foco no botão o primeiro `Esc` fechava a dica e a lista ficava aberta.
+ * Com o foco no conteúdo, `Esc` fecha a lista de primeira e devolve o foco ao sino (critério 118.5), e
+ * `Tab` entra na lista normalmente, porque o foco já está dentro do escopo.
+ */
+function focarOConteudo(evento: Event) {
+  evento.preventDefault();
+  (evento.currentTarget as HTMLElement | null)?.focus();
+}
+
+/**
  * ============================================================================
  *  O sino da barra superior — itens 117 e 118
  * ============================================================================
@@ -101,7 +113,7 @@ export function Sino({ sino, acoes }: { sino: SinoNaTela | null; acoes: AcoesDoS
     return (
       <Dialog open={aberto} onOpenChange={setAberto}>
         <DialogTrigger asChild>{botao}</DialogTrigger>
-        <SheetContent side="bottom" className={CLASSE_DA_GAVETA}>
+        <SheetContent side="bottom" className={CLASSE_DA_GAVETA} onOpenAutoFocus={focarOConteudo}>
           {/* `pr-14` para o título não passar por baixo do X de 44 px que a folha do catálogo desenha. */}
           <DialogTitle className="shrink-0 px-4 pt-4 pr-14 pb-2">Avisos</DialogTitle>
           {/* Só o corpo rola: o título e o X ficam fora da rolagem, como nos nove modais da família. */}
@@ -114,7 +126,7 @@ export function Sino({ sino, acoes }: { sino: SinoNaTela | null; acoes: AcoesDoS
   return (
     <Popover open={aberto} onOpenChange={setAberto}>
       <PopoverTrigger asChild>{botao}</PopoverTrigger>
-      <PopoverContent align="end" className="w-96 p-0">
+      <PopoverContent align="end" className="w-96 p-0" onOpenAutoFocus={focarOConteudo}>
         <div className="max-h-[min(70vh,560px)] overflow-y-auto">{lista}</div>
       </PopoverContent>
     </Popover>
