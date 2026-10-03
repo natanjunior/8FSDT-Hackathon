@@ -77,9 +77,8 @@ Na lista, um controle de escolha única diz qual conjunto está na tela. Quem l�
 ocorrências* e *Minhas ocorrências*, com a contagem de cada uma ao lado do rótulo. Quem só lê as próprias
 escolhe entre *Minhas ocorrências* e *Compartilhadas comigo*.
 
-A opção *Compartilhadas comigo* mostra quantas dessas ocorrências a pessoa ainda não abriu, e o número
-desaparece quando não há nenhuma. Na aba, cada linha que ela ainda não abriu é marcada com a palavra, ao
-lado do status. Nada é empurrado: o número só existe na lista que a pessoa abriu.
+Na aba *Compartilhadas comigo*, cada linha que a pessoa ainda não abriu desde que foi compartilhada leva a
+palavra *Não vista*, ao lado do status. Quantas são é o sino que diz.
 
 O convite chega por um link curto com o código, e a tela dele funciona antes de a pessoa ter conta. Criar a
 conta ou entrar a devolve ao convite.
@@ -103,6 +102,14 @@ mensagem própria.
 Trocar de organização é um menu no cabeçalho, com o nome da organização ativa sempre visível ao lado.
 Numa aplicação em que a organização vem da sessão e não do endereço, a URL não diz onde você está, e é o
 cabeçalho que diz.
+
+No mesmo cabeçalho fica o sino. O número conta as ocorrências com novidade feita por outra pessoa que quem
+olha ainda não leu, entre as que são dela: as que registrou, as de que é responsável e as compartilhadas
+com ela. Para o Gestor, conta também as recém-registradas. O sino é da organização ativa: quem participa de
+duas vê o de uma só, e o número muda ao trocar. Ele abre por cima da tela em que a pessoa está, em tela
+cheia no celular, com uma linha por ocorrência e a novidade mais recente dela. Abrir a ocorrência, agir
+nela ou marcá-la como lida à mão a tira do número, e abrir o sino não zera nada. A tela de registro fica
+sem ele, como fica sem a navegação lateral, para não convidar a sair do registro.
 
 O produto abre no tema escuro. Quem prefere o claro troca no menu da pessoa, e quem ainda não entrou
 troca no botão *Aparência*, no canto das telas de entrada. No mesmo grupo fica o alto contraste, que vence

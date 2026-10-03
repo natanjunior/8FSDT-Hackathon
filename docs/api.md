@@ -145,9 +145,8 @@ O rótulo do status é calculado no servidor e depende de quem lê. Quem abriu r
 organização, quando ela o definiu, e o padrão quando não; quem gere recebe sempre o nome com que o
 sistema opera.
 
-A listagem devolve também quantas ocorrências compartilhadas com quem pergunta ainda não foram
-abertas por ela, e, dentro do recorte das compartilhadas, se cada uma já foi. O número ignora os
-filtros, porque responde quantas esperam.
+Dentro do recorte das compartilhadas, a listagem diz também se quem pergunta já abriu cada uma desde que
+ela foi compartilhada. Quantas faltam abrir a listagem não devolve: o número é o do sino, na tela.
 
 ## Os recortes do painel
 
@@ -269,8 +268,8 @@ hora estão na referência.
 - **Um pedido de entrada recusado pode ser refeito**: a unicidade vale enquanto ele está pendente.
 - **A etiqueta de participante só aparece para quem gere vínculos.** Ela desce com a lista de participantes
   e com a escolha do responsável, e nenhuma resposta de ocorrência a carrega.
-- **Não há endereço para registrar que alguém abriu uma ocorrência.** A primeira abertura é estado de
-  quem lê, invisível para quem compartilhou, e a própria tela a grava. Nenhuma leitura da API tem efeito
+- **Não há endereço para o sino, nem para marcar uma ocorrência como lida ou não lida.** A leitura é
+  estado de quem lê, invisível para os outros, e a própria tela a grava. Nenhuma leitura da API tem efeito
   colateral.
 
 ## O contrato não pode deixar de ser verdade

@@ -4816,9 +4816,15 @@ describe("88.3 · a frase dos avisos e o contador dizem a mesma coisa", () => {
 
   it("e o que continua fora continua nomeado", () => {
     // Apagar a linha seria tirar a explicação do corte, e o `README.md` depende dela.
-    for (const ausencia of ["sem sino", "sem e-mail", "sem mensagem", "sem alarme de ocorrência parada"]) {
+    for (const ausencia of ["sem e-mail", "sem mensagem", "sem alarme de ocorrência parada"]) {
       expect(produto, ausencia).toContain(ausencia);
     }
+  });
+
+  it("a cláusula do sino saiu, e só ela — critério 117.12", () => {
+    // O sino existe desde o item 117; o resto da frase continua verdadeiro e fica.
+    expect(produto).not.toContain("sem sino");
+    expect(produto).toContain("nenhum aviso que chegue sozinho: sem e-mail, sem mensagem, sem alarme de ocorrência parada");
   });
 });
 
