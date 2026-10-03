@@ -1,5 +1,5 @@
 import { resolverOcorrencia } from "@/aplicacao/ocorrencia";
-import { comContexto } from "@/interface/http";
+import { comContexto, registrarLeituraDeQuemAgiu } from "@/interface/http";
 import { projetarOcorrenciaDetalhe } from "@/interface/projecoes";
 import { resolucaoSchema } from "@/interface/schemas";
 
@@ -38,7 +38,7 @@ export const POST = comContexto(
     corpo: resolucaoSchema,
     corpoOpcional: true,
   },
-  async ({ ctx, repos, corpo, parametros, lente }) => {
+  async ({ ctx, repos, corpo, parametros, lente, requisicao }) => {
     const lida = await resolverOcorrencia(
       repos.ocorrencias,
       // **`permissoes`, e não `podeLerTodas`.** Uma fonte só: o comando deriva o que precisar dela, e é
@@ -49,6 +49,14 @@ export const POST = comContexto(
         observacao: corpo.observacao ?? null,
         solucaoAplicada: corpo.solucaoAplicada ?? null,
       },
+    );
+
+    // Agir marca como lida (item 117): depois do comando, e sem derrubar a resposta.
+    await registrarLeituraDeQuemAgiu(
+      repos.ocorrencias,
+      parametros["ocorrenciaId"] ?? "",
+      ctx.pessoaId,
+      new URL(requisicao.url).pathname,
     );
 
     return projetarOcorrenciaDetalhe(

@@ -1,5 +1,5 @@
 import { cancelarOcorrencia } from "@/aplicacao/ocorrencia";
-import { comContexto, recusarEvolucaoPrevista } from "@/interface/http";
+import { comContexto, recusarEvolucaoPrevista, registrarLeituraDeQuemAgiu } from "@/interface/http";
 import { projetarOcorrenciaDetalhe } from "@/interface/projecoes";
 import { cancelamentoSchema } from "@/interface/schemas";
 
@@ -53,7 +53,7 @@ export const POST = comContexto(
     corpo: cancelamentoSchema,
     recusar: recusarEvolucaoPrevista,
   },
-  async ({ ctx, repos, corpo, parametros, lente }) => {
+  async ({ ctx, repos, corpo, parametros, lente, requisicao }) => {
     const lida = await cancelarOcorrencia(
       repos.ocorrencias,
       // **`permissoes`, e não `podeLerTodas`.** Uma fonte só: o comando deriva o que precisar dela — e
@@ -64,6 +64,14 @@ export const POST = comContexto(
         motivo: corpo.motivo,
         observacao: corpo.observacao,
       },
+    );
+
+    // Agir marca como lida (item 117): depois do comando, e sem derrubar a resposta.
+    await registrarLeituraDeQuemAgiu(
+      repos.ocorrencias,
+      parametros["ocorrenciaId"] ?? "",
+      ctx.pessoaId,
+      new URL(requisicao.url).pathname,
     );
 
     return projetarOcorrenciaDetalhe(

@@ -1,4 +1,4 @@
-import { existsSync, globSync, readFileSync } from "node:fs";
+import { existsSync, globSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -67,6 +67,7 @@ import {
   recusarEvolucaoPrevista,
   recusarSemDestino,
   registrarFalha,
+  registrarLeituraDeQuemAgiu,
   type ErroDeCampo,
 } from "@/interface/http";
 import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
@@ -4701,6 +4702,70 @@ describe("88.4 · a abertura é ação de servidor, e ela invalida a lista", () 
     // **`[\\/]` porque o separador difere entre Windows e a esteira**, e o que se prende é o caminho, não
     // o separador.
     expect(montam[0]).toMatch(/ocorrencias[\\/]\[ocorrenciaId\][\\/]page\.tsx$/u);
+  });
+});
+
+/**
+ * ============================================================================
+ *  117 · agir marca como lida
+ * ============================================================================
+ *
+ * **Por leitura de fonte**, como os casos do 88 acima: as rotas não têm teste de integração, e o
+ * comportamento da leitura em si é provado uma vez contra Postgres. Aqui se prende que nenhuma rota que
+ * escreve fica de fora.
+ */
+describe("agir marca como lida — item 117, spec §3.5", () => {
+  const PASTA = "app/api/ocorrencias/[ocorrenciaId]";
+  const ESCRITORES = [
+    "alterar-prioridade",
+    "analisar",
+    "atribuir-responsavel",
+    "avaliar",
+    "cancelar",
+    "iniciar-atendimento",
+    "pausar",
+    "registrar-solucao-aplicada",
+    "resolver",
+    "retomar",
+    "comentarios",
+    "compartilhamentos",
+  ];
+
+  it("toda rota POST da pasta é um escritor da lista, e a lista não tem sobra", () => {
+    const comPost = readdirSync(RAIZ + PASTA, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .map((d) => d.name)
+      .filter((nome) => existsSync(`${RAIZ}${PASTA}/${nome}/route.ts`))
+      .filter((nome) => /export const POST\b/u.test(lerFonte(`${PASTA}/${nome}/route.ts`)))
+      .sort();
+    expect(comPost).toStrictEqual([...ESCRITORES].sort());
+  });
+
+  it.each(ESCRITORES)("%s chama registrarLeituraDeQuemAgiu depois do caso de uso", (nome) => {
+    const fonte = lerFonte(`${PASTA}/${nome}/route.ts`);
+    const post = fonte.slice(fonte.indexOf("export const POST"));
+    const leitura = post.indexOf("registrarLeituraDeQuemAgiu(");
+    expect(leitura, nome).toBeGreaterThan(-1);
+    expect(leitura, nome).toBeGreaterThan(post.indexOf("await ")); // depois do caso de uso
+    expect(post.slice(0, leitura), nome).not.toMatch(/return\s/u); // e antes de responder
+  });
+
+  it("falha ao gravar a leitura é registrada e não derruba a resposta", async () => {
+    const falhas = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await expect(
+      registrarLeituraDeQuemAgiu(
+        {
+          registrarLeitura: async () => {
+            throw new Error("banco fora");
+          },
+        },
+        "oc-1",
+        "p-1",
+        "/ocorrencias/oc-1/analisar",
+      ),
+    ).resolves.toBeUndefined();
+    expect(falhas).toHaveBeenCalledWith(expect.stringContaining("banco fora"));
+    falhas.mockRestore();
   });
 });
 
