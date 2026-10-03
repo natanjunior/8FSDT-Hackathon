@@ -18,8 +18,9 @@ import { projetarContexto } from "@/interface/projecoes";
  * endereço, recebe o `SemAcesso` da casca, sem link nem QR. É a permissão de Participantes, porque quem
  * aprova o pedido é quem gere vínculos.
  *
- * **A ordem é a de quem abre para mandar:** o link com *Copiar*, depois o QR, que é a segunda forma de
- * mandar a mesma coisa, e por último o código, que já tem casa em T-15.
+ * **A ordem é a do que se faz com cada forma** (item 118): o link é o que se manda por mensagem; o código
+ * é o que se dita por telefone ou se digita; o QR é para o cartaz da portaria. Por isso o código vem antes
+ * do QR, e os dois dividem uma linha a partir de `lg` — abaixo disso o QR não cabe em meia coluna.
  */
 export const dynamic = "force-dynamic";
 
@@ -51,19 +52,21 @@ export default async function ConvidarPessoas() {
         </div>
       </Cartao>
 
-      <Cartao tituloId="qr">
-        <CabecaDoCartao id="qr" titulo="QR do convite" apoio="Para o cartaz da portaria ou do elevador." />
-        <div className="p-[15px] md:px-6 md:py-5">
-          <QrDoLink link={link} rotulo={`QR do link de convite para ${organizacao.nome}`} />
-        </div>
-      </Cartao>
+      <div className="grid items-start gap-5.5 lg:grid-cols-2">
+        <Cartao tituloId="codigo">
+          <CabecaDoCartao id="codigo" titulo="Código da organização" apoio="Quem preferir pode digitá-lo." />
+          <div className="p-[15px] md:px-6 md:py-5">
+            <CodigoComCopia codigo={organizacao.codigoPublico} />
+          </div>
+        </Cartao>
 
-      <Cartao tituloId="codigo">
-        <CabecaDoCartao id="codigo" titulo="Código da organização" apoio="Quem preferir pode digitá-lo." />
-        <div className="p-[15px] md:px-6 md:py-5">
-          <CodigoComCopia codigo={organizacao.codigoPublico} />
-        </div>
-      </Cartao>
+        <Cartao tituloId="qr">
+          <CabecaDoCartao id="qr" titulo="QR do convite" apoio="Para o cartaz da portaria ou do elevador." />
+          <div className="p-[15px] md:px-6 md:py-5">
+            <QrDoLink link={link} rotulo={`QR do link de convite para ${organizacao.nome}`} />
+          </div>
+        </Cartao>
+      </div>
     </div>
   );
 }
