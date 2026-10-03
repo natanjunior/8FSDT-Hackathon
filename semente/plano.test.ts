@@ -9,6 +9,7 @@ import {
   PERFIL_DE_TESTE,
   planoDaDemonstracao,
   reconhecimentoDo,
+  senhasDoAmbiente,
   UM_DIA,
   type OcorrenciaDoPlano,
   type PlanoDaDemonstracao,
@@ -541,5 +542,36 @@ describe("a tela de Participantes da demonstração não abre com duas colunas v
     expect(corrigidas).toHaveLength(2);
     // Corrigir é pôr a unidade do plano: só faz sentido em quem tem unidade.
     for (const vinculo of corrigidas) expect(vinculo.area).not.toBeNull();
+  });
+});
+
+describe("senhasDoAmbiente", () => {
+  it("dá a cada conta a senha dela quando as duas variáveis próprias existem", () => {
+    expect(
+      senhasDoAmbiente({
+        SENHA_DA_DEMONSTRACAO_HELENA: "senha-da-helena",
+        SENHA_DA_DEMONSTRACAO_MARCOS: "senha-do-marcos",
+      }),
+    ).toEqual({ ok: true, senhas: { helena: "senha-da-helena", marcos: "senha-do-marcos" } });
+  });
+
+  it("usa SENHA_DA_DEMONSTRACAO para a conta sem variável própria", () => {
+    expect(
+      senhasDoAmbiente({
+        SENHA_DA_DEMONSTRACAO: "senha-comum",
+        SENHA_DA_DEMONSTRACAO_MARCOS: "senha-do-marcos",
+      }),
+    ).toEqual({ ok: true, senhas: { helena: "senha-comum", marcos: "senha-do-marcos" } });
+    expect(senhasDoAmbiente({ SENHA_DA_DEMONSTRACAO: "senha-comum" })).toEqual({
+      ok: true,
+      senhas: { helena: "senha-comum", marcos: "senha-comum" },
+    });
+  });
+
+  it("nomeia as contas que ficaram sem senha, e trata valor em branco como ausente", () => {
+    expect(senhasDoAmbiente({})).toEqual({ ok: false, semSenha: ["helena", "marcos"] });
+    expect(
+      senhasDoAmbiente({ SENHA_DA_DEMONSTRACAO_HELENA: "senha-da-helena", SENHA_DA_DEMONSTRACAO: "  " }),
+    ).toEqual({ ok: false, semSenha: ["marcos"] });
   });
 });

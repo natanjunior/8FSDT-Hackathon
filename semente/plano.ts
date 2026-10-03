@@ -182,6 +182,33 @@ export const NOME_DA_ORGANIZACAO_B = "Edifício Aurora";
 export const EMAIL_DE_HELENA = "helena.rocha@example.com";
 export const EMAIL_DE_MARCOS = "marcos.vieira@example.com";
 
+/** A senha de cada uma das duas contas. */
+export type SenhasDasContas = { readonly helena: string; readonly marcos: string };
+
+/**
+ * **Uma senha por conta, com uma comum de reserva.** `SENHA_DA_DEMONSTRACAO_HELENA` e
+ * `SENHA_DA_DEMONSTRACAO_MARCOS` valem para a conta delas; a que faltar cai em `SENHA_DA_DEMONSTRACAO`.
+ * Com só a comum, as duas contas recebem a mesma, que é o uso local e o do mundo de teste. Valor em branco
+ * conta como ausente, e nenhuma delas tem padrão.
+ */
+export function senhasDoAmbiente(
+  ambiente: Readonly<Record<string, string | undefined>>,
+): { ok: true; senhas: SenhasDasContas } | { ok: false; semSenha: readonly ("helena" | "marcos")[] } {
+  const preenchida = (valor: string | undefined): string | undefined =>
+    valor === undefined || valor.trim() === "" ? undefined : valor;
+  const comum = preenchida(ambiente["SENHA_DA_DEMONSTRACAO"]);
+  const helena = preenchida(ambiente["SENHA_DA_DEMONSTRACAO_HELENA"]) ?? comum;
+  const marcos = preenchida(ambiente["SENHA_DA_DEMONSTRACAO_MARCOS"]) ?? comum;
+
+  if (helena === undefined || marcos === undefined) {
+    return {
+      ok: false,
+      semSenha: [...(helena === undefined ? ["helena" as const] : []), ...(marcos === undefined ? ["marcos" as const] : [])],
+    };
+  }
+  return { ok: true, senhas: { helena, marcos } };
+}
+
 /** O que identifica um mundo: os dois nomes de organização e as duas contas que as fundam. */
 export type Perfil = {
   /** Como as mensagens da linha de comando se referem a ele. */

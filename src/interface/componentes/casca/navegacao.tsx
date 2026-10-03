@@ -32,9 +32,11 @@ import {
  * **Os itens da barra lateral — item 44f.**
  *
  * **Três blocos, na ordem do dono em 14/09/2026:** `Ocorrências` sozinha, o grupo `Organização`, e
- * `Painel` por último. **A régua fica só onde há título** (item 106, critério 16): acima do grupo
- * `Organização`, que tem rótulo. Entre os outros blocos, que são de um item só, a separação é respiro;
- * régua sem título era uma divisão que não dizia o que dividia.
+ * `Painel` por último. **A régua separa assunto** (item 118, decisão do dono em 03/10/2026), e o título é
+ * do grupo que tem nome — não condição da régua. Dentro do marco há duas: acima do grupo titulado
+ * `Organização` e acima do `Painel`, que é o outro assunto. Sem a segunda, o `Painel` lia como mais um
+ * item de configuração da organização, e ele é sobre as ocorrências. É a volta ao desenho da prancheta,
+ * que nunca deixou de traçá-la, e ao critério 44f.4.
  *
  * **Um quarto bloco, num segundo marco: *Além desta organização*.** *Meus dados* entra nele no item 64:
  * a tela vale em todas as organizações (`meus-dados/page.tsx:51`), e sob o rótulo *"Nesta organização"* o
@@ -195,19 +197,24 @@ export function Navegacao({
         )}
 
         {podeVerDashboard && (
-          <SidebarGroup className="p-0 pt-6">
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <ItemDeNavegacao
-                  destino="/dashboard"
-                  rotulo="Painel"
-                  Icone={ChartColumn}
-                  caminho={caminho}
-                  aoTocar={aoTocar}
-                />
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+          <>
+            {/* A régua fica **dentro** da condição: `dashboard.ler` é permissão de Gestor, e fora dela a
+                régua apareceria para o Solicitante separando nada de nada. */}
+            <SidebarSeparator className="mx-2 my-3 data-[orientation=horizontal]:w-auto" />
+            <SidebarGroup className="p-0">
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <ItemDeNavegacao
+                    destino="/dashboard"
+                    rotulo="Painel"
+                    Icone={ChartColumn}
+                    caminho={caminho}
+                    aoTocar={aoTocar}
+                  />
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </>
         )}
       </nav>
 

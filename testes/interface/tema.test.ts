@@ -501,8 +501,12 @@ describe("app/globals.css — as cores dos seis estados, medidas (item 44q)", ()
       /** Toda tinta que veste texto no produto (item 89, spec §4.5). A `--ink-faint` não está: não é texto. */
       const TINTAS_DE_TEXTO = ["--ink", "--ink-soft", "--ok", "--info", "--accent-ink", "--destructive"];
 
-      it("a pílula do sino é a tinta sob a superfície, e passa 4,5:1 (item 117)", () => {
-        expect(contraste(cor("--ink"), cor("--surface"))).toBeGreaterThanOrEqual(4.5);
+      it("a pílula do sino veste a marca, e os dois pares passam o piso (item 118)", () => {
+        // O texto sobre o sólido da marca: 4,5:1, o mesmo par do botão principal e do selo Aberta cheio.
+        expect(contraste(cor("--marca-foreground"), cor("--accent"))).toBeGreaterThanOrEqual(4.5);
+        // E a pílula como objeto gráfico sobre a barra, que é `bg-superficie`: piso de 3:1. Medido em
+        // 4,07:1 no claro e 5,14:1 no escuro; no alto contraste o par já é exigido a 7:1 acima.
+        expect(contraste(cor("--accent"), cor("--surface"))).toBeGreaterThanOrEqual(3);
       });
 
       it("imprime a medição, que é o que o relatório do item copia", () => {
