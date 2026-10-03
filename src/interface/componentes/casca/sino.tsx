@@ -24,12 +24,14 @@ export type AcoesDoSino = {
 };
 
 /**
- * **A pílula veste o neutro invertido**, e não o laranja: o laranja tem quatro usos, e este não é um deles
- * (item 105). O par tinta × superfície é medido em `tema.test.ts`. **`absolute`**, e por isso o botão mede
+ * **A pílula veste a cor da marca** — decisão do dono em 03/10/2026. Ela é o quinto uso nomeado do laranja
+ * no `DESIGN.md`, *o contador de não lidas*: a *Um Primário Rule* vale para **ação**, e contagem não
+ * disputa com a ação principal da tela. O par marca × tinta escura é medido em `tema.test.ts`, e a pílula
+ * sobre a barra passa o piso de objeto gráfico nos três temas. **`absolute`**, e por isso o botão mede
  * 44 px com `3` ou com `99+`: o número de não lidas não muda a largura da barra (critério 117.11).
  */
 export const CLASSE_DA_PILULA =
-  "bg-tinta text-superficie pointer-events-none absolute -top-0.5 -right-0.5 min-w-5 justify-center border-transparent px-1 font-mono tabular-nums";
+  "bg-marca text-marca-foreground pointer-events-none absolute -top-0.5 -right-0.5 min-w-5 justify-center border-transparent px-1 font-mono tabular-nums";
 
 /**
  * ============================================================================
