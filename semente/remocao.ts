@@ -67,6 +67,8 @@ export const EMAILS_DA_DEMONSTRACAO: readonly string[] = RECONHECIMENTO_DA_DEMON
  * ver `apagarADemonstracao`, que desfaz o laço com um `update` antes do primeiro `delete`.
  */
 const TABELAS_ESCOPADAS: readonly string[] = [
+  // Item 117: aponta para `ocorrencias` e para `vinculos`.
+  "leituras_de_ocorrencia",
   // **Item 115:** a junção aponta para `vinculos` com uma ponta `restrict` (quem atribuiu), e sai antes
   // de tudo; a lista de etiquetas aponta só para `organizacoes`.
   "vinculos_etiquetas",

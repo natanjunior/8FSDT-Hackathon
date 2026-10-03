@@ -322,6 +322,9 @@ function montarAnexo(linha: LinhaDeAnexo): AnexoLido {
  * filtra `revogado_em is null`, e o de quem compartilhou não**: a linha de quem saiu fica sem efeito e
  * volta na readmissão; quem compartilhou continua nomeado, como quem transicionou continua nomeado na
  * trilha. Com `and c.com_pessoa_id = $3` vira a leitura de um par — é o `compartilhamentoCom`.
+ *
+ * **Desde o item 117, `aberto_em` é derivado da leitura**: a leitura de quem recebeu, quando é posterior ao
+ * compartilhamento. O sentido é o do 88, e a coluna saiu da tabela.
  */
 const SELECT_DOS_COMPARTILHAMENTOS = `
   select c.com_pessoa_id,
@@ -331,7 +334,7 @@ const SELECT_DOS_COMPARTILHAMENTOS = `
          pp.nome  as por_nome,
          vp.papel as por_papel,
          c.compartilhado_em,
-         c.aberto_em
+         case when le.lido_ate >= c.compartilhado_em then le.lido_ate end as aberto_em
     from compartilhamentos c
     join vinculos vc on vc.pessoa_id = c.com_pessoa_id
                     and vc.organizacao_id = c.organizacao_id
@@ -339,6 +342,9 @@ const SELECT_DOS_COMPARTILHAMENTOS = `
     join pessoas  pc on pc.id = vc.pessoa_id
     join vinculos vp on vp.pessoa_id = c.por_pessoa_id and vp.organizacao_id = c.organizacao_id
     join pessoas  pp on pp.id = vp.pessoa_id
+    left join leituras_de_ocorrencia le on le.organizacao_id = c.organizacao_id
+                                       and le.ocorrencia_id  = c.ocorrencia_id
+                                       and le.pessoa_id      = c.com_pessoa_id
    where c.organizacao_id = $1 and c.ocorrencia_id = $2`;
 
 type LinhaDeCompartilhamento = {
@@ -1620,28 +1626,41 @@ export function repositorioEscopadoDeOcorrencias(
     },
 
     /**
-     * A primeira abertura — item 88.
+     * A leitura de uma pessoa — item 117. **Uma instrução, idempotente**: duas abas terminam numa linha.
      *
-     * **Uma instrução, e ela é o portão.** `aberto_em is null` faz a segunda chamada não escrever, e a
-     * ausência da linha faz a chamada de quem não recebeu não escrever: duas abas abrindo juntas terminam
-     * com a mesma linha, e ninguém precisa ler antes.
-     *
-     * **`now()` é o relógio do banco** (ADR-0016): dois relógios produzem duas verdades, e nenhum chamador
-     * precisa carimbar isto.
-     *
-     * **`$1` é a organização** (ADR-0003): uma ocorrência de outra organização não casa, e este arquivo não
-     * recebe o identificador para poder errar.
+     * **O `select` de `ocorrencias` é o portão**: com `$1` ele só acha a ocorrência desta organização, e
+     * sem linha não grava nem erra — quem chama não fica sabendo se ela existe (contrato §6.3).
+     * **`now()` é o relógio do banco** (ADR-0016).
      */
-    async marcarCompartilhamentoAberto(ocorrenciaId, comPessoaId) {
-      await consulta(
-        `update compartilhamentos
-            set aberto_em = now()
-          where organizacao_id = $1
-            and ocorrencia_id = $2::uuid
-            and com_pessoa_id = $3::uuid
-            and aberto_em is null`,
-        [ocorrenciaId, comPessoaId],
-      );
+    async registrarLeitura(ocorrenciaId, pessoaId) {
+      try {
+        await consulta(
+          `insert into leituras_de_ocorrencia (organizacao_id, ocorrencia_id, pessoa_id, lido_ate)
+           select o.organizacao_id, o.id, $3::uuid, now()
+             from ocorrencias o
+            where o.organizacao_id = $1 and o.id = $2::uuid
+           on conflict (ocorrencia_id, pessoa_id) do update set lido_ate = now()`,
+          [ocorrenciaId, pessoaId],
+        );
+      } catch (erro) {
+        // O identificador vem da tela e de quem digita; o mesmo critério de `lerPorId` (item 90).
+        if (ehUuidRecusado(erro)) return;
+        throw erro;
+      }
+    },
+
+    /** Marcar como não lida apaga a linha (critério 117.5). Sem linha, não faz nada. */
+    async desfazerLeitura(ocorrenciaId, pessoaId) {
+      try {
+        await consulta(
+          `delete from leituras_de_ocorrencia
+            where organizacao_id = $1 and ocorrencia_id = $2::uuid and pessoa_id = $3::uuid`,
+          [ocorrenciaId, pessoaId],
+        );
+      } catch (erro) {
+        if (ehUuidRecusado(erro)) return;
+        throw erro;
+      }
     },
 
     /**
@@ -1746,7 +1765,11 @@ export function repositorioEscopadoDeOcorrencias(
                               where cfv.ocorrencia_id = o.id
                                 and cfv.organizacao_id = o.organizacao_id
                                 and cfv.com_pessoa_id = ${dela}::uuid
-                                and cfv.aberto_em is null)`;
+                                and not exists (select 1 from leituras_de_ocorrencia lev
+                                                 where lev.organizacao_id = cfv.organizacao_id
+                                                   and lev.ocorrencia_id  = cfv.ocorrencia_id
+                                                   and lev.pessoa_id      = cfv.com_pessoa_id
+                                                   and lev.lido_ate >= cfv.compartilhado_em))`;
       }
 
       const ate = proximo();
@@ -1892,7 +1915,11 @@ export function repositorioEscopadoDeOcorrencias(
         naoAbertas = `(select count(*) from compartilhamentos cfn
                         where cfn.organizacao_id = $1
                           and cfn.com_pessoa_id = ${dela}::uuid
-                          and cfn.aberto_em is null)::int`;
+                          and not exists (select 1 from leituras_de_ocorrencia len
+                                           where len.organizacao_id = cfn.organizacao_id
+                                             and len.ocorrencia_id  = cfn.ocorrencia_id
+                                             and len.pessoa_id      = cfn.com_pessoa_id
+                                             and len.lido_ate >= cfn.compartilhado_em))::int`;
       }
 
       const eRecorte = recorte.length === 0 ? "" : ` and ${recorte.join(" and ")}`;

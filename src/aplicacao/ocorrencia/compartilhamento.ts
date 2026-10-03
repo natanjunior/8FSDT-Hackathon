@@ -146,20 +146,15 @@ export async function buscarCandidatosAoCompartilhamento(
 }
 
 /**
- * A primeira abertura de uma ocorrência compartilhada — item 88.
+ * A leitura de quem abre — itens 88 e 117. **Abrir T-05 grava a leitura de quem abriu, recebida ou não.**
  *
- * **Não confere nada, e a ausência é a autorização.** A instrução que ela dispara casa por
- * `(ocorrencia_id, com_pessoa_id)` com `aberto_em is null`: sem linha do par, sem linha nesta
- * organização, ou com a linha já aberta, ela não acha nada e volta. Uma leitura prévia para conferir se
- * pode só acrescentaria o que o chamador não deve saber — se a ocorrência existe (contrato §6.3).
- *
- * **Não depende de papel nem de permissão.** Se a linha existe para quem abriu, marca. Quem recebeu como
- * Solicitante e virou Gestor marca também, sem efeito visível.
+ * **Não confere nada, e a ausência é a autorização.** A instrução só acha ocorrência desta organização, e
+ * não diz se ela existe (contrato §6.3). **Não depende de papel nem de permissão.**
  */
-export async function registrarAberturaDoCompartilhamento(
-  repositorio: Pick<RepositorioEscopadoDeOcorrencias, "marcarCompartilhamentoAberto">,
+export async function registrarLeitura(
+  repositorio: Pick<RepositorioEscopadoDeOcorrencias, "registrarLeitura">,
   ocorrenciaId: string,
   quem: { pessoaId: string },
 ): Promise<void> {
-  await repositorio.marcarCompartilhamentoAberto(ocorrenciaId, quem.pessoaId);
+  await repositorio.registrarLeitura(ocorrenciaId, quem.pessoaId);
 }

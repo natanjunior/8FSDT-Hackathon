@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { registrarAberturaDoCompartilhamento } from "@/aplicacao/ocorrencia";
+import { registrarLeitura } from "@/aplicacao/ocorrencia";
 import {
   criarConta,
   definirSenha,
@@ -201,12 +201,12 @@ export async function acaoDeSair(): Promise<void> {
 
 /**
  * ============================================================================
- *  T-05 · a primeira abertura de uma ocorrência compartilhada — item 88
+ *  T-05 · a leitura de quem abre — itens 88 e 117
  * ============================================================================
  *
- * **Ela não é endereço do contrato, e a ausência é decisão.** `aberto_em` não é status, não grava
+ * **Ela não é endereço do contrato, e a ausência é decisão.** A leitura não é status, não grava
  * histórico, está fora do agregado `Ocorrencia`, e é lida **só por quem a escreveu** — nenhuma tela mostra
- * a quem compartilhou se a outra pessoa já abriu. Um endereço a mais no `openapi.yaml` descreveria como
+ * a outra pessoa se alguém já abriu. Um endereço a mais no `openapi.yaml` descreveria como
  * comando do produto o que é estado de quem lê. `docs/api.md`, em *O que a API não expõe*, registra a
  * ausência.
  *
@@ -215,17 +215,18 @@ export async function acaoDeSair(): Promise<void> {
  * num route handler não alcança a memória do navegador. Numa função de servidor ele alcança. Sem isto, o
  * critério 88.1 passa em teste que volta por link e falha no gesto mais comum do celular.
  *
- * **Não devolve nada, e isso é da §6.3 do contrato.** Chamada com o identificador de uma ocorrência que a
- * pessoa não recebeu, ela não grava — a instrução não acha a linha — e não diz nada, nem que a ocorrência
+ * **Não devolve nada, e isso é da §6.3 do contrato.** Chamada com o identificador de uma ocorrência de
+ * outra organização, ela não grava — a instrução não acha a linha — e não diz nada, nem que a ocorrência
  * existe.
  *
  * **Falha ao gravar não derrubaria a tela nem se ela pudesse:** a ocorrência já está lida quando isto roda.
  * O número fica um a mais até a próxima abertura, e a falha é registrada no formato de sempre.
  */
-export async function acaoDeRegistrarAbertura(ocorrenciaId: string): Promise<void> {
+export async function acaoDeRegistrarLeitura(ocorrenciaId: string): Promise<void> {
   let escopo;
   try {
-    escopo = await resolverEscopoParaTela("ocorrencia.ler_propria");
+    // O Gestor também lê: a leitura não é poder de papel (item 117).
+    escopo = await resolverEscopoParaTela("qualquer-vinculo-ativo");
   } catch {
     // Sem sessão não há o que marcar. A tela que a chamou já teria redirecionado.
     return;
@@ -233,7 +234,7 @@ export async function acaoDeRegistrarAbertura(ocorrenciaId: string): Promise<voi
   if (escopo.situacao !== "pronto") return;
 
   try {
-    await registrarAberturaDoCompartilhamento(escopo.repos.ocorrencias, ocorrenciaId, {
+    await registrarLeitura(escopo.repos.ocorrencias, ocorrenciaId, {
       pessoaId: escopo.ctx.pessoaId,
     });
   } catch (erro) {

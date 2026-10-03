@@ -17,7 +17,7 @@ import {
   OcorrenciaNaoEncontrada,
   pausarOcorrencia,
   PrioridadeImutavelEmEstadoTerminal,
-  registrarAberturaDoCompartilhamento,
+  registrarLeitura,
   registrarSolucaoAplicada,
   resolverOcorrencia,
   ResponsavelNaoAtribuido,
@@ -2039,12 +2039,12 @@ describe("88 · registrar a abertura", () => {
   it("chama a porta com a ocorrência e com quem lê, e nada mais", async () => {
     const chamadas: Array<[string, string]> = [];
     const repo = {
-      marcarCompartilhamentoAberto: async (ocorrenciaId: string, comPessoaId: string) => {
-        chamadas.push([ocorrenciaId, comPessoaId]);
+      registrarLeitura: async (ocorrenciaId: string, pessoaId: string) => {
+        chamadas.push([ocorrenciaId, pessoaId]);
       },
     };
 
-    await registrarAberturaDoCompartilhamento(repo, "oc-1", { pessoaId: "p-1" });
+    await registrarLeitura(repo, "oc-1", { pessoaId: "p-1" });
 
     expect(chamadas).toStrictEqual([["oc-1", "p-1"]]);
   });
@@ -2052,10 +2052,10 @@ describe("88 · registrar a abertura", () => {
   it("não pede nada além da porta que escreve", async () => {
     // **Se a função lesse a ocorrência antes de marcar**, este duplo — que só tem um método — quebraria.
     // É a asserção de que a autorização não é uma leitura prévia, e sim a linha do par.
-    const repo = { marcarCompartilhamentoAberto: async () => undefined };
+    const repo = { registrarLeitura: async () => undefined };
 
     await expect(
-      registrarAberturaDoCompartilhamento(repo, "oc-2", { pessoaId: "p-2" }),
+      registrarLeitura(repo, "oc-2", { pessoaId: "p-2" }),
     ).resolves.toBeUndefined();
   });
 });

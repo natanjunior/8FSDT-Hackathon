@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-import { acaoDeRegistrarAbertura } from "@/interface/acoes";
+import { acaoDeRegistrarLeitura } from "@/interface/acoes";
 
 /**
  * **Marca a ocorrência como aberta, e não desenha nada** — item 88.
@@ -25,7 +25,7 @@ export function RegistroDeAbertura({ ocorrenciaId }: { ocorrenciaId: string }) {
   useEffect(() => {
     if (jaFoi.current) return;
     jaFoi.current = true;
-    void acaoDeRegistrarAbertura(ocorrenciaId).catch(() => undefined);
+    void acaoDeRegistrarLeitura(ocorrenciaId).catch(() => undefined);
   }, [ocorrenciaId]);
 
   return null;

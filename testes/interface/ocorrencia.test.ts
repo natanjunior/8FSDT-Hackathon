@@ -4631,7 +4631,7 @@ describe("87 · o painel de compartilhar, a metade conferível", () => {
 describe("88.2 · a abertura não decide nada sobre papel", () => {
   it("o corpo da função não lê a ocorrência nem consulta permissão", () => {
     const fonte = lerFonte("src/aplicacao/ocorrencia/compartilhamento.ts").replace(/\r\n/gu, "\n");
-    const inicio = fonte.indexOf("export async function registrarAberturaDoCompartilhamento(");
+    const inicio = fonte.indexOf("export async function registrarLeitura(");
     expect(inicio).toBeGreaterThanOrEqual(0);
     const corpo = fonte.slice(inicio, fonte.indexOf("\n}\n", inicio) + 3);
 
@@ -4655,7 +4655,7 @@ describe("88.4 · a abertura é ação de servidor, e ela invalida a lista", () 
   const acoes = lerFonte("src/interface/acoes/index.ts").replace(/\r\n/gu, "\n");
 
   it("a ação existe, resolve o escopo, e invalida /ocorrencias", () => {
-    const inicio = acoes.indexOf("export async function acaoDeRegistrarAbertura(");
+    const inicio = acoes.indexOf("export async function acaoDeRegistrarLeitura(");
     expect(inicio).toBeGreaterThanOrEqual(0);
     const corpo = acoes.slice(inicio, acoes.indexOf("\n}\n", inicio) + 3);
 
@@ -4666,13 +4666,14 @@ describe("88.4 · a abertura é ação de servidor, e ela invalida a lista", () 
     expect(corpo).not.toMatch(/\breturn\s+[^;\s]/u);
   });
 
-  it("nenhuma rota de app/ grava a abertura", () => {
+  it("nenhuma rota de app/ grava a leitura direto", () => {
     // A escrita mora num lugar só; um `route.ts` que a repetisse seria a segunda cópia.
     const rotas = globSync("app/**/route.ts", { cwd: RAIZ });
     expect(rotas.length).toBeGreaterThan(0);
     for (const rota of rotas) {
       expect(lerFonte(rota), rota).not.toContain("marcarCompartilhamentoAberto");
-      expect(lerFonte(rota), rota).not.toContain("registrarAberturaDoCompartilhamento");
+      // Não casa `registrarLeituraDeQuemAgiu(`, que é como as rotas que agem gravam (item 117).
+      expect(lerFonte(rota), rota).not.toMatch(/\bregistrarLeitura\(/u);
     }
   });
 

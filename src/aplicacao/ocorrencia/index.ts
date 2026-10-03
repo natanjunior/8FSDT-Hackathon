@@ -28,7 +28,7 @@ export {
   buscarCandidatosAoCompartilhamento,
   compartilharOcorrencia,
   desfazerCompartilhamento,
-  registrarAberturaDoCompartilhamento,
+  registrarLeitura,
   type CandidatoAoCompartilhamento,
   type MotivoDeJaVer,
 } from "./compartilhamento";

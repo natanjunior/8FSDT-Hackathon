@@ -755,12 +755,10 @@ export interface RepositorioEscopadoDeOcorrencias {
   ): Promise<ResultadoDoCompartilhamento>;
   /** Apaga a linha do par. **Sem desfecho**: a linha que não existe é o mesmo sucesso da que foi apagada. */
   desfazerCompartilhamento(ocorrenciaId: string, comPessoaId: string): Promise<void>;
-  /**
-   * Marca a primeira abertura de uma ocorrência compartilhada (item 88). **Uma instrução, idempotente:**
-   * sem linha do par, ou com a linha já aberta, não faz nada e não erra. Duas abas abrindo juntas terminam
-   * com a mesma linha.
-   */
-  marcarCompartilhamentoAberto(ocorrenciaId: string, comPessoaId: string): Promise<void>;
+  /** Grava `lido_ate = now()` de quem leu (item 117); upsert idempotente, e ocorrência de fora não grava nem erra. */
+  registrarLeitura(ocorrenciaId: string, pessoaId: string): Promise<void>;
+  /** Apaga a leitura de quem pediu (critério 117.5); sem linha, não faz nada. */
+  desfazerLeitura(ocorrenciaId: string, pessoaId: string): Promise<void>;
   /**
    * Quem, nesta organização, casa a busca e tem um dos papéis pedidos — com a marca de quem já recebeu.
    *
