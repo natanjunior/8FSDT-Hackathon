@@ -10,7 +10,9 @@ import { SeletorDeOrganizacao } from "@/interface/componentes/casca/seletor-de-o
  * o `children` é por onde o layout passa esse gatilho.
  *
  * **O sino entra entre o seletor e a pessoa** (item 117), e só na casca: a moldura de foco não o passa. O
- * sino e o avatar não encolhem; **quem cede largura é o seletor**, que já trunca o nome.
+ * sino e o avatar não encolhem; **quem cede largura é o seletor**, que já trunca o nome. Os dois `min-w-0`
+ * são o que o deixa ceder: sem eles o gatilho não encolhe abaixo do nome inteiro, e a barra rolava 32 px a
+ * 320 px antes mesmo do sino (item 93).
  */
 export function BarraSuperior({
   vinculos,
@@ -33,7 +35,7 @@ export function BarraSuperior({
     <header className="border-linha bg-superficie sticky top-0 z-30 flex h-14 items-center gap-2 border-b px-4 md:h-[60px] md:px-6">
       {children}
       <MarcaDoProduto tamanho="barra" />
-      <div className="ml-auto flex items-center gap-2">
+      <div className="ml-auto flex min-w-0 items-center gap-2 [&>[data-slot=select-trigger]]:min-w-0">
         <SeletorDeOrganizacao vinculos={vinculos} organizacaoAtivaId={organizacaoAtivaId} />
         {sino}
         <MenuDePessoa nomeDaPessoa={nomeDaPessoa} emailDaPessoa={emailDaPessoa} />

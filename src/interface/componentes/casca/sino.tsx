@@ -50,7 +50,15 @@ export function Sino({ sino, acoes }: { sino: SinoNaTela | null; acoes: AcoesDoS
   const numero = numeroDoSino(naoLidas);
 
   const botao = (
-    <Button variant="ghost" size="icon" className="relative size-11" aria-label={nomeDoSino(naoLidas)}>
+    // `aria-busy` na espera: sem número ainda não é zero, e o leitor de tela (e o ponta a ponta) sabe a
+    // diferença.
+    <Button
+      variant="ghost"
+      size="icon"
+      className="relative size-11"
+      aria-label={nomeDoSino(naoLidas)}
+      aria-busy={sino === null ? true : undefined}
+    >
       <Bell aria-hidden className="size-5" />
       {/* `aria-hidden`: o número já está no nome do botão, e o leitor de tela o leria duas vezes. */}
       {numero !== null && (

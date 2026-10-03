@@ -597,7 +597,12 @@ describe("o sino — item 117", () => {
   it("durante a espera o sino aparece sem número, e nunca esqueleto", () => {
     const espera = renderToStaticMarkup(createElement(Sino, { sino: null, acoes: ACOES_FALSAS }));
     expect(espera).toContain('aria-label="Avisos"');
+    expect(espera).toContain('aria-busy="true"');
     expect(espera).not.toContain("skeleton");
+    // E o sino que chegou não está ocupado, nem com zero.
+    expect(renderToStaticMarkup(createElement(Sino, { sino: telaCom(0), acoes: ACOES_FALSAS }))).not.toContain(
+      "aria-busy",
+    );
   });
 
   it("a lista: faixas com cabeçalho, título como link, marcar como texto, vazio e pé", () => {
