@@ -25,6 +25,7 @@ import {
   textoDoTipo,
   type SinoNaTela,
 } from "@/interface/componentes/sino";
+import { TooltipProvider } from "@/interface/componentes/ui/tooltip";
 
 /**
  * ============================================================================
@@ -605,7 +606,7 @@ describe("o sino — item 117", () => {
     );
   });
 
-  it("a lista: faixas com cabeçalho, título como link, marcar como texto, vazio e pé", () => {
+  it("a lista: faixas com cabeçalho, título como link, marcar em botão de ícone com nome e descrição, vazio e pé", () => {
     const linha = {
       ocorrenciaId: "a",
       href: "/ocorrencias/a",
@@ -614,26 +615,47 @@ describe("o sino — item 117", () => {
       por: "Gestora",
       quando: "há 2 horas",
     };
-    const cheia = renderToStaticMarkup(
-      createElement(ListaDoSino, {
-        sino: {
-          naoLidas: 5,
-          naoLidasNaLista: [linha],
-          lidas: [{ ...linha, ocorrenciaId: "b", href: "/ocorrencias/b" }],
-          foraDaLista: 4,
-        },
-        acoes: ACOES_FALSAS,
-      }),
-    );
+    // O `BotaoDeIcone` monta uma dica do Radix, e o Radix **lança** sem provedor acima
+    // (`formulario.test.ts:1001`). Nas telas da casca o provedor vem do `SidebarProvider`, que envolve a
+    // casca inteira e atravessa o portal; aqui o miolo é renderizado solto, e o caso o monta.
+    const render = (sino: SinoNaTela) =>
+      renderToStaticMarkup(
+        createElement(TooltipProvider, null, createElement(ListaDoSino, { sino, acoes: ACOES_FALSAS })),
+      );
+    const cheia = render({
+      naoLidas: 5,
+      naoLidasNaLista: [linha, { ...linha, ocorrenciaId: "c", href: "/ocorrencias/c", titulo: "Portão" }],
+      lidas: [{ ...linha, ocorrenciaId: "b", href: "/ocorrencias/b" }],
+      foraDaLista: 4,
+    });
     expect(cheia).toMatch(/<h3[^>]*>Não lidas<\/h3>[\s\S]*<h3[^>]*>Lidas<\/h3>/u);
     // Cada faixa é uma região com o nome do próprio título — é o que o leitor de tela anuncia, e o que o
     // ponta a ponta localiza.
     expect(cheia).toMatch(/<section[^>]*aria-labelledby="([^"]+)"[\s\S]*?<h3[^>]*id="\1"/u);
     expect(cheia).toContain('href="/ocorrencias/a"');
-    expect(cheia).toContain(">Marcar como lida<");
-    expect(cheia).toContain(">Marcar como não lida<");
+    // **O nome acessível não muda: sai do texto e vai para o `aria-label`.** É por ele que
+    // `interrupcoes-da-ocorrencia.spec.ts:673` e `:679` acham os dois botões, e eles não mudam.
+    expect(cheia).toContain('aria-label="Marcar como lida"');
+    expect(cheia).toContain('aria-label="Marcar como não lida"');
+    expect(cheia).not.toContain(">Marcar como lida<");
+    expect(cheia).not.toContain(">Marcar como não lida<");
+    // 44 px (item 91), envio de formulário, e a descrição apontando o título da linha.
+    const botao = /<button[^>]*aria-label="Marcar como lida"[^>]*>/u.exec(cheia)?.[0] ?? "";
+    expect(botao).toContain("size-11");
+    expect(botao).toContain('type="submit"');
+    expect(botao).toMatch(/aria-describedby="[^"]+"/u);
+    // **A dica também é cobrada**, senão o critério passa com um `Button size="icon"` de rótulo e sem
+    // `Tooltip`: as três linhas acima sobrevivem a essa regressão. O gatilho do `Tooltip` do Radix marca
+    // o botão, e marca mesmo com `asChild` — medido no `renderToStaticMarkup` deste projeto.
+    expect(botao).toContain('data-slot="tooltip-trigger"');
+    // **Uma descrição por linha, e não uma para todas**: dez «Marcar como lida» iguais seriam
+    // indistinguíveis para quem navega por botões (lição do 44j).
+    const descricoes = [...cheia.matchAll(/aria-describedby="([^"]+)"/gu)].map((a) => a[1]!);
+    expect(new Set(descricoes).size).toBe(descricoes.length);
+    expect(descricoes).toHaveLength(3);
+    for (const id of descricoes) expect(cheia).toContain(`id="${id}"`);
     expect(cheia).toContain("Mais 4 não lidas fora desta lista.");
-    const vazia = renderToStaticMarkup(createElement(ListaDoSino, { sino: telaCom(0), acoes: ACOES_FALSAS }));
+    const vazia = render(telaCom(0));
     expect(vazia).toContain("Nada novo por aqui.");
     expect(vazia).not.toContain("<h3");
   });

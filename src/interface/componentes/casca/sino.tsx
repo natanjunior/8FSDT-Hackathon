@@ -1,8 +1,8 @@
 "use client";
 
-import { Bell } from "lucide-react";
+import { Bell, Check, RotateCcw } from "lucide-react";
 import Link from "next/link";
-import { useId, useState } from "react";
+import { useId, useState, type ReactNode } from "react";
 
 import {
   foraDaLista,
@@ -11,6 +11,7 @@ import {
   type LinhaDoSino,
   type SinoNaTela,
 } from "@/interface/componentes/sino";
+import { BotaoDeIcone } from "@/interface/componentes/botao-de-icone";
 import { CONTEUDO_DO_SHEET } from "@/interface/componentes/modal";
 import { Badge } from "@/interface/componentes/ui/badge";
 import { Button } from "@/interface/componentes/ui/button";
@@ -144,6 +145,7 @@ export function ListaDoSino({
           titulo="Não lidas"
           linhas={sino.naoLidasNaLista}
           gesto="Marcar como lida"
+          icone={<Check aria-hidden="true" />}
           acao={acoes.marcarComoLida}
           aoNavegar={aoNavegar}
         />
@@ -156,6 +158,7 @@ export function ListaDoSino({
           titulo="Lidas"
           linhas={sino.lidas}
           gesto="Marcar como não lida"
+          icone={<RotateCcw aria-hidden="true" />}
           acao={acoes.marcarComoNaoLida}
           aoNavegar={aoNavegar}
         />
@@ -166,24 +169,29 @@ export function ListaDoSino({
 
 /**
  * Uma faixa. **O título da ocorrência é o link, e a segunda linha fica fora dele**, para o nome do link ser
- * o título. **Marcar é texto, e não ícone**: dois ícones parecidos para gestos opostos se confundem. A
+ * o título. **Marcar é botão de ícone com dica** (guia §7, item 118): `Check` para lida e `RotateCcw` para
+ * não lida, duas silhuetas distintas para gestos opostos — era isso que o medo de confundir pedia, e não a
+ * volta ao texto. **O nome acessível vem do `aria-label`**, e o título da linha chega por
+ * `aria-describedby`: dez *Marcar como lida* iguais seriam indistinguíveis para quem navega por botões. A
  * `form` com ação de servidor funciona sem JavaScript e dispara a revalidação sozinha.
  */
 function Faixa({
   titulo,
   linhas,
   gesto,
+  icone,
   acao,
   aoNavegar,
 }: {
   titulo: string;
   linhas: readonly LinhaDoSino[];
   gesto: string;
+  icone: ReactNode;
   acao: (ocorrenciaId: string) => Promise<void>;
   aoNavegar: (() => void) | undefined;
 }) {
   // A faixa é uma região com o nome do título: o leitor de tela a anuncia, e o ponta a ponta a localiza
-  // por `getByRole("region", { name })`.
+  // por `getByRole("region", { name })`. O mesmo `id` é a raiz do `id` de cada linha.
   const idDoTitulo = useId();
   return (
     <section aria-labelledby={idDoTitulo} className="border-linha border-b last:border-b-0">
@@ -191,27 +199,35 @@ function Faixa({
         {titulo}
       </h3>
       <ul>
-        {linhas.map((linha) => (
-          <li key={linha.ocorrenciaId} className="flex min-w-0 items-start gap-2 px-4 py-2">
-            <div className="min-w-0 flex-1">
-              <Link
-                href={linha.href}
-                onClick={aoNavegar}
-                className="text-interface text-tinta block font-medium break-words"
-              >
-                {linha.titulo}
-              </Link>
-              <p className="text-meta text-tinta-suave break-words">
-                {linha.tipo} · {linha.por} · {linha.quando}
-              </p>
-            </div>
-            <form action={acao.bind(null, linha.ocorrenciaId)}>
-              <Button type="submit" variant="ghost" className="text-meta min-h-11 shrink-0 px-2">
-                {gesto}
-              </Button>
-            </form>
-          </li>
-        ))}
+        {linhas.map((linha) => {
+          const idDoTituloDaLinha = `${idDoTitulo}-${linha.ocorrenciaId}`;
+          return (
+            <li key={linha.ocorrenciaId} className="flex min-w-0 items-start gap-2 px-4 py-2">
+              <div className="min-w-0 flex-1">
+                <Link
+                  id={idDoTituloDaLinha}
+                  href={linha.href}
+                  onClick={aoNavegar}
+                  className="text-interface text-tinta block font-medium break-words"
+                >
+                  {linha.titulo}
+                </Link>
+                <p className="text-meta text-tinta-suave break-words">
+                  {linha.tipo} · {linha.por} · {linha.quando}
+                </p>
+              </div>
+              <form action={acao.bind(null, linha.ocorrenciaId)}>
+                <BotaoDeIcone
+                  type="submit"
+                  rotulo={gesto}
+                  icone={icone}
+                  descritoPor={idDoTituloDaLinha}
+                  className="shrink-0"
+                />
+              </form>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );
