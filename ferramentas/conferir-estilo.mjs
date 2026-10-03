@@ -32,8 +32,9 @@ import { Avatar, AvatarFallback } from "@/interface/componentes/ui/avatar";
 import { RODAPE_DO_MODAL } from "@/interface/componentes/modal";
 import { SeloDeStatus } from "@/interface/componentes/selo-de-status";
 import { ROTULO_DE_COLUNA, CELULA } from "@/interface/componentes/pecas-da-tabela";
-import { CAIXA_DO_FILTRO, OPCAO_DO_FILTRO, CONTAGEM_DO_FILTRO, CONTAGEM_DE_NAO_VISTAS } from "@/interface/componentes/filtro-rapido";
+import { CAIXA_DO_FILTRO, OPCAO_DO_FILTRO, CONTAGEM_DO_FILTRO } from "@/interface/componentes/filtro-rapido";
 import { SeloDeNaoVista } from "@/interface/componentes/selo-de-nao-vista";
+import { CLASSE_DA_PILULA } from "@/interface/componentes/casca/sino";
 
 // O `postcss` não é dependência declarada do projeto; é do `@tailwindcss/postcss`, e é por ele que se
 // alcança, para não depender de como o `npm` achatou a árvore.
@@ -172,13 +173,13 @@ const PECAS = [
     },
   },
   {
-    id: "contagem-de-nao-vistas",
-    // Item 88: a pendência veste o preenchimento da marca, e o par está medido em `tema.test.ts`. Aqui o
-    // que se prende é que a peça usa ESTES dois tokens, e não um vizinho parecido.
-    html: () => `<span class="${cn(badgeVariants({}), CONTAGEM_DE_NAO_VISTAS)}">3</span>`,
+    id: "pilula-do-sino",
+    // Item 117: o neutro invertido, porque o laranja tem quatro usos e este não é um deles (item 105). O
+    // par tinta × superfície está medido em `tema.test.ts`. A classe vem do componente, e não copiada.
+    html: () => `<span class="${cn(badgeVariants({}), CLASSE_DA_PILULA)}">99+</span>`,
     esperado: {
-      "background-color": "token(--accent)",
-      color: "token(--marca-foreground)",
+      "background-color": "token(--ink)",
+      color: "token(--surface)",
     },
   },
   {

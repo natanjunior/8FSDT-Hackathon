@@ -1978,7 +1978,7 @@ paths:
                       Quantas foram registradas **depois** do corte e casam com o recorte aplicado.
                   contagens:
                     type: object
-                    required: [todas, minhas, emAberto, semResponsavel, compartilhadasNaoAbertas]
+                    required: [todas, minhas, emAberto, semResponsavel]
                     description: |
                       O painel. **Calculado sem os filtros de status, categoria e prioridade**: estes
                       números existem para o leitor decidir qual recorte pedir, e recalculá-los dentro do
@@ -1997,13 +1997,6 @@ paths:
                       semResponsavel:
                         type: integer
                         description: Sem responsável vigente **e** não terminal.
-                      compartilhadasNaoAbertas:
-                        type: integer
-                        description: |
-                          Quantas ocorrências compartilhadas com quem pergunta ainda **não** foram
-                          abertas por ela, nesta organização. Ignora o corte e os filtros: a pergunta é
-                          quantas esperam, e não quantas desta página. Vem `0` para quem pode ler todas,
-                          que não recebe compartilhamento.
                   visibilidadeAplicada:
                     type: string
                     enum: [todas, apenas_minhas, compartilhadas_comigo]
@@ -2019,7 +2012,7 @@ paths:
                 totalNoCorte: 140
                 saidasDesdeOCorte: 3
                 novasDesdeOCorte: 5
-                contagens: { todas: 53, minhas: 2, emAberto: 41, semResponsavel: 12, compartilhadasNaoAbertas: 0 }
+                contagens: { todas: 53, minhas: 2, emAberto: 41, semResponsavel: 12 }
                 itens:
                   - id: "9a1f2b3c-4d5e-6f70-8192-a3b4c5d6e7f8"
                     titulo: "Lâmpada queimada na garagem"
@@ -4185,6 +4178,7 @@ components:
           description: |
             Presente apenas quando a listagem foi pedida com `compartilhadas=comigo`: diz se quem pergunta
             ainda não abriu esta ocorrência. Fora desse recorte a pergunta não é feita, e o campo não vem.
+            Derivado da leitura desde o item 117; o sentido é o mesmo.
 
             A palavra é *aberta* aqui e na trilha; a tela escreve *vista*, porque *Aberta* é um status.
           examples: [true, false]
@@ -4295,7 +4289,8 @@ components:
                       type: boolean
                       description: |
                         Se quem está lendo ainda não tinha aberto esta ocorrência. Só existe neste ramo:
-                        quem compartilhou não recebe recibo de leitura.
+                        quem compartilhou não recebe recibo de leitura. Derivado da leitura desde o item
+                        117; o sentido é o mesmo.
 
     Compartilhamento:
       type: object

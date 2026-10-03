@@ -1,5 +1,5 @@
 import { atribuirResponsavel } from "@/aplicacao/ocorrencia";
-import { comContexto, recusarSemDestino } from "@/interface/http";
+import { comContexto, recusarSemDestino, registrarLeituraDeQuemAgiu } from "@/interface/http";
 import { projetarOcorrenciaDetalhe } from "@/interface/projecoes";
 import { atribuicaoDeResponsavelSchema } from "@/interface/schemas";
 
@@ -38,7 +38,7 @@ export const POST = comContexto(
     corpo: atribuicaoDeResponsavelSchema,
     recusar: recusarSemDestino,
   },
-  async ({ ctx, repos, corpo, parametros, lente }) => {
+  async ({ ctx, repos, corpo, parametros, lente, requisicao }) => {
     const { ocorrencia, reatribuicao } = await atribuirResponsavel(
       repos.ocorrencias,
       // **`permissoes`, e não `podeLerTodas`.** Uma fonte só: o comando deriva o que precisar dela, e é a
@@ -48,6 +48,14 @@ export const POST = comContexto(
         ocorrenciaId: parametros["ocorrenciaId"] ?? "",
         responsavelPessoaId: corpo.responsavelPessoaId,
       },
+    );
+
+    // Agir marca como lida (item 117): depois do comando, e sem derrubar a resposta.
+    await registrarLeituraDeQuemAgiu(
+      repos.ocorrencias,
+      parametros["ocorrenciaId"] ?? "",
+      ctx.pessoaId,
+      new URL(requisicao.url).pathname,
     );
 
     return {

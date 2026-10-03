@@ -79,6 +79,8 @@ export { lerOcorrenciaDaTela, tituloDeAbaDaOcorrencia } from "./ocorrencia-da-te
 
 export { novoTraceId } from "./traco";
 
+export { registrarLeituraDeQuemAgiu } from "./leitura-de-quem-agiu";
+
 export {
   algumFiltroAplicado,
   consultaDe,

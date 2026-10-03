@@ -11,6 +11,7 @@ import type {
   OrdenacaoDeOcorrencias,
   RepositorioEscopadoDeOcorrencias,
   ResultadoDoRegistro,
+  TipoDeNovidade,
   TransicaoLida,
 } from "@/aplicacao/ocorrencia";
 import {
@@ -22,6 +23,7 @@ import {
   STATUS,
   TERMINAIS,
   type LimiteDeCancelamentoDoSolicitante,
+  type MotivoPausa,
   type StatusOcorrencia,
 } from "@/dominio/ocorrencia";
 import type { Papel } from "@/dominio/organizacao";
@@ -50,7 +52,6 @@ type LinhaDeContagens = {
   em_aberto: number;
   sem_responsavel: number;
   novas: number;
-  compartilhadas_nao_abertas: number;
 };
 
 /** As colunas da ocorrência mais o que o `join` traz. Fica junto do SQL, que é quem a produz. */
@@ -322,6 +323,9 @@ function montarAnexo(linha: LinhaDeAnexo): AnexoLido {
  * filtra `revogado_em is null`, e o de quem compartilhou não**: a linha de quem saiu fica sem efeito e
  * volta na readmissão; quem compartilhou continua nomeado, como quem transicionou continua nomeado na
  * trilha. Com `and c.com_pessoa_id = $3` vira a leitura de um par — é o `compartilhamentoCom`.
+ *
+ * **Desde o item 117, `aberto_em` é derivado da leitura**: a leitura de quem recebeu, quando é posterior ao
+ * compartilhamento. O sentido é o do 88, e a coluna saiu da tabela.
  */
 const SELECT_DOS_COMPARTILHAMENTOS = `
   select c.com_pessoa_id,
@@ -331,7 +335,7 @@ const SELECT_DOS_COMPARTILHAMENTOS = `
          pp.nome  as por_nome,
          vp.papel as por_papel,
          c.compartilhado_em,
-         c.aberto_em
+         case when le.lido_ate >= c.compartilhado_em then le.lido_ate end as aberto_em
     from compartilhamentos c
     join vinculos vc on vc.pessoa_id = c.com_pessoa_id
                     and vc.organizacao_id = c.organizacao_id
@@ -339,6 +343,9 @@ const SELECT_DOS_COMPARTILHAMENTOS = `
     join pessoas  pc on pc.id = vc.pessoa_id
     join vinculos vp on vp.pessoa_id = c.por_pessoa_id and vp.organizacao_id = c.organizacao_id
     join pessoas  pp on pp.id = vp.pessoa_id
+    left join leituras_de_ocorrencia le on le.organizacao_id = c.organizacao_id
+                                       and le.ocorrencia_id  = c.ocorrencia_id
+                                       and le.pessoa_id      = c.com_pessoa_id
    where c.organizacao_id = $1 and c.ocorrencia_id = $2`;
 
 type LinhaDeCompartilhamento = {
@@ -458,6 +465,139 @@ type LinhaDoAgregado = {
   exigir_solucao_ao_resolver: boolean;
   limite_cancelamento_solicitante: LimiteDeCancelamentoDoSolicitante;
   dias_para_parada: number;
+};
+
+/**
+ * ============================================================================
+ *  O sino — item 117
+ * ============================================================================
+ *
+ * **Fan-out na leitura** (spec §1): nada foi gravado para destinatário. `lacos` diz quais ocorrências são
+ * de quem pergunta, e por quê; o `LATERAL` acha, em cada uma, a novidade mais recente **de outra pessoa**
+ * dentro da janela, entre as que o laço traz.
+ *
+ * | Laço | `pleno` | `ve_destinatarios` |
+ * |---|---|---|
+ * | autora | sim | sim |
+ * | responsável vigente, **só com leitura de todas** (§3.2: responsabilidade não dá leitura) | sim | sim |
+ * | recebeu compartilhada (vínculo ativo, como `SELECT_DOS_COMPARTILHAMENTOS`) | sim | não |
+ * | Gestor, pela criação nos últimos 30 dias | **não**: só a criação | não |
+ *
+ * **`ve_destinatarios` é a §3.2a**: o evento de compartilhamento só chega a quem recebeu e a quem pode ver a
+ * lista de destinatários — a projeção do 87 não a manda a quem recebeu (`projecoes/ocorrencia.ts:700`).
+ *
+ * **A janela corta pelo instante da novidade, e não por `atualizada_em`** (achado A-1): compartilhar não
+ * toca `atualizada_em` (migração 015).
+ *
+ * **O total sai da MESMA instrução** (critério 4), num `count(*) over ()` filtrado. O custo que
+ * `ContagensLidas` evita na lista não se repete aqui: o conjunto é o das ocorrências ligadas a uma pessoa
+ * numa janela de 30 dias, e não o da organização. O plano de execução está no relatório do item.
+ *
+ * **Quem agiu é nomeado mesmo revogado**: os `join` de nome não filtram `revogado_em`, como o `por` de
+ * `SELECT_DOS_COMPARTILHAMENTOS` e o autor da trilha.
+ *
+ * `$2` pessoa · `$3` lê todas · `$4` é Gestor · `$5` início da janela · `$6` limite de linhas.
+ */
+const CONSULTA_DO_SINO = `
+  with lacos as (
+    select o.id as ocorrencia_id, true as pleno, true as ve_destinatarios
+      from ocorrencias o
+     where o.organizacao_id = $1 and o.autor_pessoa_id = $2::uuid
+    union all
+    select a.ocorrencia_id, true, true
+      from atribuicoes a
+     where a.organizacao_id = $1 and a.responsavel_pessoa_id = $2::uuid
+       and a.encerrada_em is null and $3::boolean
+    union all
+    select c.ocorrencia_id, true, false
+      from compartilhamentos c
+      join vinculos vc on vc.organizacao_id = c.organizacao_id
+                      and vc.pessoa_id = c.com_pessoa_id
+                      and vc.revogado_em is null
+     where c.organizacao_id = $1 and c.com_pessoa_id = $2::uuid
+    union all
+    select o.id, false, false
+      from ocorrencias o
+     where o.organizacao_id = $1 and $4::boolean
+       and o.registrada_em >= $5::timestamptz and o.autor_pessoa_id <> $2::uuid
+  ),
+  ligadas as (
+    select ocorrencia_id, bool_or(pleno) as pleno, bool_or(ve_destinatarios) as ve_destinatarios
+      from lacos
+     group by ocorrencia_id
+  ),
+  novidades as (
+    select l.ocorrencia_id, e.tipo, e.em, e.por_pessoa_id, e.status_novo, e.motivo_pausa, e.alvo_pessoa_id
+      from ligadas l
+      cross join lateral (
+        select *
+          from (
+            select 'criacao'::text as tipo, r.ocorreu_em as em, r.autor_pessoa_id as por_pessoa_id,
+                   null::status_ocorrencia as status_novo, null::motivo_pausa as motivo_pausa,
+                   null::uuid as alvo_pessoa_id, 0 as fonte
+              from registros_transicao r
+             where r.organizacao_id = $1 and r.ocorrencia_id = l.ocorrencia_id and r.sequencia = 1
+            union all
+            select 'status', r.ocorreu_em, r.autor_pessoa_id, r.status_novo, r.motivo_pausa, null, 1
+              from registros_transicao r
+             where l.pleno and r.organizacao_id = $1 and r.ocorrencia_id = l.ocorrencia_id
+               and r.sequencia > 1 and r.ocorreu_em >= $5::timestamptz
+            union all
+            select 'comentario', m.criado_em, m.autor_pessoa_id, null, null, null, 2
+              from canais_conversa cc
+              join mensagens m on m.organizacao_id = $1 and m.canal_id = cc.id
+             where l.pleno and cc.organizacao_id = $1 and cc.ocorrencia_id = l.ocorrencia_id
+               and cc.tipo = 'comentario' and m.criado_em >= $5::timestamptz
+            union all
+            select 'atribuicao', a.atribuido_em, a.atribuido_por_pessoa_id, null, null,
+                   a.responsavel_pessoa_id, 3
+              from atribuicoes a
+             where l.pleno and a.organizacao_id = $1 and a.ocorrencia_id = l.ocorrencia_id
+               and a.atribuido_em >= $5::timestamptz
+            union all
+            select 'compartilhamento', c.compartilhado_em, c.por_pessoa_id, null, null, c.com_pessoa_id, 4
+              from compartilhamentos c
+             where l.pleno and c.organizacao_id = $1 and c.ocorrencia_id = l.ocorrencia_id
+               and c.compartilhado_em >= $5::timestamptz
+               and (l.ve_destinatarios or c.com_pessoa_id = $2::uuid)
+          ) eventos
+         where eventos.por_pessoa_id <> $2::uuid and eventos.em >= $5::timestamptz
+         -- O desempate é a fonte, depois nada mais: dois eventos da mesma fonte no mesmo instante são a
+         -- mesma transação, e qualquer um dos dois diz a verdade (spec §3.3 pede só determinismo).
+         order by eventos.em desc, eventos.fonte desc
+         limit 1
+      ) e
+  )
+  select n.ocorrencia_id, o.titulo, n.tipo, n.em, n.status_novo, n.motivo_pausa,
+         n.por_pessoa_id, pp.nome as por_nome,
+         n.alvo_pessoa_id, pa.nome as alvo_nome,
+         (le.lido_ate is null or le.lido_ate < n.em) as nao_lida,
+         (count(*) filter (where le.lido_ate is null or le.lido_ate < n.em) over ())::int as nao_lidas
+    from novidades n
+    join ocorrencias o on o.organizacao_id = $1 and o.id = n.ocorrencia_id
+    join vinculos vp on vp.organizacao_id = $1 and vp.pessoa_id = n.por_pessoa_id
+    join pessoas  pp on pp.id = vp.pessoa_id
+    left join vinculos va on va.organizacao_id = $1 and va.pessoa_id = n.alvo_pessoa_id
+    left join pessoas  pa on pa.id = va.pessoa_id
+    left join leituras_de_ocorrencia le on le.organizacao_id = $1
+                                       and le.ocorrencia_id  = n.ocorrencia_id
+                                       and le.pessoa_id      = $2::uuid
+   order by nao_lida desc, n.em desc, n.ocorrencia_id
+   limit $6`;
+
+type LinhaDoSino = {
+  ocorrencia_id: string;
+  titulo: string;
+  tipo: TipoDeNovidade;
+  em: Date;
+  status_novo: StatusOcorrencia | null;
+  motivo_pausa: MotivoPausa | null;
+  por_pessoa_id: string;
+  por_nome: string;
+  alvo_pessoa_id: string | null;
+  alvo_nome: string | null;
+  nao_lida: boolean;
+  nao_lidas: number;
 };
 
 /**
@@ -1620,28 +1760,41 @@ export function repositorioEscopadoDeOcorrencias(
     },
 
     /**
-     * A primeira abertura — item 88.
+     * A leitura de uma pessoa — item 117. **Uma instrução, idempotente**: duas abas terminam numa linha.
      *
-     * **Uma instrução, e ela é o portão.** `aberto_em is null` faz a segunda chamada não escrever, e a
-     * ausência da linha faz a chamada de quem não recebeu não escrever: duas abas abrindo juntas terminam
-     * com a mesma linha, e ninguém precisa ler antes.
-     *
-     * **`now()` é o relógio do banco** (ADR-0016): dois relógios produzem duas verdades, e nenhum chamador
-     * precisa carimbar isto.
-     *
-     * **`$1` é a organização** (ADR-0003): uma ocorrência de outra organização não casa, e este arquivo não
-     * recebe o identificador para poder errar.
+     * **O `select` de `ocorrencias` é o portão**: com `$1` ele só acha a ocorrência desta organização, e
+     * sem linha não grava nem erra — quem chama não fica sabendo se ela existe (contrato §6.3).
+     * **`now()` é o relógio do banco** (ADR-0016).
      */
-    async marcarCompartilhamentoAberto(ocorrenciaId, comPessoaId) {
-      await consulta(
-        `update compartilhamentos
-            set aberto_em = now()
-          where organizacao_id = $1
-            and ocorrencia_id = $2::uuid
-            and com_pessoa_id = $3::uuid
-            and aberto_em is null`,
-        [ocorrenciaId, comPessoaId],
-      );
+    async registrarLeitura(ocorrenciaId, pessoaId) {
+      try {
+        await consulta(
+          `insert into leituras_de_ocorrencia (organizacao_id, ocorrencia_id, pessoa_id, lido_ate)
+           select o.organizacao_id, o.id, $3::uuid, now()
+             from ocorrencias o
+            where o.organizacao_id = $1 and o.id = $2::uuid
+           on conflict (ocorrencia_id, pessoa_id) do update set lido_ate = now()`,
+          [ocorrenciaId, pessoaId],
+        );
+      } catch (erro) {
+        // O identificador vem da tela e de quem digita; o mesmo critério de `lerPorId` (item 90).
+        if (ehUuidRecusado(erro)) return;
+        throw erro;
+      }
+    },
+
+    /** Marcar como não lida apaga a linha (critério 117.5). Sem linha, não faz nada. */
+    async desfazerLeitura(ocorrenciaId, pessoaId) {
+      try {
+        await consulta(
+          `delete from leituras_de_ocorrencia
+            where organizacao_id = $1 and ocorrencia_id = $2::uuid and pessoa_id = $3::uuid`,
+          [ocorrenciaId, pessoaId],
+        );
+      } catch (erro) {
+        if (ehUuidRecusado(erro)) return;
+        throw erro;
+      }
     },
 
     /**
@@ -1716,6 +1869,34 @@ export function repositorioEscopadoDeOcorrencias(
      * volume de uma organização é nada, e um índice por coluna custaria migração e escrita em toda
      * transição, para ganho que o RNF5 não mede.
      */
+    async sino(pergunta) {
+      const linhas = await consulta<LinhaDoSino>(CONSULTA_DO_SINO, [
+        pergunta.pessoaId,
+        pergunta.podeLerTodas,
+        pergunta.ehGestor,
+        pergunta.desde,
+        pergunta.limite,
+      ]);
+      return {
+        // Sem linha não há janela para ler o total, e zero é a verdade: nada na janela.
+        naoLidas: linhas[0]?.nao_lidas ?? 0,
+        novidades: linhas.map((linha) => ({
+          ocorrenciaId: linha.ocorrencia_id,
+          titulo: linha.titulo,
+          tipo: linha.tipo,
+          em: linha.em.toISOString(),
+          por: { pessoaId: linha.por_pessoa_id, nome: linha.por_nome },
+          statusNovo: linha.status_novo,
+          motivoPausa: linha.motivo_pausa,
+          alvo:
+            linha.alvo_pessoa_id === null || linha.alvo_nome === null
+              ? null
+              : { pessoaId: linha.alvo_pessoa_id, nome: linha.alvo_nome },
+          naoLida: linha.nao_lida,
+        })),
+      };
+    },
+
     async listar(filtro) {
       const valores: unknown[] = [];
       const condicoes: string[] = [];
@@ -1746,7 +1927,11 @@ export function repositorioEscopadoDeOcorrencias(
                               where cfv.ocorrencia_id = o.id
                                 and cfv.organizacao_id = o.organizacao_id
                                 and cfv.com_pessoa_id = ${dela}::uuid
-                                and cfv.aberto_em is null)`;
+                                and not exists (select 1 from leituras_de_ocorrencia lev
+                                                 where lev.organizacao_id = cfv.organizacao_id
+                                                   and lev.ocorrencia_id  = cfv.ocorrencia_id
+                                                   and lev.pessoa_id      = cfv.com_pessoa_id
+                                                   and lev.lido_ate >= cfv.compartilhado_em))`;
       }
 
       const ate = proximo();
@@ -1786,7 +1971,7 @@ export function repositorioEscopadoDeOcorrencias(
     },
 
     /**
-     * As sete contagens de `GET /ocorrencias` — item 14b, e **todas sob a mesma visibilidade que a
+     * As seis contagens de `GET /ocorrencias` — item 14b, e **todas sob a mesma visibilidade que a
      * listagem aplica**.
      *
      * **Este é o ponto onde um erro vira furo de multi-tenant.** Um `COUNT` sem `autor_pessoa_id` vaza a
@@ -1794,10 +1979,10 @@ export function repositorioEscopadoDeOcorrencias(
      * número. É por isso que o `GET /dashboard` **não** foi reusado — o `SELECT_DO_BACKLOG_POR_STATUS`
      * conta a organização inteira, o que está correto lá (só o Gestor o alcança) e seria vazamento aqui.
      *
-     * **UMA consulta, sete números, uma varredura da partição.** O `where` carrega só a organização e a
+     * **UMA consulta, seis números, uma varredura da partição.** O `where` carrega só a organização e a
      * visibilidade; o corte e o recorte moram dentro de cada `FILTER`, porque `novas` olha para o outro
-     * lado do corte e não caberia num `where` compartilhado. **O sétimo não é `FILTER` de nada**: ele conta
-     * linhas de `compartilhamentos`, e o bloco dele explica por que.
+     * lado do corte e não caberia num `where` compartilhado. O sétimo, o das não vistas do item 88, saiu
+     * no item 117: o número é o do sino.
      *
      * **A assimetria do recorte é deliberada, e não é descuido.** `totalFiltrado` e `novas` aplicam os
      * três filtros de G2 **e o recorte de autor da página** (`?autor=eu`); `todas`, `minhas`, `emAberto` e
@@ -1868,33 +2053,6 @@ export function repositorioEscopadoDeOcorrencias(
         recorte.push(compartilhada);
       }
 
-      /**
-       * **O sétimo número, e ele não é um `FILTER` dos outros seis** (item 88). Os seis contam linhas de
-       * `ocorrencias`; este conta linhas de `compartilhamentos`, e um `FILTER` sobre a partição não
-       * alcançaria as que estão fora do corte. É subconsulta escalar, constante para a consulta: ela não
-       * referencia coluna de `o`, então vive no `select` de um agregado sem `group by`.
-       *
-       * **Ele ignora o corte e os filtros de propósito.** A pergunta é *"quantas esperam por você"*, e não
-       * *"quantas desta página"*: uma ocorrência compartilhada e registrada depois do corte continua
-       * esperando. É a mesma natureza dos quatro do painel, que existem para o leitor **decidir** o que
-       * pedir.
-       *
-       * **`com_pessoa_id`, nunca `por_pessoa_id`.** As duas pontas moram na mesma linha, e a errada faria
-       * quem compartilhou ver o contador de quem recebeu.
-       *
-       * **`$1` no `where` da subconsulta é o que impede o número de somar duas organizações.** A mesma
-       * Pessoa está nas duas, e a suíte de isolamento tem a entrada que prova.
-       */
-      let naoAbertas = "0";
-      if (filtro.naoAbertasDePessoaId !== undefined) {
-        const dela = proximo();
-        valores.push(filtro.naoAbertasDePessoaId);
-        naoAbertas = `(select count(*) from compartilhamentos cfn
-                        where cfn.organizacao_id = $1
-                          and cfn.com_pessoa_id = ${dela}::uuid
-                          and cfn.aberto_em is null)::int`;
-      }
-
       const eRecorte = recorte.length === 0 ? "" : ` and ${recorte.join(" and ")}`;
       const eVisivel = visibilidade.length === 0 ? "" : ` and ${visibilidade.join(" and ")}`;
       const ondeDeFora =
@@ -1919,8 +2077,7 @@ export function repositorioEscopadoDeOcorrencias(
                 count(*) filter (where ${corte} and ${naoTerminal}${doPainel})::int          as em_aberto,
                 count(*) filter (where ${corte} and ${naoTerminal}
                                    and ${semResponsavelVigente}${doPainel})::int             as sem_responsavel,
-                count(*) filter (where o.registrada_em > ${ate}::timestamptz${eRecorte})::int as novas,
-                ${naoAbertas}                                                                as compartilhadas_nao_abertas
+                count(*) filter (where o.registrada_em > ${ate}::timestamptz${eRecorte})::int as novas
            from ocorrencias o
           where o.organizacao_id = $1${ondeDeFora}
           ${condicoes.map((condicao) => `and ${condicao}`).join("\n          ")}`,
@@ -1938,7 +2095,6 @@ export function repositorioEscopadoDeOcorrencias(
           emAberto: 0,
           semResponsavel: 0,
           novas: 0,
-          compartilhadasNaoAbertas: 0,
         };
       }
 
@@ -1949,7 +2105,6 @@ export function repositorioEscopadoDeOcorrencias(
         emAberto: linha.em_aberto,
         semResponsavel: linha.sem_responsavel,
         novas: linha.novas,
-        compartilhadasNaoAbertas: linha.compartilhadas_nao_abertas,
       };
     },
 

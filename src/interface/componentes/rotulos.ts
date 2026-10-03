@@ -541,15 +541,6 @@ export const RECORTE_COMPARTILHADAS = "Compartilhadas comigo";
 export const SELO_NAO_VISTA = "Não vista";
 
 /**
- * A palavra do **nome acessível** da opção — *"Compartilhadas comigo, 3 não vistas"*. Na tela fica só o
- * número, pelo mesmo motivo que o `Quantos` de hoje põe o número dentro do nome: esconder de quem usa
- * leitor de tela um número que está na tela seria negar-lhe o que todo mundo vê.
- */
-export function palavraDeNaoVistas(quantas: number): string {
-  return quantas === 1 ? "não vista" : "não vistas";
-}
-
-/**
  * ============================================================================
  *  O estado sem acesso — item 44h
  * ============================================================================

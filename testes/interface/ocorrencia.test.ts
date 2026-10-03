@@ -1,4 +1,4 @@
-import { existsSync, globSync, readFileSync } from "node:fs";
+import { existsSync, globSync, readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -67,6 +67,7 @@ import {
   recusarEvolucaoPrevista,
   recusarSemDestino,
   registrarFalha,
+  registrarLeituraDeQuemAgiu,
   type ErroDeCampo,
 } from "@/interface/http";
 import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
@@ -470,7 +471,7 @@ describe("o envelope da página — item 14b", () => {
     totalNoCorte: 137,
     saidasDesdeOCorte: 0,
     novasDesdeOCorte: 0,
-    contagens: { todas: 9, minhas: 2, emAberto: 7, semResponsavel: 3, compartilhadasNaoAbertas: 0 },
+    contagens: { todas: 9, minhas: 2, emAberto: 7, semResponsavel: 3 },
     visibilidadeAplicada: "todas",
     ...extra,
   });
@@ -518,7 +519,6 @@ describe("o envelope da página — item 14b", () => {
       minhas: 2,
       emAberto: 7,
       semResponsavel: 3,
-      compartilhadasNaoAbertas: 0,
     });
   });
 
@@ -4518,23 +4518,19 @@ describe("87 · a aba na URL e o vazio dela", () => {
  * — ele roda no navegador, e o produto não tem biblioteca de teste de componente.
  */
 describe("87.7 · o recorte de quem não tem ler_todas", () => {
-  // **Atualizado pelo item 88**, que deu número à terceira opção — e forma própria a ele, porque ele conta
-  // uma pendência e não um conjunto. *Minhas* continua sem número.
-  it("sem ler_todas: Minhas sem número, Compartilhadas com o das não vistas", () => {
+  // **Atualizado pelo item 117**: o número das não vistas que o item 88 pôs na terceira opção passou a ser
+  // o do sino. *Minhas* continua sem número.
+  it("sem ler_todas: nenhuma das duas opções tem número — item 117", () => {
     expect(opcoesDoRecorte(false)).toStrictEqual([
       { valor: "minhas", rotulo: "Minhas ocorrências", contagem: null },
-      {
-        valor: "compartilhadas",
-        rotulo: "Compartilhadas comigo",
-        contagem: { campo: "compartilhadasNaoAbertas", forma: "nao-vistas" },
-      },
+      { valor: "compartilhadas", rotulo: "Compartilhadas comigo", contagem: null },
     ]);
   });
 
   it("com ler_todas: as duas de sempre, as duas com o total", () => {
     expect(opcoesDoRecorte(true)).toStrictEqual([
-      { valor: "todas", rotulo: "Todas as ocorrências", contagem: { campo: "todas", forma: "total" } },
-      { valor: "minhas", rotulo: "Minhas ocorrências", contagem: { campo: "minhas", forma: "total" } },
+      { valor: "todas", rotulo: "Todas as ocorrências", contagem: { campo: "todas" } },
+      { valor: "minhas", rotulo: "Minhas ocorrências", contagem: { campo: "minhas" } },
     ]);
   });
 
@@ -4630,8 +4626,8 @@ describe("87 · o painel de compartilhar, a metade conferível", () => {
  */
 describe("88.2 · a abertura não decide nada sobre papel", () => {
   it("o corpo da função não lê a ocorrência nem consulta permissão", () => {
-    const fonte = lerFonte("src/aplicacao/ocorrencia/compartilhamento.ts").replace(/\r\n/gu, "\n");
-    const inicio = fonte.indexOf("export async function registrarAberturaDoCompartilhamento(");
+    const fonte = lerFonte("src/aplicacao/ocorrencia/sino.ts").replace(/\r\n/gu, "\n");
+    const inicio = fonte.indexOf("export async function registrarLeitura(");
     expect(inicio).toBeGreaterThanOrEqual(0);
     const corpo = fonte.slice(inicio, fonte.indexOf("\n}\n", inicio) + 3);
 
@@ -4654,30 +4650,31 @@ describe("88.2 · a abertura não decide nada sobre papel", () => {
 describe("88.4 · a abertura é ação de servidor, e ela invalida a lista", () => {
   const acoes = lerFonte("src/interface/acoes/index.ts").replace(/\r\n/gu, "\n");
 
-  it("a ação existe, resolve o escopo, e invalida /ocorrencias", () => {
-    const inicio = acoes.indexOf("export async function acaoDeRegistrarAbertura(");
+  it("a ação existe, resolve o escopo, e invalida o layout da raiz — item 117", () => {
+    const inicio = acoes.indexOf("export async function acaoDeRegistrarLeitura(");
     expect(inicio).toBeGreaterThanOrEqual(0);
     const corpo = acoes.slice(inicio, acoes.indexOf("\n}\n", inicio) + 3);
 
     expect(corpo).toContain("resolverEscopoParaTela");
-    expect(corpo).toContain('revalidatePath("/ocorrencias")');
+    expect(corpo).toContain('revalidatePath("/", "layout")');
     // **Nada volta para quem chamou.** A ação é endereço público: um retorno diria se a ocorrência existe,
     // e a recusa do produto é indistinguível de *"não existe"* (contrato §6.3).
     expect(corpo).not.toMatch(/\breturn\s+[^;\s]/u);
   });
 
-  it("nenhuma rota de app/ grava a abertura", () => {
+  it("nenhuma rota de app/ grava a leitura direto", () => {
     // A escrita mora num lugar só; um `route.ts` que a repetisse seria a segunda cópia.
     const rotas = globSync("app/**/route.ts", { cwd: RAIZ });
     expect(rotas.length).toBeGreaterThan(0);
     for (const rota of rotas) {
       expect(lerFonte(rota), rota).not.toContain("marcarCompartilhamentoAberto");
-      expect(lerFonte(rota), rota).not.toContain("registrarAberturaDoCompartilhamento");
+      // Não casa `registrarLeituraDeQuemAgiu(`, que é como as rotas que agem gravam (item 117).
+      expect(lerFonte(rota), rota).not.toMatch(/\bregistrarLeitura\(/u);
     }
   });
 
   it("o componente dispara uma vez e não desenha nada", () => {
-    const fonte = lerFonte("src/interface/componentes/registro-de-abertura.tsx").replace(/\r\n/gu, "\n");
+    const fonte = lerFonte("src/interface/componentes/registro-de-leitura.tsx").replace(/\r\n/gu, "\n");
 
     expect(fonte).toContain('"use client"');
     expect(fonte).toContain("useEffect");
@@ -4686,11 +4683,11 @@ describe("88.4 · a abertura é ação de servidor, e ela invalida a lista", () 
     expect(fonte).toContain("useRef");
   });
 
-  it("T-05 só o monta quando a leitura é a primeira", () => {
+  it("T-05 o monta em toda abertura — item 117", () => {
     const pagina = lerFonte("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx").replace(/\r\n/gu, "\n");
 
-    expect(pagina).toContain("recebida.naoAberta");
-    expect(pagina).toContain("<RegistroDeAbertura");
+    expect(pagina).toContain("<RegistroDeLeitura ocorrenciaId={detalhe.id} />");
+    expect(pagina).not.toContain("recebida.naoAberta");
   });
 
   it("só T-05 conta como abertura: a trilha e o anexo não", () => {
@@ -4698,13 +4695,77 @@ describe("88.4 · a abertura é ação de servidor, e ela invalida a lista", () 
     // `GET /api/ocorrencias/{id}`, nem o *prefetch* da linha da lista. Com um lugar só montando o
     // componente, isso é verdade por construção — e este caso é o que impede a segunda montagem.
     const montam = globSync("app/**/*.tsx", { cwd: RAIZ }).filter((caminho) =>
-      lerFonte(caminho).includes("<RegistroDeAbertura"),
+      lerFonte(caminho).includes("<RegistroDeLeitura"),
     );
 
     expect(montam).toHaveLength(1);
     // **`[\\/]` porque o separador difere entre Windows e a esteira**, e o que se prende é o caminho, não
     // o separador.
     expect(montam[0]).toMatch(/ocorrencias[\\/]\[ocorrenciaId\][\\/]page\.tsx$/u);
+  });
+});
+
+/**
+ * ============================================================================
+ *  117 · agir marca como lida
+ * ============================================================================
+ *
+ * **Por leitura de fonte**, como os casos do 88 acima: as rotas não têm teste de integração, e o
+ * comportamento da leitura em si é provado uma vez contra Postgres. Aqui se prende que nenhuma rota que
+ * escreve fica de fora.
+ */
+describe("agir marca como lida — item 117, spec §3.5", () => {
+  const PASTA = "app/api/ocorrencias/[ocorrenciaId]";
+  const ESCRITORES = [
+    "alterar-prioridade",
+    "analisar",
+    "atribuir-responsavel",
+    "avaliar",
+    "cancelar",
+    "iniciar-atendimento",
+    "pausar",
+    "registrar-solucao-aplicada",
+    "resolver",
+    "retomar",
+    "comentarios",
+    "compartilhamentos",
+  ];
+
+  it("toda rota POST da pasta é um escritor da lista, e a lista não tem sobra", () => {
+    const comPost = readdirSync(RAIZ + PASTA, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .map((d) => d.name)
+      .filter((nome) => existsSync(`${RAIZ}${PASTA}/${nome}/route.ts`))
+      .filter((nome) => /export const POST\b/u.test(lerFonte(`${PASTA}/${nome}/route.ts`)))
+      .sort();
+    expect(comPost).toStrictEqual([...ESCRITORES].sort());
+  });
+
+  it.each(ESCRITORES)("%s chama registrarLeituraDeQuemAgiu depois do caso de uso", (nome) => {
+    const fonte = lerFonte(`${PASTA}/${nome}/route.ts`);
+    const post = fonte.slice(fonte.indexOf("export const POST"));
+    const leitura = post.indexOf("registrarLeituraDeQuemAgiu(");
+    expect(leitura, nome).toBeGreaterThan(-1);
+    expect(leitura, nome).toBeGreaterThan(post.indexOf("await ")); // depois do caso de uso
+    expect(post.slice(0, leitura), nome).not.toMatch(/return\s/u); // e antes de responder
+  });
+
+  it("falha ao gravar a leitura é registrada e não derruba a resposta", async () => {
+    const falhas = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await expect(
+      registrarLeituraDeQuemAgiu(
+        {
+          registrarLeitura: async () => {
+            throw new Error("banco fora");
+          },
+        },
+        "oc-1",
+        "p-1",
+        "/ocorrencias/oc-1/analisar",
+      ),
+    ).resolves.toBeUndefined();
+    expect(falhas).toHaveBeenCalledWith(expect.stringContaining("banco fora"));
+    falhas.mockRestore();
   });
 });
 
@@ -4717,16 +4778,6 @@ describe("88.4 · a abertura é ação de servidor, e ela invalida a lista", () 
  * biblioteca de teste de componente; a jornada em tela é do ponta a ponta.
  */
 describe("88.6 · o número na opção, e o selo na linha", () => {
-  it("zero não desenha pílula na forma das não vistas, e desenha na do total", () => {
-    const fonte = lerFonte("src/interface/componentes/recorte-da-lista.tsx").replace(/\r\n/gu, "\n");
-
-    // A regra *"zero é ausência"* vale só para a pendência: *Todas 0* continua sendo 0.
-    expect(fonte).toContain('forma === "total"');
-    expect(fonte).toContain("if (quantas === 0) return null;");
-    expect(fonte).toContain("CONTAGEM_DE_NAO_VISTAS");
-    expect(fonte).toContain("palavraDeNaoVistas");
-  });
-
   it("o selo entra nos dois desenhos da lista, e nunca dentro do link do título", () => {
     const fonte = lerFonte("src/interface/componentes/lista-de-ocorrencias.tsx").replace(/\r\n/gu, "\n");
 
@@ -4765,9 +4816,15 @@ describe("88.3 · a frase dos avisos e o contador dizem a mesma coisa", () => {
 
   it("e o que continua fora continua nomeado", () => {
     // Apagar a linha seria tirar a explicação do corte, e o `README.md` depende dela.
-    for (const ausencia of ["sem sino", "sem e-mail", "sem mensagem", "sem alarme de ocorrência parada"]) {
+    for (const ausencia of ["sem e-mail", "sem mensagem", "sem alarme de ocorrência parada"]) {
       expect(produto, ausencia).toContain(ausencia);
     }
+  });
+
+  it("a cláusula do sino saiu, e só ela — critério 117.12", () => {
+    // O sino existe desde o item 117; o resto da frase continua verdadeiro e fica.
+    expect(produto).not.toContain("sem sino");
+    expect(produto).toContain("nenhum aviso que chegue sozinho: sem e-mail, sem mensagem, sem alarme de ocorrência parada");
   });
 });
 

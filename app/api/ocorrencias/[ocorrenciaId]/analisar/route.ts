@@ -1,5 +1,5 @@
 import { analisarOcorrencia } from "@/aplicacao/ocorrencia";
-import { comContexto } from "@/interface/http";
+import { comContexto, registrarLeituraDeQuemAgiu } from "@/interface/http";
 import { projetarOcorrenciaDetalhe } from "@/interface/projecoes";
 import { comandoComObservacaoSchema } from "@/interface/schemas";
 
@@ -23,13 +23,21 @@ import { comandoComObservacaoSchema } from "@/interface/schemas";
  */
 export const POST = comContexto(
   { exige: "ocorrencia.analisar", corpo: comandoComObservacaoSchema, corpoOpcional: true },
-  async ({ ctx, repos, corpo, parametros, lente }) => {
+  async ({ ctx, repos, corpo, parametros, lente, requisicao }) => {
     const lida = await analisarOcorrencia(
       repos.ocorrencias,
       // **`permissoes`, e não `podeLerTodas`.** Uma fonte só: o comando deriva o que precisar dela, e é
       // a mesma lista que monta `acoesDisponiveis` no corpo do `409`.
       { pessoaId: ctx.pessoaId, permissoes: ctx.vinculo.permissoes },
       { ocorrenciaId: parametros["ocorrenciaId"] ?? "", observacao: corpo.observacao ?? null },
+    );
+
+    // Agir marca como lida (item 117): depois do comando, e sem derrubar a resposta.
+    await registrarLeituraDeQuemAgiu(
+      repos.ocorrencias,
+      parametros["ocorrenciaId"] ?? "",
+      ctx.pessoaId,
+      new URL(requisicao.url).pathname,
     );
 
     // **A mesma projeção do `GET`**, e por isso a resposta do comando é indistinguível de reler a

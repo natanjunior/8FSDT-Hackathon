@@ -1,5 +1,11 @@
 import { enviarComentario, verComentarios } from "@/aplicacao/ocorrencia";
-import { comContexto, lerCursorDeConversaDaUrl, lerLimiteDaUrl, resposta } from "@/interface/http";
+import {
+  comContexto,
+  lerCursorDeConversaDaUrl,
+  lerLimiteDaUrl,
+  resposta,
+  registrarLeituraDeQuemAgiu,
+} from "@/interface/http";
 import { projetarComentario, projetarPaginaDeComentarios } from "@/interface/projecoes";
 import { comentarioSchema } from "@/interface/schemas";
 
@@ -55,12 +61,20 @@ export const GET = comContexto(
  */
 export const POST = comContexto(
   { exige: "ocorrencia.comentar", corpo: comentarioSchema },
-  async ({ ctx, repos, corpo, parametros }) => {
+  async ({ ctx, repos, corpo, parametros, requisicao }) => {
     const criada = await enviarComentario(
       repos.ocorrencias,
       parametros["ocorrenciaId"] ?? "",
       { pessoaId: ctx.pessoaId, podeLerTodas: ctx.vinculo.pode("ocorrencia.ler_todas") },
       { texto: corpo.texto },
+    );
+
+    // Agir marca como lida (item 117): depois do comando, e sem derrubar a resposta.
+    await registrarLeituraDeQuemAgiu(
+      repos.ocorrencias,
+      parametros["ocorrenciaId"] ?? "",
+      ctx.pessoaId,
+      new URL(requisicao.url).pathname,
     );
 
     return resposta(projetarComentario(criada), { status: 201 });

@@ -501,6 +501,10 @@ describe("app/globals.css — as cores dos seis estados, medidas (item 44q)", ()
       /** Toda tinta que veste texto no produto (item 89, spec §4.5). A `--ink-faint` não está: não é texto. */
       const TINTAS_DE_TEXTO = ["--ink", "--ink-soft", "--ok", "--info", "--accent-ink", "--destructive"];
 
+      it("a pílula do sino é a tinta sob a superfície, e passa 4,5:1 (item 117)", () => {
+        expect(contraste(cor("--ink"), cor("--surface"))).toBeGreaterThanOrEqual(4.5);
+      });
+
       it("imprime a medição, que é o que o relatório do item copia", () => {
         for (const token of [...TINTAS_DE_TEXTO, "--ink-faint"]) {
           console.info(`[89] ${nome} ${token} ${hexDe(cor(token))} pior fundo ${piorFundo(cor(token)).toFixed(2)}:1`);
