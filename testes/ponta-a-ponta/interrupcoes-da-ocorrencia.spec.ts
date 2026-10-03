@@ -1,9 +1,11 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import { cobre } from "./cobertura";
 import {
   abrirNoMenu,
+  abrirOSino,
   AURORA,
+  botaoDoSino,
   ciclo,
   ENCARREGADA_DO_AURORA,
   entrar,
@@ -12,6 +14,7 @@ import {
   HELENA,
   MARCOS,
   marcaDoInstante,
+  naoLidasNoSino,
   NOME_DE_HELENA,
   NOME_DE_MARCOS,
   registrarOcorrencia,
@@ -581,143 +584,144 @@ test("compartilhar: a Solicitante escolhe, o Gestor abre, e quem recebe só lê 
 
 /**
  * ============================================================================
- *  O contador do que foi compartilhado e não foi aberto — item 88
+ *  O sino, derivado da leitura — item 117
  * ============================================================================
  *
- * **O que só o ponta a ponta prova, e é o critério 88.1 inteiro:** que o número cai na **volta pelo botão
- * do navegador**. O cache de cliente do Next reusa a entrada de T-03 em toda navegação de voltar; sem a
- * invalidação que a ação de servidor dispara, este teste falha aqui e em nenhum outro lugar.
+ * **O que só o ponta a ponta prova:** que abrir pelo sino e **voltar pelo botão do navegador** mostra o
+ * número já caído. O layout da casca não se renderiza de novo na navegação, e só a revalidação que a ação
+ * de servidor dispara o alcança. **E que o contador do 88 virou o sino:** T-03 sem número na aba, o selo
+ * *Não vista* na linha, e o compartilhamento chegando como aviso.
  *
- * **E que o *prefetch* não conta como abertura:** a lista parada com as linhas na tela não muda o número.
- *
- * **Ele não reusa o mundo do teste do 87**, que desfaz o compartilhamento dele no fim. **A suíte roda em
- * série, com um trabalhador**: se o do 87 falhar no meio, este começa com resíduo e falha no *"3 não
- * vistas"* — o que é diagnóstico correto, e não um segundo defeito.
+ * **Números relativos, sempre.** O mundo de teste acumula ocorrências a cada corrida, e o Gestor tem *Nova
+ * ocorrência* de todas as dos últimos 30 dias: nenhum número absoluto é estável.
  */
-test("o contador do que foi compartilhado e não foi aberto — item 88", async ({ browser }) => {
+/** A resposta da próxima ação de servidor da página — o POST que leva o cabeçalho `next-action`. */
+function respostaDeAcao(pagina: Page): Promise<unknown> {
+  return pagina.waitForResponse(
+    (resposta) => resposta.request().method() === "POST" && resposta.request().headers()["next-action"] !== undefined,
+  );
+}
+
+test("o sino, derivado da leitura — item 117", async ({ browser }) => {
   const contextoDeHelena = await browser.newContext();
   const contextoDeMarcos = await browser.newContext();
   const helena = await contextoDeHelena.newPage();
   const marcos = await contextoDeMarcos.newPage();
   const marca = marcaDoInstante();
-  const titulos = [`Grelha do ralo ${marca}`, `Fiação do hall ${marca}`, `Bomba do poço ${marca}`];
+  const daHelena = `Portão da garagem ${marca}`;
+  const doMarcos = `Bomba do poço ${marca}`;
 
   // -------------------------------------------------------------------------
-  // 1 · Marcos registra três e compartilha as três com Helena.
-  // -------------------------------------------------------------------------
-  await entrar(marcos, MARCOS);
-  await marcos.waitForURL(/\/ocorrencias$/u);
-  const identificadores: string[] = [];
-  for (const titulo of titulos) {
-    identificadores.push(await registrarOcorrencia(marcos, titulo, "Precisa de olhada."));
-    await marcos.getByRole("button", { name: "Compartilhar" }).click();
-    const painel = marcos.getByRole("dialog", { name: "Compartilhar" });
-    await painel.getByLabel("Buscar pelo nome").fill("Hel");
-    await painel.getByRole("option", { name: new RegExp(NOME_DE_HELENA, "u") }).click();
-    await expect(painel.getByText("Já compartilhada")).toBeVisible();
-    await painel.getByRole("button", { name: "Pronto" }).click();
-    await marcos.goto("/ocorrencias");
-  }
-
-  // -------------------------------------------------------------------------
-  // 2 · Helena chega e vê três. O nome acessível carrega o número e a palavra.
-  //
-  // **RegExp, e não igualdade.** Os dois `sr-only` do `Quantos` são `position: absolute`, o que os torna
-  // caixa de bloco: o Chromium insere espaço ao concatenar o nome, e uma igualdade exata reprovaria por um
-  // espaço antes da vírgula. O que precisa ser preso é a ORDEM — rótulo, número, palavra —, e a RegExp a
-  // prende.
+  // 1 · Helena registra no Aurora. Marcos, Gestor, recebe "Nova ocorrência"; ela não recebe nada.
   // -------------------------------------------------------------------------
   await entrar(helena, HELENA);
   await helena.waitForURL(/\/organizacao$/u);
   await helena.getByRole("button", { name: AURORA }).click();
   await helena.waitForURL(/\/ocorrencias$/u);
-  const aba = helena.getByRole("radio", { name: /Compartilhadas comigo/u });
-  await expect(aba).toHaveAccessibleName(/^Compartilhadas comigo\s*,\s*3\s+não vistas$/u);
-  cobre(test.info(), "88 · 1", { criterio: "88.1" });
+  const deHelenaAntes = await naoLidasNoSino(helena);
+  const idDaHelena = await registrarOcorrencia(helena, daHelena, "Travando de manhã.");
+  await helena.goto("/ocorrencias");
+  expect(await naoLidasNoSino(helena)).toBe(deHelenaAntes);
+  cobre(test.info(), "117 · 1", { criterio: "117.2" });
+
+  await entrar(marcos, MARCOS);
+  await marcos.waitForURL(/\/ocorrencias$/u);
+  const deMarcosAntes = await naoLidasNoSino(marcos);
+  let lista = await abrirOSino(marcos);
+  // `exact`: sem ele, o nome casa por trecho, sem caixa, e "Lidas" acharia também "Não lidas".
+  const naFaixa = lista.getByRole("region", { name: "Não lidas", exact: true });
+  await expect(naFaixa.getByRole("link", { name: daHelena })).toBeVisible();
+  await expect(naFaixa.getByRole("listitem").filter({ hasText: daHelena })).toContainText("Nova ocorrência");
+  cobre(test.info(), "117 · 2", { criterio: "117.3" });
 
   // -------------------------------------------------------------------------
-  // 3 · O selo por linha, e a ausência dele em Minhas.
+  // 2 · Abrir pelo sino marca como lida, e a volta pelo navegador mostra o número caído.
   // -------------------------------------------------------------------------
-  await aba.click();
-  for (const titulo of titulos) {
-    const linha = helena.getByRole("row", { name: new RegExp(titulo, "u") });
-    await expect(linha.getByText("Não vista", { exact: true })).toBeVisible();
-  }
-  await helena.getByRole("radio", { name: "Minhas ocorrências" }).click();
-  // **`exact`, e não substring.** Sem ele, *"Não vista"* casa também a palavra do nome acessível da
-  // pílula, que é `não vistas` e continua na tela: o número **não** depende do recorte ativo, e é em
-  // *Minhas* que ele avisa que há algo do outro lado. A asserção seguinte é essa decisão.
-  await expect(helena.getByText("Não vista", { exact: true })).toHaveCount(0);
-  await expect(helena.getByRole("radio", { name: "Minhas ocorrências" })).toBeChecked();
-  await expect(helena.getByRole("radio", { name: /Compartilhadas comigo/u })).toHaveAccessibleName(
-    /^Compartilhadas comigo\s*,\s*3\s+não vistas$/u,
-  );
-  cobre(test.info(), "88 · 3", { criterio: "88.1" });
-
-  // -------------------------------------------------------------------------
-  // 4 · A lista parada com as linhas na tela NÃO muda o número — o *prefetch* não é abertura.
-  // -------------------------------------------------------------------------
-  await helena.goto("/ocorrencias?compartilhadas=comigo");
-  // O mesmo localizador dos outros passos: por papel, que é o idioma do arquivo e o que resolve uma peça
-  // só nas duas larguras.
-  await expect(helena.getByRole("link", { name: titulos[0]! })).toBeVisible();
-  await helena.waitForTimeout(3000);
-  await helena.reload();
-  await expect(helena.getByRole("radio", { name: /Compartilhadas comigo/u })).toHaveAccessibleName(
-    /^Compartilhadas comigo\s*,\s*3\s+não vistas$/u,
-  );
-
-  // -------------------------------------------------------------------------
-  // 5 · Abre uma e VOLTA PELO BOTÃO DO NAVEGADOR: o número caiu.
-  // -------------------------------------------------------------------------
-  await helena.getByRole("link", { name: titulos[0]! }).click();
-  await expect(helena.getByText(/Compartilhada com você por/u)).toBeVisible();
-  await helena.goBack();
-  await expect(helena.getByRole("radio", { name: /Compartilhadas comigo/u })).toHaveAccessibleName(
-    /^Compartilhadas comigo\s*,\s*2\s+não vistas$/u,
-  );
+  // **Espera a leitura gravar antes de voltar**: ela é uma ação de servidor disparada depois da pintura, e
+  // a revalidação só alcança a volta quando a resposta dela chega. `networkidle` não serve: T-05 sonda.
+  let leituraGravada = respostaDeAcao(marcos);
+  await naFaixa.getByRole("link", { name: daHelena }).click();
+  await marcos.waitForURL(new RegExp(`/ocorrencias/${idDaHelena}$`, "u"));
+  await leituraGravada;
+  await marcos.goBack();
+  await expect.poll(() => naoLidasNoSino(marcos)).toBe(deMarcosAntes - 1);
+  lista = await abrirOSino(marcos);
   await expect(
-    helena
-      .getByRole("row", { name: new RegExp(titulos[0]!, "u") })
-      .getByText("Não vista", { exact: true }),
-  ).toHaveCount(0);
+    lista.getByRole("region", { name: "Lidas", exact: true }).getByRole("link", { name: daHelena }),
+  ).toBeVisible();
+  await marcos.keyboard.press("Escape");
+  await expect(botaoDoSino(marcos)).toBeFocused();
+  cobre(test.info(), "117 · 3", { criterio: "117.5" });
 
   // -------------------------------------------------------------------------
-  // 6 · Abre as outras duas: a pílula não existe mais.
-  //
-  // Zero é AUSÊNCIA: nem `0`, nem pílula vazia. As duas asserções dizem isso pelos dois lados — o nome
-  // acessível não leva número nenhum, e a peça não está no DOM.
+  // 3 · Marcos analisa: o sino dele não muda; o de Helena mostra "Em análise · Marcos Vieira".
   // -------------------------------------------------------------------------
-  for (const titulo of titulos.slice(1)) {
-    await helena.goto("/ocorrencias?compartilhadas=comigo");
-    await helena.getByRole("link", { name: titulo }).click();
-    await expect(helena.getByText(/Compartilhada com você por/u)).toBeVisible();
-  }
+  await marcos.goto(`/ocorrencias/${idDaHelena}`);
+  const deMarcosAntesDeAgir = await naoLidasNoSino(marcos);
+  await analisar(marcos);
+  expect(await naoLidasNoSino(marcos)).toBe(deMarcosAntesDeAgir);
+  await helena.reload();
+  await expect.poll(() => naoLidasNoSino(helena)).toBe(deHelenaAntes + 1);
+  lista = await abrirOSino(helena);
+  const linhaDaHelena = lista.getByRole("listitem").filter({ hasText: daHelena });
+  await expect(linhaDaHelena).toContainText(NOME_DE_MARCOS);
+  cobre(test.info(), "117 · 4", { criterio: "117.1" });
+
+  // -------------------------------------------------------------------------
+  // 4 · Marcar como lida e como não lida, à mão.
+  // -------------------------------------------------------------------------
+  await linhaDaHelena.getByRole("button", { name: "Marcar como lida" }).click();
+  await expect.poll(() => naoLidasNoSino(helena)).toBe(deHelenaAntes);
+  lista = await abrirOSino(helena);
+  await lista
+    .getByRole("listitem")
+    .filter({ hasText: daHelena })
+    .getByRole("button", { name: "Marcar como não lida" })
+    .click();
+  await expect.poll(() => naoLidasNoSino(helena)).toBe(deHelenaAntes + 1);
+  cobre(test.info(), "117 · 5", { criterio: "117.5" });
+  await helena.keyboard.press("Escape");
+
+  // -------------------------------------------------------------------------
+  // 5 · O 88 absorvido: compartilhamento vira aviso, T-03 sem número na aba, selo Não vista na linha.
+  // -------------------------------------------------------------------------
+  await marcos.goto("/ocorrencias");
+  const idDoMarcos = await registrarOcorrencia(marcos, doMarcos, "Ruído contínuo.");
+  await marcos.getByRole("button", { name: "Compartilhar" }).click();
+  const painel = marcos.getByRole("dialog", { name: "Compartilhar" });
+  await painel.getByLabel("Buscar pelo nome").fill("Hel");
+  await painel.getByRole("option", { name: new RegExp(NOME_DE_HELENA, "u") }).click();
+  await expect(painel.getByText("Já compartilhada")).toBeVisible();
+  await painel.getByRole("button", { name: "Pronto" }).click();
+
   await helena.goto("/ocorrencias?compartilhadas=comigo");
   await expect(helena.getByRole("radio", { name: /Compartilhadas comigo/u })).toHaveAccessibleName(
     /^Compartilhadas comigo$/u,
   );
   await expect(
-    helena.getByRole("radio", { name: /Compartilhadas comigo/u }).locator("[data-slot=badge]"),
+    helena.getByRole("row", { name: new RegExp(doMarcos, "u") }).getByText("Não vista", { exact: true }),
+  ).toBeVisible();
+  cobre(test.info(), "88 · 3", { criterio: "88.1" });
+  lista = await abrirOSino(helena);
+  await expect(lista.getByRole("listitem").filter({ hasText: doMarcos })).toContainText("Compartilhada com você");
+  await helena.keyboard.press("Escape");
+  await expect(lista).toBeHidden();
+  leituraGravada = respostaDeAcao(helena);
+  await helena.getByRole("row", { name: new RegExp(doMarcos, "u") }).getByRole("link", { name: doMarcos }).click();
+  await expect(helena.getByText(/Compartilhada com você por/u)).toBeVisible();
+  await leituraGravada;
+  await helena.goBack();
+  await expect(
+    helena.getByRole("row", { name: new RegExp(doMarcos, "u") }).getByText("Não vista", { exact: true }),
   ).toHaveCount(0);
-  cobre(test.info(), "88 · 2", { criterio: "88.1" });
+  cobre(test.info(), "117 · 6", { criterio: "117.13" });
 
   // -------------------------------------------------------------------------
-  // 7 · Marcos desfaz os três — **o teste limpa o que semeou.**
-  //
-  // Sem isto, a segunda passada da suíte sobre o mesmo banco começaria com três compartilhamentos não
-  // abertos de resíduo, e o *"3 não vistas"* do passo 2 viraria *"6"*. É o mesmo desfecho do teste do
-  // item 87, e pela mesma razão: o contador é estado acumulado por pessoa, e não por ocorrência.
+  // 6 · Limpa o que semeou (a regra do arquivo): desfaz o compartilhamento.
   // -------------------------------------------------------------------------
-  for (const identificador of identificadores) {
-    await marcos.goto(`/ocorrencias/${identificador}`);
-    await marcos
-      .getByRole("button", { name: `Desfazer o compartilhamento com ${NOME_DE_HELENA}` })
-      .click();
-    await expect(
-      marcos.getByText("Só quem registrou e os Gestores veem esta ocorrência."),
-    ).toBeVisible();
-  }
+  await marcos.goto(`/ocorrencias/${idDoMarcos}`);
+  await marcos.getByRole("button", { name: `Desfazer o compartilhamento com ${NOME_DE_HELENA}` }).click();
+  await expect(marcos.getByText("Só quem registrou e os Gestores veem esta ocorrência.")).toBeVisible();
 
   await contextoDeHelena.close();
   await contextoDeMarcos.close();
