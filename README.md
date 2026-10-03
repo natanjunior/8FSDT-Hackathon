@@ -212,22 +212,23 @@ O teste de ponta a ponta tem dois pré-requisitos, e eles não são automatizado
 sobe a pilha (o `playwright.config.ts` não tem `webServer`: a pilha não é um processo, e duplicar o
 procedimento desta página seria uma segunda cópia que diverge) e não semeia (a semente **recusa** quando o
 mundo já existe). O teste usa um mundo próprio, gêmeo da demonstração, com outras organizações e outras
-contas, para que nenhuma corrida mude o que a demonstração mostra. Antes da primeira execução:
+contas, para que nenhuma corrida mude o que a demonstração mostra. A senha do mundo de teste é você quem
+escolhe: qualquer valor serve, desde que a semente e o teste recebam o mesmo. Antes da primeira execução:
 
 ```bash
 npx playwright install chromium                              # uma vez por máquina
 npm run local                                                # a pilha, em outro terminal
-SENHA_DA_DEMONSTRACAO=ResolveAi!2026 npm run semear:demo -- --teste   # o mundo de teste
-SENHA_DA_DEMONSTRACAO=ResolveAi!2026 npm run teste:ponta-a-ponta
+SENHA_DA_DEMONSTRACAO=senha-local npm run semear:demo -- --teste   # o mundo de teste
+SENHA_DA_DEMONSTRACAO=senha-local npm run teste:ponta-a-ponta
 ```
 
 No PowerShell, as duas últimas linhas não parseiam, `VAR=valor comando` é sintaxe do shell POSIX, e o
-PowerShell lê `SENHA_DA_DEMONSTRACAO=ResolveAi!2026` como nome de comando. Lá é assim:
+PowerShell lê `SENHA_DA_DEMONSTRACAO=senha-local` como nome de comando. Lá é assim:
 
 ```powershell
 npx playwright install chromium
 npm run local
-$env:SENHA_DA_DEMONSTRACAO = 'ResolveAi!2026'   # vale para a sessão inteira do terminal
+$env:SENHA_DA_DEMONSTRACAO = 'senha-local'   # vale para a sessão inteira do terminal
 npm run semear:demo -- --teste                  # o mundo de teste
 npm run teste:ponta-a-ponta
 ```
@@ -311,7 +312,7 @@ de ocorrências pelas mesmas portas que o produto usa, nenhum `INSERT` administr
 corrigida depois do fato.
 
 ```bash
-SENHA_DA_DEMONSTRACAO=ResolveAi!2026 npm run semear:demo
+SENHA_DA_DEMONSTRACAO=senha-local npm run semear:demo
 ```
 
 Ela cria **duas organizações**, `Condomínio Recanto Azul` e `Edifício Aurora`, e nunca escreve numa
@@ -330,18 +331,12 @@ O `--apagar` roda contra o banco que `BANCO_URL` aponta, e imprime o host antes 
 organização com o nome da demonstração que tenha sido fundada pelas contas dela; se encontrar outra com o
 mesmo nome, deixa-a intacta e diz qual é.
 
-**As duas contas de demonstração**, para o ambiente publicado em
-<https://ca-resolve-ai.jollypebble-46a227ca.chilecentral.azurecontainerapps.io>:
-
-| E-mail | Senha | O que ela é |
-|---|---|---|
-| `helena.rocha@example.com` | `ResolveAi!2026` | **Gestora** no Recanto Azul e **Solicitante** no Aurora — é a pessoa em duas organizações, que é o argumento inteiro do multi-tenant |
-| `marcos.vieira@example.com` | `ResolveAi!2026` | **Gestor** no Aurora |
-
-**São credenciais de demonstração, publicadas de propósito.** Elas não estão no código nem na imagem —
-a senha chega por `SENHA_DA_DEMONSTRACAO`, em tempo de execução. O cadastro do produto já é público e
-aberto, então o que elas acrescentam é escrever **dentro das duas organizações de demonstração**, e nada
-além. Trocá-las é uma variável de ambiente e uma linha desta tabela.
+**As duas contas de demonstração** são Helena Rocha, Gestora no Recanto Azul e Solicitante no Aurora (a
+pessoa em duas organizações, que é o argumento inteiro do multi-tenant), e Marcos Vieira, Gestor no
+Aurora. No ambiente publicado em
+<https://ca-resolve-ai.jollypebble-46a227ca.chilecentral.azurecontainerapps.io>, as credenciais vão com a
+entrega, fora do repositório: ele é público, e a senha chega à semente por `SENHA_DA_DEMONSTRACAO`, em
+tempo de execução. Ela não está no código nem na imagem.
 
 ### O mapa das pastas de código
 
