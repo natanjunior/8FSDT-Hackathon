@@ -315,6 +315,9 @@ corrigida depois do fato.
 SENHA_DA_DEMONSTRACAO=senha-local npm run semear:demo
 ```
 
+Essa variável dá a mesma senha às duas contas. Para uma senha por conta, use
+`SENHA_DA_DEMONSTRACAO_HELENA` e `SENHA_DA_DEMONSTRACAO_MARCOS`; a que faltar usa a comum.
+
 Ela cria **duas organizações**, `Condomínio Recanto Azul` e `Edifício Aurora`, e nunca escreve numa
 organização existente. Ao terminar, imprime os dois códigos públicos, a série mensal e a contagem por
 status: **é a conferência**.

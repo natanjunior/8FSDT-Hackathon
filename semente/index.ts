@@ -1,5 +1,11 @@
 import { semear, type ResumoDaSemeadura } from "./mundo";
-import { PERFIL_DA_DEMONSTRACAO, PERFIL_DE_TESTE, planoDaDemonstracao, reconhecimentoDo } from "./plano";
+import {
+  PERFIL_DA_DEMONSTRACAO,
+  PERFIL_DE_TESTE,
+  planoDaDemonstracao,
+  reconhecimentoDo,
+  senhasDoAmbiente,
+} from "./plano";
 import {
   apagarADemonstracao,
   hostDoBanco,
@@ -52,14 +58,16 @@ async function principal(): Promise<number> {
     return 0;
   }
 
-  const senha = process.env.SENHA_DA_DEMONSTRACAO;
-  if (senha === undefined || senha.trim() === "") {
+  const lidas = senhasDoAmbiente(process.env);
+  if (!lidas.ok) {
     console.error(
-      "SENHA_DA_DEMONSTRACAO não está definida, e ela não tem padrão.\n" +
-        "  Local:     escreva a variável no .env.local, ou passe-a no comando.\n" +
-        "  Publicado: exporte-a no shell antes de rodar.\n" +
-        "A senha do ambiente publicado não está no repositório, que é público: ela vai com a entrega. " +
-        "Trocá-la é uma variável de ambiente, nunca uma mudança de código.",
+      `Falta senha para ${lidas.semSenha.join(" e ")}, e ela não tem padrão.\n` +
+        "  Uma para as duas contas: SENHA_DA_DEMONSTRACAO.\n" +
+        "  Uma por conta: SENHA_DA_DEMONSTRACAO_HELENA e SENHA_DA_DEMONSTRACAO_MARCOS; a que faltar usa a comum.\n" +
+        "  Local:     escreva as variáveis no .env.local, ou passe-as no comando.\n" +
+        "  Publicado: exporte-as no shell antes de rodar.\n" +
+        "As senhas do ambiente publicado não estão no repositório, que é público: elas vão com a entrega. " +
+        "Trocá-las é variável de ambiente, nunca mudança de código.",
     );
     return 1;
   }
@@ -89,7 +97,7 @@ async function principal(): Promise<number> {
   }
 
   // **O único relógio do programa.** Daqui para baixo, todo instante vem do plano.
-  const resumo = await semear(planoDaDemonstracao(new Date(), perfil), senha);
+  const resumo = await semear(planoDaDemonstracao(new Date(), perfil), lidas.senhas);
   imprimirResumo(resumo);
   return 0;
 }

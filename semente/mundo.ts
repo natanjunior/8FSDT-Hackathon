@@ -37,6 +37,7 @@ import {
   type ChaveDeOrganizacao,
   type OcorrenciaDoPlano,
   type PlanoDaDemonstracao,
+  type SenhasDasContas,
 } from "./plano";
 
 /**
@@ -174,7 +175,7 @@ async function garantirConta(nome: string, email: string, senha: string): Promis
     if (!entrada.ok) {
       throw new Error(
         `A conta ${email} já existe e a senha não confere (${entrada.recusa}). ` +
-          `Use a mesma SENHA_DA_DEMONSTRACAO da semeadura anterior, ou troque a senha no provedor.`,
+          `Use a mesma senha da semeadura anterior, ou troque a senha no provedor.`,
       );
     }
   }
@@ -185,11 +186,11 @@ async function garantirConta(nome: string, email: string, senha: string): Promis
 
 export async function semear(
   plano: PlanoDaDemonstracao,
-  senha: string,
+  senhas: SenhasDasContas,
 ): Promise<ResumoDaSemeadura> {
-  // 1 · As duas contas. Cada uma com o próprio armazenamento de cookies.
-  const helena = await garantirConta("Helena Rocha", plano.perfil.contas.helena, senha);
-  const marcos = await garantirConta("Marcos Vieira", plano.perfil.contas.marcos, senha);
+  // 1 · As duas contas. Cada uma com o próprio armazenamento de cookies e a própria senha.
+  const helena = await garantirConta("Helena Rocha", plano.perfil.contas.helena, senhas.helena);
+  const marcos = await garantirConta("Marcos Vieira", plano.perfil.contas.marcos, senhas.marcos);
 
   const pessoas = new Map<string, string>([
     ["helena", helena.pessoaId],
