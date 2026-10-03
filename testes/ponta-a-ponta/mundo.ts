@@ -47,8 +47,8 @@ const SENHA_DO_AMBIENTE = process.env["SENHA_DA_DEMONSTRACAO"];
 if (SENHA_DO_AMBIENTE === undefined || SENHA_DO_AMBIENTE === "") {
   throw new Error(
     "SENHA_DA_DEMONSTRACAO não está no ambiente. Rode:\n" +
-      "  SENHA_DA_DEMONSTRACAO=ResolveAi!2026 npm run semear:demo -- --teste\n" +
-      "  SENHA_DA_DEMONSTRACAO=ResolveAi!2026 npm run teste:ponta-a-ponta\n" +
+      "  SENHA_DA_DEMONSTRACAO=senha-local npm run semear:demo -- --teste\n" +
+      "  SENHA_DA_DEMONSTRACAO=senha-local npm run teste:ponta-a-ponta\n" +
       "É a mesma senha com que a semente criou as contas do mundo de teste (README, «A demonstração»).",
   );
 }

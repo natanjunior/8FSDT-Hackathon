@@ -58,8 +58,8 @@ async function principal(): Promise<number> {
       "SENHA_DA_DEMONSTRACAO não está definida, e ela não tem padrão.\n" +
         "  Local:     escreva a variável no .env.local, ou passe-a no comando.\n" +
         "  Publicado: exporte-a no shell antes de rodar.\n" +
-        "A senha é publicada no README junto dos dois e-mails — trocá-la é uma variável de ambiente e " +
-        "uma linha de documentação, nunca uma mudança de código (spec §3.11).",
+        "A senha do ambiente publicado não está no repositório, que é público: ela vai com a entrega. " +
+        "Trocá-la é uma variável de ambiente, nunca uma mudança de código.",
     );
     return 1;
   }
