@@ -4650,13 +4650,13 @@ describe("88.2 · a abertura não decide nada sobre papel", () => {
 describe("88.4 · a abertura é ação de servidor, e ela invalida a lista", () => {
   const acoes = lerFonte("src/interface/acoes/index.ts").replace(/\r\n/gu, "\n");
 
-  it("a ação existe, resolve o escopo, e invalida /ocorrencias", () => {
+  it("a ação existe, resolve o escopo, e invalida o layout da raiz — item 117", () => {
     const inicio = acoes.indexOf("export async function acaoDeRegistrarLeitura(");
     expect(inicio).toBeGreaterThanOrEqual(0);
     const corpo = acoes.slice(inicio, acoes.indexOf("\n}\n", inicio) + 3);
 
     expect(corpo).toContain("resolverEscopoParaTela");
-    expect(corpo).toContain('revalidatePath("/ocorrencias")');
+    expect(corpo).toContain('revalidatePath("/", "layout")');
     // **Nada volta para quem chamou.** A ação é endereço público: um retorno diria se a ocorrência existe,
     // e a recusa do produto é indistinguível de *"não existe"* (contrato §6.3).
     expect(corpo).not.toMatch(/\breturn\s+[^;\s]/u);
@@ -4674,7 +4674,7 @@ describe("88.4 · a abertura é ação de servidor, e ela invalida a lista", () 
   });
 
   it("o componente dispara uma vez e não desenha nada", () => {
-    const fonte = lerFonte("src/interface/componentes/registro-de-abertura.tsx").replace(/\r\n/gu, "\n");
+    const fonte = lerFonte("src/interface/componentes/registro-de-leitura.tsx").replace(/\r\n/gu, "\n");
 
     expect(fonte).toContain('"use client"');
     expect(fonte).toContain("useEffect");
@@ -4683,11 +4683,11 @@ describe("88.4 · a abertura é ação de servidor, e ela invalida a lista", () 
     expect(fonte).toContain("useRef");
   });
 
-  it("T-05 só o monta quando a leitura é a primeira", () => {
+  it("T-05 o monta em toda abertura — item 117", () => {
     const pagina = lerFonte("app/(casca)/ocorrencias/[ocorrenciaId]/page.tsx").replace(/\r\n/gu, "\n");
 
-    expect(pagina).toContain("recebida.naoAberta");
-    expect(pagina).toContain("<RegistroDeAbertura");
+    expect(pagina).toContain("<RegistroDeLeitura ocorrenciaId={detalhe.id} />");
+    expect(pagina).not.toContain("recebida.naoAberta");
   });
 
   it("só T-05 conta como abertura: a trilha e o anexo não", () => {
@@ -4695,7 +4695,7 @@ describe("88.4 · a abertura é ação de servidor, e ela invalida a lista", () 
     // `GET /api/ocorrencias/{id}`, nem o *prefetch* da linha da lista. Com um lugar só montando o
     // componente, isso é verdade por construção — e este caso é o que impede a segunda montagem.
     const montam = globSync("app/**/*.tsx", { cwd: RAIZ }).filter((caminho) =>
-      lerFonte(caminho).includes("<RegistroDeAbertura"),
+      lerFonte(caminho).includes("<RegistroDeLeitura"),
     );
 
     expect(montam).toHaveLength(1);

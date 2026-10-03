@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { registrarLeitura } from "@/aplicacao/ocorrencia";
+import { marcarComoNaoLida, registrarLeitura } from "@/aplicacao/ocorrencia";
 import {
   criarConta,
   definirSenha,
@@ -242,7 +242,31 @@ export async function acaoDeRegistrarLeitura(ocorrenciaId: string): Promise<void
     return;
   }
 
-  // **`/ocorrencias`, e não o caminho desta ocorrência.** O que ficou velho é a lista, que é onde o número
-  // mora.
-  revalidatePath("/ocorrencias");
+  // **O layout da raiz, e não `/ocorrencias`** (item 117): o sino mora no layout da casca, que não se
+  // renderiza de novo na navegação, e só o tipo `layout` o alcança. Numa função de servidor isso atualiza a
+  // tela atual e faz toda página visitada se refazer na volta. **O custo, dito:** uma segunda renderização
+  // de T-05 no servidor a cada abertura — o preço de o número cair na hora.
+  revalidatePath("/", "layout");
+}
+
+/**
+ * **Marcar como não lida** — item 117. Apaga a leitura de quem pediu; a ocorrência volta a contar e a
+ * novidade mostrada é a mesma. Não é endereço do contrato, pela razão da leitura acima. *Marcar como lida*
+ * é `acaoDeRegistrarLeitura`: é o mesmo gesto.
+ */
+export async function acaoDeMarcarComoNaoLida(ocorrenciaId: string): Promise<void> {
+  let escopo;
+  try {
+    escopo = await resolverEscopoParaTela("qualquer-vinculo-ativo");
+  } catch {
+    return;
+  }
+  if (escopo.situacao !== "pronto") return;
+  try {
+    await marcarComoNaoLida(escopo.repos.ocorrencias, ocorrenciaId, { pessoaId: escopo.ctx.pessoaId });
+  } catch (erro) {
+    registrarFalha(erro, "/", "ACAO", novoTraceId());
+    return;
+  }
+  revalidatePath("/", "layout");
 }

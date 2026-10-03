@@ -1,8 +1,11 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import { ListaDoSino, Sino } from "@/interface/componentes/casca/sino";
 import {
   DESTINOS_DA_BARRA,
   destinoAtual,
@@ -15,6 +18,13 @@ import {
   RECUSA_DE_ACESSO,
   SAIDA_DO_SEM_ACESSO,
 } from "@/interface/componentes/rotulos";
+import {
+  nomeDoSino,
+  numeroDoSino,
+  projetarSino,
+  textoDoTipo,
+  type SinoNaTela,
+} from "@/interface/componentes/sino";
 
 /**
  * ============================================================================
@@ -493,5 +503,153 @@ describe("o controle de aparência antes de entrar — critério 114.2", () => {
   it("a documentação não o monta, e o motivo está escrito", () => {
     expect(ler("app/documentacao/layout.tsx")).not.toContain("ControleDeAparencia");
     expect(ler(CONTROLE)).toContain("/documentacao");
+  });
+});
+
+/**
+ * ============================================================================
+ *  117 · o sino
+ * ============================================================================
+ *
+ * **As funções puras pelo valor, e os dois componentes por `renderToStaticMarkup`**, que roda em `node` sem
+ * DOM. A lista aberta vive num portal fechado e não sai na renderização do botão, e por isso o miolo,
+ * `ListaDoSino`, é exportado e testado direto. As ações chegam por propriedade, e aqui são falsas.
+ */
+describe("o sino — item 117", () => {
+  const telaCom = (n: number): SinoNaTela => ({ naoLidas: n, naoLidasNaLista: [], lidas: [], foraDaLista: 0 });
+  const ACOES_FALSAS = { marcarComoLida: async () => undefined, marcarComoNaoLida: async () => undefined };
+
+  it("o número: ausente no zero, exato até 99, teto depois", () => {
+    expect(numeroDoSino(0)).toBeNull();
+    expect(numeroDoSino(7)).toBe("7");
+    expect(numeroDoSino(99)).toBe("99");
+    expect(numeroDoSino(104)).toBe("99+");
+  });
+
+  it("o nome acessível leva o número exato, e não o teto", () => {
+    expect(nomeDoSino(0)).toBe("Avisos");
+    expect(nomeDoSino(1)).toBe("Avisos, 1 não lido");
+    expect(nomeDoSino(104)).toBe("Avisos, 104 não lidos");
+  });
+
+  it("o texto de cada tipo — spec §3.13", () => {
+    const base = {
+      ocorrenciaId: "o",
+      titulo: "T",
+      em: "2026-10-03T11:00:00.000Z",
+      por: { pessoaId: "g", nome: "G" },
+      naoLida: true,
+    };
+    expect(textoDoTipo({ ...base, tipo: "criacao", alvo: null }, "x", null)).toBe("Nova ocorrência");
+    expect(textoDoTipo({ ...base, tipo: "status", alvo: null }, "x", "Em análise")).toBe("Em análise");
+    expect(textoDoTipo({ ...base, tipo: "comentario", alvo: null }, "x", null)).toBe("Comentário");
+    expect(textoDoTipo({ ...base, tipo: "atribuicao", alvo: { pessoaId: "x", nome: "X" } }, "x", null)).toBe(
+      "Atribuída a você",
+    );
+    expect(textoDoTipo({ ...base, tipo: "atribuicao", alvo: { pessoaId: "y", nome: "Y" } }, "x", null)).toBe(
+      "Novo responsável",
+    );
+    expect(
+      textoDoTipo({ ...base, tipo: "compartilhamento", alvo: { pessoaId: "x", nome: "X" } }, "x", null),
+    ).toBe("Compartilhada com você");
+    expect(
+      textoDoTipo({ ...base, tipo: "compartilhamento", alvo: { pessoaId: "y", nome: "Yara" } }, "x", null),
+    ).toBe("Compartilhada com Yara");
+  });
+
+  it("a projeção reparte em duas faixas, usa o rótulo de quem lê e conta o que ficou fora", () => {
+    const novidade = (id: string, naoLida: boolean) => ({
+      ocorrenciaId: id,
+      titulo: `T ${id}`,
+      tipo: "status" as const,
+      em: "2026-10-03T10:00:00.000Z",
+      por: { pessoaId: "g", nome: "Gestora" },
+      statusNovo: "em_atendimento" as const,
+      motivoPausa: null,
+      alvo: null,
+      naoLida,
+    });
+    const tela = projetarSino(
+      { novidades: [novidade("a", true), novidade("b", false)], naoLidas: 4 },
+      { pessoaId: "s", lente: { leitor: "solicitante", rotulos: {} } },
+      Date.parse("2026-10-03T12:00:00.000Z"),
+    );
+    expect(tela.naoLidasNaLista.map((l) => l.ocorrenciaId)).toStrictEqual(["a"]);
+    expect(tela.lidas.map((l) => l.ocorrenciaId)).toStrictEqual(["b"]);
+    expect(tela.foraDaLista).toBe(3);
+    expect(tela.naoLidasNaLista[0]).toMatchObject({ href: "/ocorrencias/a", por: "Gestora", quando: "há 2 horas" });
+    // O rótulo é o do Solicitante, e não o nome do ciclo que o Gestor lê (item 100). `em_atendimento`, e
+    // não `em_analise`: os dois leitores leem *Em análise*, e o caso não discriminaria.
+    expect(tela.naoLidasNaLista[0]!.tipo).toBe("Em execução");
+  });
+
+  it("o botão: 44 px, pílula absoluta, nome com o número; sem pílula no zero", () => {
+    const com = renderToStaticMarkup(createElement(Sino, { sino: telaCom(104), acoes: ACOES_FALSAS }));
+    expect(com).toContain('aria-label="Avisos, 104 não lidos"');
+    expect(com).toContain(">99+<");
+    expect(com).toMatch(/class="[^"]*\babsolute\b[^"]*"[^>]*>99\+</u);
+    expect(com).toMatch(/class="[^"]*\bsize-11\b/u);
+    const sem = renderToStaticMarkup(createElement(Sino, { sino: telaCom(0), acoes: ACOES_FALSAS }));
+    expect(sem).toContain('aria-label="Avisos"');
+    expect(sem).not.toContain('data-slot="badge"');
+  });
+
+  it("durante a espera o sino aparece sem número, e nunca esqueleto", () => {
+    const espera = renderToStaticMarkup(createElement(Sino, { sino: null, acoes: ACOES_FALSAS }));
+    expect(espera).toContain('aria-label="Avisos"');
+    expect(espera).not.toContain("skeleton");
+  });
+
+  it("a lista: faixas com cabeçalho, título como link, marcar como texto, vazio e pé", () => {
+    const linha = {
+      ocorrenciaId: "a",
+      href: "/ocorrencias/a",
+      titulo: "Vazamento",
+      tipo: "Comentário",
+      por: "Gestora",
+      quando: "há 2 horas",
+    };
+    const cheia = renderToStaticMarkup(
+      createElement(ListaDoSino, {
+        sino: {
+          naoLidas: 5,
+          naoLidasNaLista: [linha],
+          lidas: [{ ...linha, ocorrenciaId: "b", href: "/ocorrencias/b" }],
+          foraDaLista: 4,
+        },
+        acoes: ACOES_FALSAS,
+      }),
+    );
+    expect(cheia).toMatch(/<h3[^>]*>Não lidas<\/h3>[\s\S]*<h3[^>]*>Lidas<\/h3>/u);
+    // Cada faixa é uma região com o nome do próprio título — é o que o leitor de tela anuncia, e o que o
+    // ponta a ponta localiza.
+    expect(cheia).toMatch(/<section[^>]*aria-labelledby="([^"]+)"[\s\S]*?<h3[^>]*id="\1"/u);
+    expect(cheia).toContain('href="/ocorrencias/a"');
+    expect(cheia).toContain(">Marcar como lida<");
+    expect(cheia).toContain(">Marcar como não lida<");
+    expect(cheia).toContain("Mais 4 não lidas fora desta lista.");
+    const vazia = renderToStaticMarkup(createElement(ListaDoSino, { sino: telaCom(0), acoes: ACOES_FALSAS }));
+    expect(vazia).toContain("Nada novo por aqui.");
+    expect(vazia).not.toContain("<h3");
+  });
+
+  it("a barra põe o sino entre o seletor e o menu de pessoa", () => {
+    const fonte = ler("src/interface/componentes/casca/barra-superior.tsx");
+    const seletor = fonte.indexOf("<SeletorDeOrganizacao");
+    const sino = fonte.indexOf("{sino}");
+    const menu = fonte.indexOf("<MenuDePessoa");
+    expect(seletor).toBeLessThan(sino);
+    expect(sino).toBeLessThan(menu);
+  });
+
+  it("o layout da casca espera o sino num Suspense, com o sino sem número de reserva", () => {
+    const fonte = ler("app/(casca)/layout.tsx");
+    expect(fonte).toMatch(/<Suspense fallback=\{<Sino sino=\{null\} acoes=\{ACOES_DO_SINO\} \/>\}>\s*<SinoComContagem/u);
+  });
+
+  it("a moldura de foco não monta o sino, pela razão da barra lateral", () => {
+    const fonte = ler("app/(foco)/layout.tsx");
+    expect(fonte).toContain("<BarraSuperior");
+    expect(fonte).not.toContain("<Sino");
   });
 });

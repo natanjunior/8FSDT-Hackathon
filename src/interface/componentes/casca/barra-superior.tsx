@@ -8,12 +8,16 @@ import { SeletorDeOrganizacao } from "@/interface/componentes/casca/seletor-de-o
  *
  * Ela é 56 px no celular e 60 a partir de `md` (guia §4), e hospeda o gatilho da gaveta abaixo de `md` —
  * o `children` é por onde o layout passa esse gatilho.
+ *
+ * **O sino entra entre o seletor e a pessoa** (item 117), e só na casca: a moldura de foco não o passa. O
+ * sino e o avatar não encolhem; **quem cede largura é o seletor**, que já trunca o nome.
  */
 export function BarraSuperior({
   vinculos,
   organizacaoAtivaId,
   nomeDaPessoa,
   emailDaPessoa,
+  sino,
   children,
 }: {
   vinculos: readonly VinculoNoMenu[];
@@ -21,6 +25,8 @@ export function BarraSuperior({
   nomeDaPessoa: string;
   /** O e-mail de entrada, para o cabeçalho do menu de pessoa (item 44i); `null` sem e-mail do provedor. */
   emailDaPessoa: string | null;
+  /** O sino do item 117, já no `Suspense`; ausente na moldura de foco. */
+  sino?: React.ReactNode;
   children?: React.ReactNode;
 }) {
   return (
@@ -29,6 +35,7 @@ export function BarraSuperior({
       <MarcaDoProduto tamanho="barra" />
       <div className="ml-auto flex items-center gap-2">
         <SeletorDeOrganizacao vinculos={vinculos} organizacaoAtivaId={organizacaoAtivaId} />
+        {sino}
         <MenuDePessoa nomeDaPessoa={nomeDaPessoa} emailDaPessoa={emailDaPessoa} />
       </div>
     </header>
