@@ -176,4 +176,30 @@ describe("o código no desfecho da criação — critério 116.7", () => {
     const link = ler("src/interface/componentes/link-do-convite.tsx");
     expect(link).toContain('<span className="sr-only"> o link</span>');
   });
+
+  it("o Código vem antes do QR, os dois em meia largura a partir de lg, e a razão escrita é a nova (critérios 118.2 e 118.3)", () => {
+    const fonte = ler("app/(casca)/convidar/page.tsx");
+    const link = fonte.indexOf('tituloId="link"');
+    const codigo = fonte.indexOf('tituloId="codigo"');
+    const qr = fonte.indexOf('tituloId="qr"');
+    expect(link).toBeGreaterThan(-1);
+    // **O código é o que se dita por telefone ou se digita; o QR é para o cartaz.** Quem convida alcança
+    // primeiro o que vai usar na conversa.
+    expect(codigo).toBeGreaterThan(link);
+    expect(qr).toBeGreaterThan(codigo);
+    // Os dois dentro de uma grade de duas colunas que só vale a partir de `lg`: a `md` o miolo dá cerca
+    // de 242 px por coluna, e o QR pede 272. Abaixo disso, coluna. E alturas independentes, que é o
+    // `items-start`: uma pílula de oito caracteres contra um quadrado de 224 px.
+    const grade = fonte.lastIndexOf('<div className="grid', codigo);
+    expect(grade).toBeGreaterThan(link);
+    const abertura = fonte.slice(grade, fonte.indexOf(">", grade));
+    expect(abertura).toContain("lg:grid-cols-2");
+    expect(abertura).toContain("items-start");
+    // O QR está na mesma grade, e não num terceiro bloco: nada fecha a grade antes dele. A grade fecha
+    // com seis espaços de recuo; os divs de dentro dos cartões, com dez.
+    expect(fonte.slice(grade, qr)).not.toContain("\n      </div>");
+    // A razão escrita no cabeçalho deixou de afirmar a ordem antiga.
+    expect(fonte).not.toContain("ordem é a de quem abre para mandar");
+    expect(fonte).toContain("se dita por telefone ou se digita");
+  });
 });

@@ -174,12 +174,13 @@ const PECAS = [
   },
   {
     id: "pilula-do-sino",
-    // Item 117: o neutro invertido, porque o laranja tem quatro usos e este não é um deles (item 105). O
-    // par tinta × superfície está medido em `tema.test.ts`. A classe vem do componente, e não copiada.
+    // Item 118: a marca, e o quinto uso nomeado — o contador de não lidas. A *Um Primário Rule* vale
+    // para ação; contagem não disputa com o principal da tela. O par `--marca-foreground` × `--accent`
+    // está medido em `tema.test.ts`. A classe vem do componente, e não copiada.
     html: () => `<span class="${cn(badgeVariants({}), CLASSE_DA_PILULA)}">99+</span>`,
     esperado: {
-      "background-color": "token(--ink)",
-      color: "token(--surface)",
+      "background-color": "token(--accent)",
+      color: "token(--marca-foreground)",
     },
   },
   {

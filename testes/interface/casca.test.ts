@@ -25,6 +25,7 @@ import {
   textoDoTipo,
   type SinoNaTela,
 } from "@/interface/componentes/sino";
+import { TooltipProvider } from "@/interface/componentes/ui/tooltip";
 
 /**
  * ============================================================================
@@ -232,24 +233,38 @@ describe("a barra lateral — critérios 1 e 2 no componente", () => {
     const grupos = [...ler(NAVEGACAO).matchAll(/<SidebarGroup className="([^"]*)"/gu)].map(
       (achado) => achado[1],
     );
-    // `pt-6` no grupo do painel é respiro vertical, no lugar da régua sem título (critério 106.16).
-    expect(grupos).toStrictEqual(["p-0", "p-0", "p-0 pt-6", "p-0"]);
+    // O `pt-6` do grupo do painel saiu no item 118: a régua é o que separa agora, e os dois juntos
+    // dariam respiro dobrado.
+    expect(grupos).toStrictEqual(["p-0", "p-0", "p-0", "p-0"]);
   });
 
-  it("dentro de «Nesta organização» a régua só fica acima de grupo com título (critério 106.16)", () => {
+  it("dentro de «Nesta organização» cada régua abre um assunto: o grupo titulado e o Painel (item 118)", () => {
     const fonte = ler(NAVEGACAO);
     // Até o `</nav>` do primeiro marco: a régua entre os dois marcos fica fora por construção, e ela
-    // separa marcos, não grupos (o caso do item 64 a guarda).
+    // separa marcos, não assuntos (o caso do item 64 a guarda).
     const marco = fonte.slice(
       fonte.indexOf('<nav aria-label="Nesta organização"'),
       fonte.lastIndexOf("</nav>", fonte.indexOf('<nav aria-label="Além desta organização"')),
     );
+    // **A régua separa assunto, e o título é do grupo que tem nome — não condição da régua.** São duas:
+    // a do grupo titulado `ORGANIZAÇÃO` e a do `Painel`, que é o outro assunto.
     const blocos = marco.split("<SidebarSeparator").slice(1);
-    expect(blocos.length).toBeGreaterThan(0);
-    for (const bloco of blocos) {
-      const grupo = bloco.slice(0, bloco.indexOf("</SidebarGroup>"));
-      expect(grupo).toContain("<SidebarGroupLabel");
-    }
+    expect(blocos).toHaveLength(2);
+    const daOrganizacao = blocos[0]!.slice(0, blocos[0]!.indexOf("</SidebarGroup>"));
+    expect(daOrganizacao).toContain("<SidebarGroupLabel");
+    const doPainel = blocos[1]!.slice(0, blocos[1]!.indexOf("</SidebarGroup>"));
+    expect(doPainel).toContain('destino="/dashboard"');
+    // E sem título inventado para um bloco de um item só, que o leitor de tela anunciaria a cada passagem.
+    expect(doPainel).not.toContain("<SidebarGroupLabel");
+  });
+
+  it("a régua do Painel fica dentro da condição, e não sobra pendurada para quem não o vê (item 118)", () => {
+    const fonte = ler(NAVEGACAO);
+    const painel = fonte.indexOf('destino="/dashboard"');
+    const condicao = fonte.lastIndexOf("{podeVerDashboard && (", painel);
+    expect(condicao).toBeGreaterThan(-1);
+    // `dashboard.ler` é permissão de Gestor: sem ela, nem o Painel nem a régua acima dele existem.
+    expect(fonte.slice(condicao, painel)).toContain("<SidebarSeparator");
   });
 
   it("Meus dados mora num segundo marco, fora de «Nesta organização», depois de uma régua (item 64)", () => {
@@ -605,7 +620,7 @@ describe("o sino — item 117", () => {
     );
   });
 
-  it("a lista: faixas com cabeçalho, título como link, marcar como texto, vazio e pé", () => {
+  it("a lista: faixas com cabeçalho, título como link, marcar em botão de ícone com nome e descrição, vazio e pé", () => {
     const linha = {
       ocorrenciaId: "a",
       href: "/ocorrencias/a",
@@ -614,28 +629,80 @@ describe("o sino — item 117", () => {
       por: "Gestora",
       quando: "há 2 horas",
     };
-    const cheia = renderToStaticMarkup(
-      createElement(ListaDoSino, {
-        sino: {
-          naoLidas: 5,
-          naoLidasNaLista: [linha],
-          lidas: [{ ...linha, ocorrenciaId: "b", href: "/ocorrencias/b" }],
-          foraDaLista: 4,
-        },
-        acoes: ACOES_FALSAS,
-      }),
-    );
+    // O `BotaoDeIcone` monta uma dica do Radix, e o Radix **lança** sem provedor acima
+    // (`formulario.test.ts:1001`). Nas telas da casca o provedor vem do `SidebarProvider`, que envolve a
+    // casca inteira e atravessa o portal; aqui o miolo é renderizado solto, e o caso o monta.
+    const render = (sino: SinoNaTela) =>
+      renderToStaticMarkup(
+        createElement(TooltipProvider, null, createElement(ListaDoSino, { sino, acoes: ACOES_FALSAS })),
+      );
+    const cheia = render({
+      naoLidas: 5,
+      naoLidasNaLista: [linha, { ...linha, ocorrenciaId: "c", href: "/ocorrencias/c", titulo: "Portão" }],
+      lidas: [{ ...linha, ocorrenciaId: "b", href: "/ocorrencias/b" }],
+      foraDaLista: 4,
+    });
     expect(cheia).toMatch(/<h3[^>]*>Não lidas<\/h3>[\s\S]*<h3[^>]*>Lidas<\/h3>/u);
     // Cada faixa é uma região com o nome do próprio título — é o que o leitor de tela anuncia, e o que o
     // ponta a ponta localiza.
     expect(cheia).toMatch(/<section[^>]*aria-labelledby="([^"]+)"[\s\S]*?<h3[^>]*id="\1"/u);
     expect(cheia).toContain('href="/ocorrencias/a"');
-    expect(cheia).toContain(">Marcar como lida<");
-    expect(cheia).toContain(">Marcar como não lida<");
+    // **O nome acessível não muda: sai do texto e vai para o `aria-label`.** É por ele que
+    // `interrupcoes-da-ocorrencia.spec.ts:673` e `:679` acham os dois botões, e eles não mudam.
+    expect(cheia).toContain('aria-label="Marcar como lida"');
+    expect(cheia).toContain('aria-label="Marcar como não lida"');
+    expect(cheia).not.toContain(">Marcar como lida<");
+    expect(cheia).not.toContain(">Marcar como não lida<");
+    // 44 px (item 91), envio de formulário, e a descrição apontando o título da linha.
+    const botao = /<button[^>]*aria-label="Marcar como lida"[^>]*>/u.exec(cheia)?.[0] ?? "";
+    expect(botao).toContain("size-11");
+    expect(botao).toContain('type="submit"');
+    expect(botao).toMatch(/aria-describedby="[^"]+"/u);
+    // **A dica também é cobrada**, senão o critério passa com um `Button size="icon"` de rótulo e sem
+    // `Tooltip`: as três linhas acima sobrevivem a essa regressão. O gatilho do `Tooltip` do Radix marca
+    // o botão, e marca mesmo com `asChild` — medido no `renderToStaticMarkup` deste projeto.
+    expect(botao).toContain('data-slot="tooltip-trigger"');
+    // **Uma descrição por linha, e não uma para todas**: dez «Marcar como lida» iguais seriam
+    // indistinguíveis para quem navega por botões (lição do 44j).
+    const descricoes = [...cheia.matchAll(/aria-describedby="([^"]+)"/gu)].map((a) => a[1]!);
+    expect(new Set(descricoes).size).toBe(descricoes.length);
+    expect(descricoes).toHaveLength(3);
+    for (const id of descricoes) expect(cheia).toContain(`id="${id}"`);
     expect(cheia).toContain("Mais 4 não lidas fora desta lista.");
-    const vazia = renderToStaticMarkup(createElement(ListaDoSino, { sino: telaCom(0), acoes: ACOES_FALSAS }));
+    const vazia = render(telaCom(0));
     expect(vazia).toContain("Nada novo por aqui.");
     expect(vazia).not.toContain("<h3");
+  });
+
+  it("no celular a lista sobe de baixo, pela gaveta do catálogo, e sem pacote novo (critério 118.5)", () => {
+    const fonte = ler("src/interface/componentes/casca/sino.tsx");
+    // A largura vem do mesmo gancho da barra lateral, no mesmo limiar `md`.
+    expect(fonte).toContain("useIsMobile()");
+    expect(fonte).toContain('<SheetContent side="bottom"');
+    // **Uma raiz só**, como no `modal.tsx`: o `Dialog` com o `DialogTrigger` fica, e só o conteúdo troca.
+    // É o que faz girar o aparelho com a lista aberta não perder o estado, que mora no `Sino`.
+    expect(fonte.match(/<Dialog open=\{aberto\}/gu)).toHaveLength(1);
+    expect(fonte.match(/<DialogTrigger asChild>/gu)).toHaveLength(1);
+    // E o `Popover` continua sendo a forma de tela grande.
+    expect(fonte).toContain("<PopoverContent");
+    // O título é obrigatório: dele sai o nome acessível que o ponta a ponta localiza, e o `pr-14` o
+    // mantém fora do X que a folha desenha.
+    expect(fonte).toMatch(/<DialogTitle[^>]*pr-14[^>]*>Avisos<\/DialogTitle>/u);
+    // Só o corpo rola; o título fica fora da rolagem, como nos nove modais da família.
+    expect(fonte).toContain('<div className="min-h-0 flex-1 overflow-y-auto">{lista}</div>');
+    // A forma da gaveta vem do `modal.tsx`, e não de uma segunda cópia da cadeia.
+    expect(fonte).toContain("CONTEUDO_DO_SHEET");
+    expect(fonte).toContain("max-h-[85dvh]");
+    // Nem o `drawer` do shadcn nem o `vaul`: a decisão do dono de 03/10.
+    expect(fonte).not.toMatch(/from "(?:vaul|@\/interface\/componentes\/ui\/drawer)"/u);
+    // Sem `w-screen` e sem `h-dvh`: a folha de `side="bottom"` já é `inset-x-0`, e era o `100vw` que
+    // criava a rolagem lateral que o critério 8 proíbe.
+    expect(fonte).not.toContain("w-screen");
+    expect(fonte).not.toContain("h-dvh");
+    // **Nas duas formas o foco de abertura vai para o conteúdo**, e não para o primeiro tabulável, que
+    // é o botão de ícone da primeira linha: a dica abre no foco e engoliria o primeiro `Esc`, deixando a
+    // lista aberta. Duas ocorrências, uma por forma.
+    expect(fonte.match(/onOpenAutoFocus=\{focarOConteudo\}/gu)).toHaveLength(2);
   });
 
   it("a barra põe o sino entre o seletor e o menu de pessoa", () => {
