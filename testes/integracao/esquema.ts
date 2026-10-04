@@ -53,8 +53,10 @@ export async function aplicarEsquema(consulta: Consulta): Promise<void> {
   // para `vinculos` e para `organizacoes`, e o `cascade` não derruba quem aponta.
   // **`leituras_de_ocorrencia` é a primeira desde o item 117**, pela razão de `compartilhamentos`: aponta
   // para `ocorrencias` e para `vinculos`, e o `cascade` não a derruba.
+  // **`convites_pessoais` entra pela mesma razão** (item 121): aponta para `vinculos` e para
+  // `organizacoes`, e o `cascade` não a derruba.
   await consulta(
-    `drop table if exists leituras_de_ocorrencia, vinculos_etiquetas, etiquetas_participante,
+    `drop table if exists convites_pessoais, leituras_de_ocorrencia, vinculos_etiquetas, etiquetas_participante,
                           rotulos_de_status, mudancas_de_configuracao,
                           compartilhamentos, mensagens, canais_conversa, atribuicoes, anexos,
                           autorizacoes_de_upload,

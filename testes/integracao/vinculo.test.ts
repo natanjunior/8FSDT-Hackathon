@@ -820,10 +820,14 @@ describe("impedimentosDeRemocao — o que a tela precisa saber, por vínculo", (
    * **`leituras_de_ocorrencia.pessoa_id` está na lista e não no `tem_historico`** (item 117): apaga em
    * cascata, e leitura não é rastro.
    *
+   * **`convites_pessoais` tem duas pontas e só uma entra no `tem_historico`** (item 121): quem gerou o
+   * convite é rastro e a chave é `restrict`; o convite recebido apaga em cascata com o vínculo, porque
+   * remover um participante sem rastro não pode ser recusado por um link que ninguém usou.
+   *
    * **A ordem vem do `sort()` do JavaScript**, e não do `order by`: a collation do banco trataria `.` e `_`
    * de outro jeito, e o teste passaria a depender dela.
    */
-  it("as colunas que apontam para vinculos são exatamente as vinte que a consulta cobre, em treze tabelas", async () => {
+  it("as colunas que apontam para vinculos são exatamente as vinte e duas que a consulta cobre, em catorze tabelas", async () => {
     const COBERTAS = [
       "anexos.anexado_por_pessoa_id",
       "areas.atualizado_por_pessoa_id",
@@ -835,6 +839,8 @@ describe("impedimentosDeRemocao — o que a tela precisa saber, por vínculo", (
       "categorias.criado_por_pessoa_id",
       "compartilhamentos.com_pessoa_id",
       "compartilhamentos.por_pessoa_id",
+      "convites_pessoais.criado_por_pessoa_id",
+      "convites_pessoais.pessoa_id",
       "leituras_de_ocorrencia.pessoa_id",
       "mensagens.autor_pessoa_id",
       "mudancas_de_configuracao.autor_pessoa_id",
@@ -859,7 +865,7 @@ describe("impedimentosDeRemocao — o que a tela precisa saber, por vínculo", (
     );
 
     expect(linhas.map((l) => l.par).sort()).toStrictEqual(COBERTAS);
-    expect(new Set(COBERTAS.map((par) => par.split(".")[0])).size).toBe(13);
+    expect(new Set(COBERTAS.map((par) => par.split(".")[0])).size).toBe(14);
   });
 });
 
