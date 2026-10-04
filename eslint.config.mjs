@@ -181,6 +181,7 @@ const SUPERFICIE_PUBLICA = {
     "@/interface/schemas/*",
     "@/interface/projecoes/*",
     "@/interface/acoes/*",
+    "@/interface/exportacao/*",
   ],
   message:
     "Importe a superfície pública do módulo, não um arquivo de dentro dele (ADR-0006, regra 3). " +
