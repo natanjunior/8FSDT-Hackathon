@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { PERMISSOES_POR_PAPEL, Vinculo, ehPapel, type Papel } from "@/dominio/organizacao";
+import {
+  ENVIOS_POR_PARTICIPANTE,
+  LOTE_DE_ENVIO,
+  MOTIVOS_DE_NAO_ENVIO,
+  PERMISSOES_POR_PAPEL,
+  Vinculo,
+  ehPapel,
+  type Papel,
+} from "@/dominio/organizacao";
 
 /**
  * ============================================================================
@@ -86,5 +94,15 @@ describe("ehPapel — a fronteira entre o enum do banco e o do domínio", () => 
     const doDominio: Papel[] = ["encarregado", "gestor", "solicitante"];
 
     expect(doMapa).toStrictEqual(doDominio);
+  });
+});
+
+describe("as regras do convite por e-mail (item 122)", () => {
+  it("o lote é de 20, o teto por participante é 10, e os sete motivos vão do revogado à falha", () => {
+    expect(LOTE_DE_ENVIO).toBe(20);
+    expect(ENVIOS_POR_PARTICIPANTE).toBe(10);
+    expect(MOTIVOS_DE_NAO_ENVIO).toHaveLength(7);
+    expect(MOTIVOS_DE_NAO_ENVIO[0]).toBe("vinculo-revogado");
+    expect(MOTIVOS_DE_NAO_ENVIO.at(-1)).toBe("falha-no-envio");
   });
 });

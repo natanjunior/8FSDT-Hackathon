@@ -35,6 +35,7 @@ const STATUS_POR_CODIGO: Readonly<Record<string, number>> = {
   CODIGO_PUBLICO_NAO_ENCONTRADO: 404,
   ANEXO_NAO_ENCONTRADO: 404,
   ETIQUETA_NAO_ENCONTRADA: 404,
+  CONVITE_PESSOAL_NAO_VALE: 404,
   // 409 · posso executar, o estado atual não permite
   ORGANIZACAO_DIVERGENTE: 409,
   TRANSICAO_NAO_PERMITIDA: 409,
@@ -53,6 +54,7 @@ const STATUS_POR_CODIGO: Readonly<Record<string, number>> = {
   LISTA_DESATUALIZADA: 409,
   ANEXO_JA_REIVINDICADO: 409,
   CONTATO_DUPLICADO: 409,
+  CONVITE_INDISPONIVEL: 409,
   // 415
   CORPO_NAO_SUPORTADO: 415,
   // 422 · requisição bem formada, valor inválido no domínio
@@ -65,6 +67,7 @@ const STATUS_POR_CODIGO: Readonly<Record<string, number>> = {
   ANEXO_NAO_RECONHECIDO: 422,
   ANEXO_ACIMA_DO_LIMITE: 422,
   CAMPO_NAO_SUPORTADO: 422,
+  LOTE_DE_ENVIO_INVALIDO: 422,
   // 429 · o único limite de chamadas do contrato (§10.3)
   LIMITE_DE_AUTORIZACOES_DE_UPLOAD: 429,
   // 500
@@ -100,9 +103,11 @@ const EXTENSAO_DE_CABECALHO = "segundosAteLiberar";
  * `organizacaoAtiva` (id e nome). Metade das vezes a resposta é «ah, estou na organização errada», e a
  * resposta já diz em qual você está."*
  *
- * **Uma lista de códigos, e não `if (status === 404)`.** São sete códigos `404` na escada acima, e **seis
- * são de recurso escopado**: o sétimo, `CODIGO_PUBLICO_NAO_ENCONTRADO`, é lançado por `pedir-entrada.ts`,
- * uma das cinco operações da §4.4 — ali não existe organização ativa, e a extensão seria sempre nula.
+ * **Uma lista de códigos, e não `if (status === 404)`.** São nove códigos `404` na escada acima, e **sete
+ * são de recurso escopado**. Os outros dois não têm organização ativa, e a extensão seria sempre nula:
+ * `CODIGO_PUBLICO_NAO_ENCONTRADO`, lançado por `pedir-entrada.ts`, uma das operações da §4.4, e
+ * `CONVITE_PESSOAL_NAO_VALE` (item 121), lançado pelo aceite do convite pessoal, que também roda sem
+ * organização ativa.
  * A prosa do contrato promete a extensão para toda essa família — mas o `openapi.yaml` publica o
  * `example` em **um** responsável só, `OcorrenciaNaoEncontrada` (`:2341`). O DoD cobra que *"a
  * especificação versionada corresponde ao código"*: emitir a extensão em respostas cujo exemplo não a

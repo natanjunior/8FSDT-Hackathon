@@ -1,15 +1,15 @@
 ---
 title: "Banco de dados"
-description: "As vinte tabelas, como o esquema torna impossível uma ocorrência apontar para a categoria de outra organização, e por que a trilha não pode ser alterada."
+description: "As vinte e duas tabelas, como o esquema torna impossível uma ocorrência apontar para a categoria de outra organização, e por que a trilha não pode ser alterada."
 ---
 
 # Banco de dados
 
-PostgreSQL, vinte tabelas, migrações versionadas em arquivo e aplicadas pela esteira antes de a imagem
+PostgreSQL, vinte e duas tabelas, migrações versionadas em arquivo e aplicadas pela esteira antes de a imagem
 nova subir. O esquema não é um espelho do código: ele carrega garantias próprias, e as que ele carrega são
 as que não dependem de ninguém lembrar.
 
-## As vinte tabelas
+## As vinte e duas tabelas
 
 | Tabela | O que guarda |
 |---|---|
@@ -32,6 +32,8 @@ as que não dependem de ninguém lembrar.
 | `leituras_de_ocorrencia` | até onde cada pessoa leu cada ocorrência, que é de onde o sino tira o que está não lido |
 | `etiquetas_participante` | os rótulos livres que o Gestor dá aos participantes, uma lista por organização |
 | `vinculos_etiquetas` | quais etiquetas cada participante tem, quem atribuiu e quando |
+| `convites_pessoais` | o link pessoal de quem o Gestor cadastrou sem conta, quem o gerou e como terminou |
+| `envios_de_convite` | cada convite que saiu por e-mail: o endereço daquele instante, o dia, e quem enviou |
 | `autorizacoes_de_upload` | o livro-caixa das credenciais de upload emitidas, para conter abuso |
 
 **Quem é quem, e onde.** A metade que responde antes de existir ocorrência:
@@ -48,6 +50,8 @@ erDiagram
     ORGANIZACOES ||--o{ AREAS : "configura"
     ORGANIZACOES ||--o{ ETIQUETAS_PARTICIPANTE : "configura"
     VINCULOS ||--o{ VINCULOS_ETIQUETAS : "recebe"
+    VINCULOS ||--o{ CONVITES_PESSOAIS : "convidado por"
+    CONVITES_PESSOAIS ||--o{ ENVIOS_DE_CONVITE : "saiu por e-mail"
 ```
 
 **A ocorrência, e o que gira em volta dela.** Todas as tabelas abaixo são escopadas à organização, e a
@@ -229,6 +233,47 @@ revogar.
 A unicidade do nome desce a caixa pela colação ICU, e não pela do banco. Na colação `C`, uma letra
 acentuada maiúscula não desceria, e duas grafias da mesma palavra virariam duas etiquetas. Acento continua
 contando: ICU muda a caixa, não tira o acento.
+
+## O convite pessoal
+
+`convites_pessoais` guarda o link pessoal de um participante que o Gestor cadastrou sem conta. A linha
+pertence ao vínculo, pela chave composta de pessoa e organização, e guarda quem gerou, quando, e como
+terminou: invalidada, quando o Gestor gera outro link ou revoga o vínculo, ou aceita. Os dois desfechos são
+exclusivos, e um índice único parcial permite um convite vivo por vínculo. Nenhuma linha é apagada pelo
+código.
+
+O token fica em claro, porque o Gestor recupera o link já gerado. Ele não concede acesso novo: liga uma
+conta a um vínculo que o Gestor já aprovou ao cadastrar. As duas pontas que apontam para `vinculos`
+repetem a lógica das etiquetas: quem gerou é rastro, e a chave recusa a remoção; o convite recebido apaga
+em cascata, porque remover um participante sem rastro não pode ser recusado por um link que ninguém usou.
+
+Quando quem aceita já tem conta, e com ela uma pessoa própria, as duas se fundem numa transação. O vínculo
+da conta nasce com o papel e a unidade do cadastro, ou volta a valer, se tinha sido revogado. Depois, a
+responsabilidade pelas ocorrências, os compartilhamentos, as etiquetas, os convites e os contatos passam
+para a pessoa da conta, e só então o vínculo cadastrado é apagado. A ordem é a garantia: três chaves para
+`vinculos` apagam em cascata, e uma linha esquecida não daria erro, sumiria. A trilha não é tocada, porque
+ela aponta para quem fez, e a pessoa cadastrada sem conta nunca fez nada.
+
+Um teste lê o catálogo do banco e confere que toda chave estrangeira para `vinculos` e para `pessoas`
+está classificada: reapontada pela fusão, o próprio vínculo, ou coluna de quem fez. Uma tabela nova que
+pendure no vínculo ou na pessoa sem passar por essa decisão reprova o teste, nomeando a tabela.
+
+A pessoa cadastrada fica no banco, sem vínculo e sem conta, depois da fusão.
+
+## Os envios do convite por e-mail
+
+`envios_de_convite` guarda o que saiu: uma linha por e-mail que o provedor aceitou, com o endereço
+daquele instante, o dia, quem enviou e quando. Envio que falhou não fica gravado, porque a transação
+desfaz, e nenhum caminho de código altera ou apaga uma linha.
+
+Os dois limites são do banco. Um por dia por endereço na organização é um índice único sobre o endereço
+em minúsculas e o dia, que é a data de Brasília gravada na própria linha. Dez por participante é contagem
+dos envios de todos os convites do vínculo, feita com o convite vivo travado, e gerar novo link não a zera.
+
+A chave para o convite apaga o elo, e não a linha. Recusar a remoção de quem só recebeu um e-mail
+mostraria um botão que falha; apagar em cascata perderia o registro do que saiu e deixaria remover e
+recadastrar a pessoa passar pelo limite do dia. Anular o elo mantém o endereço, o dia e quem enviou, e o
+índice continua recusando. Quem enviou é rastro, e a chave dele recusa a remoção.
 
 ## As contas ficam fora
 

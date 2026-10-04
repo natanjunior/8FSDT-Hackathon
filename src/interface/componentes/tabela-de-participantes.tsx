@@ -9,6 +9,7 @@ import { CabecaQueOrdena } from "@/interface/componentes/cabeca-que-ordena";
 import { ContatoPorIcone } from "@/interface/componentes/contato-por-icone";
 import { DecisaoDePedidoDeEntrada } from "@/interface/componentes/decisao-de-pedido-de-entrada";
 import type { EtiquetaNaTela } from "@/interface/componentes/etiquetas-de-participante";
+import { faixaDaSelecao, TEXTOS_DO_ENVIO } from "@/interface/componentes/envio-de-convite";
 import { EtiquetasNaLinha } from "@/interface/componentes/etiquetas-na-linha";
 import { FichaDePessoa } from "@/interface/componentes/ficha-de-pessoa";
 import { EscolhaComBusca } from "@/interface/componentes/filtro-com-busca";
@@ -52,9 +53,12 @@ import {
 import { rotuloDoCabecalho } from "@/interface/componentes/ordenacao-em-tres-estados";
 import { vizinhas } from "@/interface/componentes/paginacao-da-lista";
 import { CELULA, ROTULO_DE_COLUNA } from "@/interface/componentes/pecas-da-tabela";
+import { useSelecao } from "@/interface/componentes/provedor-da-selecao";
 import { RemocaoDeVinculo } from "@/interface/componentes/remocao-de-vinculo";
+import { estadoDaPagina, selecionavel } from "@/interface/componentes/selecao-de-participantes";
 import { Badge } from "@/interface/componentes/ui/badge";
 import { Button } from "@/interface/componentes/ui/button";
+import { Checkbox } from "@/interface/componentes/ui/checkbox";
 import {
   Empty,
   EmptyContent,
@@ -116,6 +120,10 @@ import type { VinculoProjetado } from "@/interface/projecoes";
  *
  * **Quando uma linha sai** (aprovar, recusar, remover), o gatilho some com ela e o foco cairia no
  * `body`: ele vai para a opção marcada do filtro. Não vai para a busca, que abriria o teclado no celular.
+ *
+ * **A seleção de linhas (item 122) vem do provedor**, acima do cabeçalho e da tabela, e não do endereço:
+ * ela é intenção de agora, e sobrevive à troca de página, de filtro e à busca porque é um valor fora delas.
+ * Só as linhas de vínculo têm caixa; a do cabeçalho marca as da página visível.
  */
 
 export function TabelaDeParticipantes({
@@ -142,6 +150,7 @@ export function TabelaDeParticipantes({
 }) {
   const caminho = usePathname();
   const endereco = lerEndereco(useSearchParams());
+  const { selecao, alternar, alternarPagina, limpar } = useSelecao();
   const [busca, setBusca] = useState("");
   const prefixo = useId();
   const idDoFiltro = `${prefixo}-filtro`;
@@ -277,6 +286,20 @@ export function TabelaDeParticipantes({
           )}
         </div>
 
+        {selecao.size > 0 && (
+          <div className="border-linha-suave bg-background flex items-center gap-2 border-b px-4 py-1.5">
+            <p role="status" className="text-interface text-tinta">
+              {faixaDaSelecao(selecao.size)}
+            </p>
+            <span aria-hidden="true" className="text-tinta-suave">
+              ·
+            </span>
+            <Button type="button" variant="link" onClick={limpar} className="text-interface min-h-11 px-1">
+              {TEXTOS_DO_ENVIO.limpar}
+            </Button>
+          </div>
+        )}
+
         {estado === "vazio-do-filtro" && <VazioDaTabela titulo={vazio.titulo} corpo={vazio.corpo} />}
         {estado === "busca-vazia" && <VazioDaTabela titulo={TEXTO_DA_BUSCA_VAZIA} corpo={null} />}
 
@@ -311,7 +334,15 @@ export function TabelaDeParticipantes({
                         linha.tipo === "pedido" && "bg-marca/5",
                       )}
                     >
-                      <div className="flex min-w-0 flex-col gap-1">
+                      {selecionavel(linha) && (
+                        <CaixaDaLinha
+                          marcada={selecao.has(linha.vinculo.pessoa.pessoaId)}
+                          aoAlternar={() => alternar(linha)}
+                          idDoNome={`${prefixo}-p${String(indice)}`}
+                          className="-my-1.5 -ml-3"
+                        />
+                      )}
+                      <div className="flex min-w-0 flex-1 flex-col gap-1">
                         <PessoaDaLinha linha={linha} idDoNome={`${prefixo}-p${String(indice)}`} />
                         <p className="text-meta text-tinta-suave">
                           {linha.rotuloDoPapel} · {linha.unidade ?? "—"}
@@ -338,6 +369,15 @@ export function TabelaDeParticipantes({
                   <Table>
                     <TableHeader>
                       <TableRow className="border-linha hover:bg-transparent">
+                        <TableHead className="w-[52px] px-1">
+                          <label className="flex size-11 cursor-pointer items-center justify-center">
+                            <Checkbox
+                              checked={estadoDaPagina(selecao, pagina.itens)}
+                              onCheckedChange={() => alternarPagina(pagina.itens)}
+                              aria-label="Marcar os desta página"
+                            />
+                          </label>
+                        </TableHead>
                         <CabecaDaTabela coluna="pessoa" rotulo="Pessoa" endereco={endereco} aoOrdenar={escrever} />
                         <CabecaDaTabela
                           coluna="papel"
@@ -380,6 +420,15 @@ export function TabelaDeParticipantes({
                             linha.tipo === "pedido" && "bg-marca/5 even:bg-marca/5",
                           )}
                         >
+                          <TableCell className="px-1 py-0">
+                            {selecionavel(linha) && (
+                              <CaixaDaLinha
+                                marcada={selecao.has(linha.vinculo.pessoa.pessoaId)}
+                                aoAlternar={() => alternar(linha)}
+                                idDoNome={`${prefixo}-t${String(indice)}`}
+                              />
+                            )}
+                          </TableCell>
                           <TableCell className={CELULA}>
                             <PessoaDaLinha linha={linha} idDoNome={`${prefixo}-t${String(indice)}`} />
                           </TableCell>
@@ -425,6 +474,28 @@ export function TabelaDeParticipantes({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * A caixa de uma linha. **O rótulo de 44 px em volta é a área de toque**, e o quadrado visual fica no
+ * centro; o nome acessível é o nome da pessoa, pelo `id` que a ficha já tem.
+ */
+function CaixaDaLinha({
+  marcada,
+  aoAlternar,
+  idDoNome,
+  className,
+}: {
+  marcada: boolean;
+  aoAlternar: () => void;
+  idDoNome: string;
+  className?: string;
+}) {
+  return (
+    <label className={cn("flex size-11 shrink-0 cursor-pointer items-center justify-center", className)}>
+      <Checkbox checked={marcada} onCheckedChange={aoAlternar} aria-labelledby={idDoNome} />
+    </label>
   );
 }
 

@@ -4845,20 +4845,22 @@ describe("88.3 · a frase dos avisos e o contador dizem a mesma coisa", () => {
     // de qualquer tipo"* alcança um número dentro dela, e o entregável passa a se contradizer. A frase nova
     // nega o que de fato não existe: o aviso que chega sozinho.
     expect(produto).not.toContain("avisos automáticos de qualquer tipo");
-    expect(produto).toContain("nenhum aviso que chegue sozinho");
+    expect(produto).toContain("nenhum aviso de ocorrência que chegue sozinho");
   });
 
   it("e o que continua fora continua nomeado", () => {
-    // Apagar a linha seria tirar a explicação do corte, e o `README.md` depende dela.
-    for (const ausencia of ["sem e-mail", "sem mensagem", "sem alarme de ocorrência parada"]) {
+    // Apagar a linha seria tirar a explicação do corte. **"sem e-mail" saiu no item 122**: o convite pessoal
+    // passou a sair por e-mail, e a frase passou a falar só do aviso de ocorrência, que continua fora.
+    for (const ausencia of ["sem mensagem", "sem alarme de ocorrência parada"]) {
       expect(produto, ausencia).toContain(ausencia);
     }
   });
 
-  it("a cláusula do sino saiu, e só ela — critério 117.12", () => {
-    // O sino existe desde o item 117; o resto da frase continua verdadeiro e fica.
+  it("a cláusula do sino saiu no 117, e a do e-mail no 122 — o resto da frase fica", () => {
+    // O sino existe desde o item 117, e o convite por e-mail desde o 122; o resto da frase continua verdadeiro.
     expect(produto).not.toContain("sem sino");
-    expect(produto).toContain("nenhum aviso que chegue sozinho: sem e-mail, sem mensagem, sem alarme de ocorrência parada");
+    expect(produto).not.toContain("sem e-mail, sem mensagem");
+    expect(produto).toContain("nenhum aviso de ocorrência que chegue sozinho: sem mensagem e sem alarme de ocorrência parada");
   });
 });
 

@@ -172,7 +172,7 @@ describe("lerConvite — o modelo de leitura da página do convite (item 86)", (
     return { porta, perguntas };
   }
 
-  const QUEM = { pessoaId: "p-1", codigosComVinculoAtivo: [] as string[] };
+  const QUEM = { pessoaId: "p-1", codigosComVinculoAtivo: [] as string[], organizacoesComVinculoAtivo: [] as string[] };
 
   it("sem sessão devolve nome, código e sem-sessao, e nada mais", async () => {
     const { porta, perguntas } = convites();
@@ -198,7 +198,7 @@ describe("lerConvite — o modelo de leitura da página do convite (item 86)", (
     const { porta, perguntas } = convites({ pendente: true });
     const lido = await lerConvite(
       { convites: porta },
-      { pessoaId: "p-1", codigosComVinculoAtivo: ["OUTRA123", "K7M4QX2P"] },
+      { pessoaId: "p-1", codigosComVinculoAtivo: ["OUTRA123", "K7M4QX2P"], organizacoesComVinculoAtivo: [] },
       "K7M4QX2P",
     );
     expect(lido.situacao).toBe("ja-participa");

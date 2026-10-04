@@ -26,6 +26,7 @@ import { sidebarMenuButtonVariants } from "@/interface/componentes/ui/sidebar";
 import { CLASSE_DA_DICA } from "@/interface/componentes/ui/tooltip";
 import { Input } from "@/interface/componentes/ui/input";
 import { Textarea } from "@/interface/componentes/ui/textarea";
+import { Checkbox } from "@/interface/componentes/ui/checkbox";
 import { EmptyTitle } from "@/interface/componentes/ui/empty";
 import { ToggleGroup, ToggleGroupItem } from "@/interface/componentes/ui/toggle-group";
 import { Avatar, AvatarFallback } from "@/interface/componentes/ui/avatar";
@@ -105,6 +106,18 @@ const PECAS = [
     // Item 104, critério 2: acima de `md` o que se digita tem o tamanho do que se lê depois.
     html: () => renderToStaticMarkup(h(Textarea, { id: "area", defaultValue: "texto" })),
     esperado: { "font-size": "14.5px", "border-top-left-radius": "6px" },
+  },
+  {
+    id: "caixa-de-selecao",
+    // Item 122: a peça nova da seleção de linhas. Medida marcada, que é o estado que veste a marca.
+    html: () => renderToStaticMarkup(h(Checkbox, { checked: true, "aria-label": "Marcar" })),
+    seletor: "[data-slot=checkbox]",
+    esperado: {
+      width: "16px",
+      "border-top-left-radius": "4px",
+      "background-color": "token(--accent)",
+      "border-top-color": "token(--accent)",
+    },
   },
   {
     id: "botao-sem-papel",

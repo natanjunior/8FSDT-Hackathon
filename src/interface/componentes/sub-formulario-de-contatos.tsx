@@ -110,7 +110,8 @@ export function SubFormularioDeContatos({
   }, [contatos]);
 
   return (
-    <div ref={lista}>
+    // `id="contatos"` é o alvo do *Acrescentar e-mail* do modal do convite (item 122).
+    <div ref={lista} id="contatos" className="scroll-mt-20">
       {contatos.length > 0 && (
         <div
           aria-hidden="true"

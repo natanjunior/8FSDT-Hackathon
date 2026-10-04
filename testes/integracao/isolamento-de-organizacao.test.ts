@@ -24,6 +24,8 @@ import {
   repositorioEscopadoDaOrganizacao,
   repositorioEscopadoDeAreas,
   repositorioEscopadoDeCategorias,
+  repositorioEscopadoDeConvitesPessoais,
+  repositorioEscopadoDeEnviosDeConvite,
   repositorioEscopadoDeEtiquetas,
   repositorioEscopadoDePedidosDeEntrada,
   repositorioEscopadoDeVinculos,
@@ -2831,5 +2833,78 @@ describe("o sino não atravessa organizações — item 117", () => {
     }
     // O número também: ele sai da mesma instrução, e um `$1` perdido no `count` o inflaria.
     expect(sino.naoLidas).toBe(sino.novidades.filter((n) => n.naoLida).length);
+  });
+});
+
+/**
+ * **O convite pessoal (item 121).** `vivoDe` é a consulta escopada nova: o Gestor de Recanto lê o convite
+ * de uma convidada de Recanto, e a mesma pessoa lida a partir de Aurora não existe, como o `404` da rota.
+ */
+describe("o convite pessoal (item 121)", () => {
+  const mundo = { a: () => idRecanto, b: () => idAurora };
+  const TOKEN_DO_RECANTO = "R".repeat(43);
+  let idConvidadaDoRecanto = "";
+
+  const convitesPessoaisEm = (organizacaoId: string) =>
+    repositorioEscopadoDeConvitesPessoais(
+      escoparConsulta(consulta, organizacaoId),
+      escoparTransacao(criarTransacao(), organizacaoId),
+    );
+
+  beforeAll(async () => {
+    idConvidadaDoRecanto = (
+      await consulta<{ id: string }>(`insert into pessoas (nome) values ('Convidada do Recanto') returning id`)
+    )[0]!.id;
+    await consulta(`insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'solicitante')`, [
+      idConvidadaDoRecanto,
+      idRecanto,
+    ]);
+    await consulta(
+      `insert into convites_pessoais (organizacao_id, pessoa_id, token, criado_por_pessoa_id) values ($1, $2, $3, $4)`,
+      [idRecanto, idConvidadaDoRecanto, TOKEN_DO_RECANTO, idSindica],
+    );
+  });
+
+  casosDeIsolamento(mundo, {
+    nome: "POST /vinculos/{pessoaId}/convite (o vivo)",
+    consultar: async (organizacaoId) => {
+      const vivo = await convitesPessoaisEm(organizacaoId).vivoDe(idConvidadaDoRecanto);
+      return vivo === null ? [] : [vivo];
+    },
+    chaveDaLinha: (convite) => convite.token,
+    esperadas: { emA: [TOKEN_DO_RECANTO], emB: [] },
+  });
+
+  /**
+   * **Os envios de convite (item 122).** `resumoDe` é a consulta escopada nova: em Recanto, o envio que a
+   * convidada recebeu aparece; lida a partir de Aurora, a mesma pessoa não tem envio nenhum.
+   */
+  describe("os envios de convite (item 122)", () => {
+    const EMAIL_DA_CONVIDADA = "convidada.recanto@example.com";
+    const INSTANTE_DO_ENVIO_DO_RECANTO = "2026-10-01T12:00:00.000Z";
+
+    const enviosEm = (organizacaoId: string) =>
+      repositorioEscopadoDeEnviosDeConvite(
+        escoparConsulta(consulta, organizacaoId),
+        escoparTransacao(criarTransacao(), organizacaoId),
+      );
+
+    beforeAll(async () => {
+      await consulta(
+        `insert into envios_de_convite (organizacao_id, convite_pessoal_id, email, enviado_por_pessoa_id, dia, enviado_em)
+         select $1, id, $2, $3, '2026-10-01', $4::timestamptz from convites_pessoais where token = $5`,
+        [idRecanto, EMAIL_DA_CONVIDADA, idSindica, INSTANTE_DO_ENVIO_DO_RECANTO, TOKEN_DO_RECANTO],
+      );
+    });
+
+    casosDeIsolamento(mundo, {
+      nome: "resumo dos envios de uma pessoa",
+      consultar: async (organizacaoId) => {
+        const resumo = await enviosEm(organizacaoId).resumoDe(idConvidadaDoRecanto, EMAIL_DA_CONVIDADA);
+        return resumo.ultimoEnvioEm === null ? [] : [resumo];
+      },
+      chaveDaLinha: (resumo) => resumo.ultimoEnvioEm ?? "",
+      esperadas: { emA: [INSTANTE_DO_ENVIO_DO_RECANTO], emB: [] },
+    });
   });
 });

@@ -39,7 +39,17 @@ import { criarContaSchema, errosDoSchema } from "@/interface/schemas";
  * `/`; a ação devolve `concluido` em vez de redirecionar, porque o aviso só sai do navegador. A falha fica
  * só na linha acima do formulário (item 116, critério 9).
  */
-export function FormularioDeCadastro({ destino }: { destino?: string } = {}) {
+export function FormularioDeCadastro({
+  destino,
+  nomeInicial,
+  convite,
+}: {
+  destino?: string;
+  /** O nome que o Gestor cadastrou, quando a conta nasce pelo convite pessoal (item 121). Editável. */
+  nomeInicial?: string;
+  /** O token do convite pessoal, que vai num campo oculto. O e-mail nunca vem preenchido. */
+  convite?: string;
+} = {}) {
   const router = useRouter();
   const formulario = useFormularioTocado({
     campos: { nome: "nome", email: "email", senha: "senha" },
@@ -53,7 +63,9 @@ export function FormularioDeCadastro({ destino }: { destino?: string } = {}) {
 
   // **O nome e o e-mail sobrevivem à recusa** (item 103, critério 6): eles viram o valor inicial dos campos
   // antes de o React esvaziar o formulário, e o esvaziamento devolve os campos a eles. A senha volta vazia.
-  const [preservados, setPreservados] = useState<Readonly<Record<string, string>>>({});
+  const [preservados, setPreservados] = useState<Readonly<Record<string, string>>>(() =>
+    nomeInicial === undefined ? ({} as Readonly<Record<string, string>>) : { nome: nomeInicial },
+  );
 
   const [estado, agir, aguardando] = useActionState(
     async (anterior: EstadoDoFormulario, dados: FormData): Promise<EstadoDoFormulario> => {
@@ -63,7 +75,9 @@ export function FormularioDeCadastro({ destino }: { destino?: string } = {}) {
       if (proximo.concluido === true) {
         avisarSucesso("Conta criada");
         // O destino já chega conferido pela página. Sem ele, o shell resolve: sem vínculo, T-02 face A.
-        router.replace(destino ?? "/");
+        // **`proximo`, e não `estado`**: a conta criada pelo convite pessoal traz o destino da ação, e o
+        // `estado` desta renderização ainda é o anterior (item 121).
+        router.replace(proximo.destino ?? destino ?? "/");
       }
       return proximo;
     },
@@ -120,6 +134,7 @@ export function FormularioDeCadastro({ destino }: { destino?: string } = {}) {
         className="flex flex-col gap-5"
         noValidate
       >
+        {convite !== undefined && <input type="hidden" name="convite" value={convite} />}
         <Campo
           id="nome"
           rotulo="Seu nome"

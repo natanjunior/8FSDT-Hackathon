@@ -1,15 +1,15 @@
 ---
 title: "Telas"
-description: "As dezenove telas do produto, a pergunta que cada uma responde, como se navega entre elas, e por que onze comandos cabem numa tela só."
+description: "As vinte telas do produto, a pergunta que cada uma responde, como se navega entre elas, e por que onze comandos cabem numa tela só."
 ---
 
 # Telas
 
-Dezenove telas. Cada uma existe porque responde a uma pergunta que nenhuma outra responde, e o critério
+Vinte telas. Cada uma existe porque responde a uma pergunta que nenhuma outra responde, e o critério
 que as produziu é esse: **ação não é tela**. Um comando que a pessoa executa sem sair de onde está não
 ganha endereço próprio.
 
-## As dezenove
+## As vinte
 
 | Tela | Endereço | A pergunta que ela responde | Quem vê |
 |---|---|---|---|
@@ -19,6 +19,7 @@ ganha endereço próprio.
 | Definir nova senha | `/definir-senha` | *Recebi o link do e-mail. E agora?* | quem chegou pelo link |
 | Sem organização ativa | `/organizacao` | *Onde eu trabalho?* | sessão válida, sem organização escolhida |
 | Convite | `/convite/{codigo}` | *Me mandaram este link, ou li o QR de um lugar. Onde eu entro?* | qualquer pessoa, com ou sem sessão |
+| Convite pessoal | `/convite-pessoal/{token}` | *Quem me convidou, e para onde?* | qualquer pessoa, com ou sem sessão |
 | Ocorrências | `/ocorrencias` | *O que aconteceu com os meus pedidos?*, *o que me mostraram?* e *o que eu preciso resolver agora?* | quem pode ler as próprias ou todas |
 | Registrar ocorrência | `/ocorrencias/nova` | *Preciso avisar de um problema.* | quem pode registrar |
 | Ocorrência | `/ocorrencias/{id}` | *O que está acontecendo com esta, e o que eu faço com ela?* | quem pode ler aquela ocorrência |
@@ -41,6 +42,7 @@ que hoje é o caso do Encarregado.
 ```mermaid
 flowchart TB
     CONVITE["Convite recebido"]
+    PESSOAL["Convite pessoal"]
     QRAREA["QR de uma área"]
     CONTA["Criar conta · Redefinir senha"]
     ENTRAR["Entrar"]
@@ -53,6 +55,7 @@ flowchart TB
     MENU["Menu do cabeçalho"]
 
     QRAREA --> CONVITE
+    PESSOAL -->|cria a conta ou aceita| LISTA
     CONVITE -->|participa| NOVA
     CONVITE --> CONTA
     CONVITE --> ENTRAR
@@ -263,6 +266,50 @@ etiqueta nasce ali, num modal só com o nome, ou no detalhe de um participante.
 No detalhe do participante, o cartão Etiquetas vem depois de Contatos e grava a cada gesto. É uma seleção
 múltipla com busca: escolher uma etiqueta ou escrever uma nova acrescenta, e o botão de cada ficha a tira.
 Na escolha do responsável de uma ocorrência, as etiquetas aparecem ao lado do nome, sem filtro.
+
+## O convite pessoal
+
+No detalhe de um participante que o Gestor cadastrou sem conta, Solicitante ou Gestor, o botão Convidar
+abre um modal com o link pessoal dessa pessoa. A frase de cima diz o que o link faz: quem o abrir entra na
+organização com aquele papel, sem precisar de aprovação. O link aparece inteiro, num campo só de leitura
+que quebra linha no celular, com Copiar, que vira Compartilhar onde o aparelho tem a folha do sistema, e
+Gerar novo link, que pede confirmação porque o link anterior deixa de funcionar. Embaixo, quando e por quem
+o link foi gerado. Abrir o modal de novo mostra o mesmo link.
+
+Quem não recebe convite não vê o botão. No lugar dele, uma frase diz o porquê: *Encarregados não usam o
+aplicativo.*, ou *Já usa o aplicativo.* para quem já tem conta.
+
+A página do convite pessoal tem quatro faces, e a situação vem decidida do servidor:
+
+| Situação | Face |
+|---|---|
+| sem sessão | o nome da pessoa e a frase da organização que convida, com o formulário de criar conta já com o nome preenchido, e o caminho para quem já tem conta |
+| com outra conta | *Entrar no {organização} como {papel}?*, a conta em uso e o caminho de sair, com o botão Entrar |
+| já participa | *Você já participa do {organização}.*, com o caminho para entrar nela |
+| não vale | *Este convite não vale mais.*, sem dizer por quê |
+
+O e-mail não vem preenchido no formulário: a página roda sem sessão, e contato só é legível dentro da
+organização. Qualquer e-mail é aceito, porque a prova é o link. Se a fusão com a conta em uso falhar, a
+mesma face mostra *Não foi possível concluir o convite. Tente de novo.* acima do botão.
+
+## O convite por e-mail
+
+Na lista de participantes, cada linha de participante tem uma caixa de seleção à esquerda do nome, e as
+linhas de pedido de entrada não têm. A caixa do cabeçalho marca e desmarca as linhas da página visível,
+com o estado intermediário quando parte delas está marcada. A seleção sobrevive a trocar de página, de
+filtro, de etiqueta e à busca, e some ao recarregar. Com ao menos uma marcada, aparece acima da tabela a
+faixa *3 selecionados · Limpar*, e no cabeçalho, à esquerda de *Cadastrar participante*, o botão
+*Convidar por e-mail (3)*.
+
+O botão abre um diálogo em três fases. A pergunta diz para quantos vai; acima de vinte, ela pede para
+desmarcar o excesso e oferece só *Voltar*. Enquanto envia, o diálogo não fecha. O resumo mostra os
+enviados, com nome e endereço, e os não enviados, com nome e o motivo, e *Fechar* limpa a seleção.
+
+No modal do convite, entre o link e os botões, o bloco de e-mail diz para onde vai, quando foi o último
+envio, e o impedimento como texto, quando há: sem e-mail, com o caminho para os Contatos; limite do dia,
+com quando o próximo pode sair; ou limite do participante. Quando nada impede, *Enviar convite por e-mail*
+é o botão principal e *Copiar* passa a secundário; com impedimento, o botão de e-mail não aparece e *Copiar*
+continua o principal.
 
 ## Celular primeiro, e o que muda na tela grande
 

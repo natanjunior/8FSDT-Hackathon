@@ -1,10 +1,18 @@
 import type { ArmazenamentoDeAnexos, PortasDeAnexo } from "@/aplicacao/anexo";
 import type { PortasGlobais, RepositoriosEscopados } from "@/aplicacao/contexto";
+import { randomBytes } from "node:crypto";
+
 import type { PortaDeCredenciais } from "@/aplicacao/credenciais";
-import type { RepositorioDeConvites } from "@/aplicacao/organizacao";
+import type {
+  Carteiro,
+  LeituraDeConvitesPessoais,
+  RepositorioDeConvites,
+  RepositorioDeConvitesPessoais,
+} from "@/aplicacao/organizacao";
 import {
   criarArmazenamentoDeAnexos,
   criarAutenticacao,
+  criarCarteiro,
   criarConsulta,
   criarCredenciais,
   criarEmissorDeCredencialDeUpload,
@@ -16,13 +24,17 @@ import { livroDeAutorizacoesDeUpload } from "@/infraestrutura/repositorios/anexo
 import { repositorioEscopadoDeDashboard } from "@/infraestrutura/repositorios/dashboard";
 import { repositorioEscopadoDeOcorrencias } from "@/infraestrutura/repositorios/ocorrencia";
 import {
+  leituraDeConvitesPessoais,
   repositorioDeConvites,
+  repositorioDeConvitesPessoais,
   repositorioDeOrganizacoes,
   repositorioDePedidosDeEntrada,
   repositorioEscopadoDaConfiguracao,
   repositorioEscopadoDaOrganizacao,
   repositorioEscopadoDeAreas,
   repositorioEscopadoDeCategorias,
+  repositorioEscopadoDeConvitesPessoais,
+  repositorioEscopadoDeEnviosDeConvite,
   repositorioEscopadoDeEtiquetas,
   repositorioEscopadoDePedidosDeEntrada,
   repositorioEscopadoDeVinculos,
@@ -55,7 +67,7 @@ import { repositorioDePessoas } from "@/infraestrutura/repositorios/pessoa";
 export type { ArmazenamentoDeCookies };
 
 /**
- * As portas que as cinco operações sem organização consomem (contrato §4.4), mais a porta que o ponto
+ * As portas que as seis operações sem organização consomem (contrato §4.4), mais a porta que o ponto
  * único de contexto usa em **toda** requisição.
  */
 export function montarPortasGlobais(
@@ -73,6 +85,9 @@ export function montarPortasGlobais(
     pedidosDeEntrada: repositorioGlobalDePedidosDeEntrada(consulta),
     // A escrita das três linhas num `COMMIT` só. Recebe a transação, não a consulta.
     escritaDePedidosDeEntrada: repositorioDePedidosDeEntrada(criarTransacao()),
+    // O aceite do convite pessoal (item 121): a leitura pela consulta, e a fusão pela transação global,
+    // que reaponta os filhos e apaga o vínculo antigo num `COMMIT` só.
+    convitesPessoais: repositorioDeConvitesPessoais(consulta, criarTransacao()),
   };
 }
 
@@ -94,6 +109,18 @@ export function montarPortasEscopadas(organizacaoId: string): RepositoriosEscopa
     // Recebe as **duas** formas de acesso: a consulta para a lista e as escritas de uma instrução, e a
     // transação escopada para atribuir, que trava o vínculo, cria ou acha a etiqueta e liga, num `COMMIT`.
     etiquetas: repositorioEscopadoDeEtiquetas(consulta, escoparTransacao(criarTransacao(), organizacaoId)),
+    // O convite pessoal do lado do Gestor (item 121): a consulta para ler e garantir, que é uma instrução
+    // só com `on conflict`, e a transação escopada para renovar, que carimba o vivo e insere outro.
+    convitesPessoais: repositorioEscopadoDeConvitesPessoais(
+      consulta,
+      escoparTransacao(criarTransacao(), organizacaoId),
+    ),
+    // Os envios do convite por e-mail (item 122): a consulta para o resumo, e a transação escopada para o
+    // registro, que garante o convite, confere os limites, grava e só confirma se o provedor aceitou.
+    enviosDeConvite: repositorioEscopadoDeEnviosDeConvite(
+      consulta,
+      escoparTransacao(criarTransacao(), organizacaoId),
+    ),
     // Recebem as **duas** formas de acesso desde o item 50: a consulta para a leitura e para as escritas de
     // uma instrução só, e a transação escopada para a reordenação, que trava a lista, confere o conjunto,
     // grava e relê num `COMMIT` só. As duas passam pelo mesmo `$1`.
@@ -134,12 +161,31 @@ export function montarPortasEscopadas(organizacaoId: string): RepositoriosEscopa
 /**
  * A porta do convite (item 86, ADR-0018).
  *
- * **Separada das globais e das escopadas, e a separação é a decisão.** As globais servem as cinco
+ * **Separada das globais e das escopadas, e a separação é a decisão.** As globais servem as
  * operações do §4.4, todas com sessão; o convite roda sem. Quem recebe esta porta não recebe mais nada:
  * nem vínculos, nem pessoas, nem escrita.
  */
 export function montarPortaDeConvites(): RepositorioDeConvites {
   return repositorioDeConvites(criarConsulta());
+}
+
+/**
+ * A leitura do convite pessoal (item 121, ADR-0021), no molde de `montarPortaDeConvites`.
+ *
+ * **Quem a recebe não recebe escrita**: é o que o `semSessao` entrega à segunda operação sem sessão, e o
+ * objeto devolvido só tem `vivoPorToken`. O aceite e a ligação moram nas portas globais, com sessão.
+ */
+export function montarLeituraDeConvitesPessoais(): LeituraDeConvitesPessoais {
+  return leituraDeConvitesPessoais(criarConsulta());
+}
+
+/**
+ * A porta de escrita do convite pessoal para a ação de criar conta (item 121, o caminho sem conta). É o
+ * mesmo repositório das portas globais: a ação roda no servidor, logo depois do `signUp`, e ainda não tem
+ * resolução de contexto de onde tirar as globais.
+ */
+export function montarPortaDeConvitesPessoais(): RepositorioDeConvitesPessoais {
+  return repositorioDeConvitesPessoais(criarConsulta(), criarTransacao());
 }
 
 /**
@@ -173,6 +219,23 @@ export function montarPortasDeAnexo(): PortasDeAnexo {
     emissor: criarEmissorDeCredencialDeUpload(),
     livro: livroDeAutorizacoesDeUpload(criarTransacao()),
   };
+}
+
+/**
+ * O gerador do token do convite pessoal (item 121): 32 bytes aleatórios em base64url, 43 sinais. Mora na
+ * composição porque é o único lugar de fora da Infraestrutura que pode importar `node:crypto` sem levar o
+ * gerador para a Aplicação, que o recebe por parâmetro.
+ */
+export function novoTokenDeConvite(): string {
+  return randomBytes(32).toString("base64url");
+}
+
+/**
+ * O carteiro do convite por e-mail (item 122, ADR-0022). Não é escopado: o adaptador não conhece
+ * organização, e o que amarra o escopo é o registro do envio, na transação escopada.
+ */
+export function montarCarteiro(): Carteiro {
+  return criarCarteiro();
 }
 
 /** A porta das telas de credencial (T-01, T-11). */

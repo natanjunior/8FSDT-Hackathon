@@ -14,12 +14,14 @@ import {
 } from "@/aplicacao/organizacao";
 import { BotaoDeExportacao } from "@/interface/componentes/botao-de-exportacao";
 import { CabecalhoDaPagina } from "@/interface/componentes/cabecalho-da-pagina";
+import { ConviteEmMassa } from "@/interface/componentes/convite-em-massa";
 import type { ImpedimentoNaTela } from "@/interface/componentes/frases-da-remocao";
 import {
   SEM_PEDIDOS,
   palavraDeParticipantes,
   palavraDePedidos,
 } from "@/interface/componentes/frases-de-participantes";
+import { ProvedorDaSelecao } from "@/interface/componentes/provedor-da-selecao";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
 import { TabelaDeParticipantes } from "@/interface/componentes/tabela-de-participantes";
 import { buttonVariants } from "@/interface/componentes/ui/button";
@@ -44,6 +46,9 @@ import {
  *
  * **O nome da tela é Participantes** desde 17/09/2026 (item 48, achado V-09): o título e o rótulo da
  * barra lateral passaram a ser o mesmo nome.
+ *
+ * **A seleção de linhas (item 122) mora num provedor acima do cabeçalho e da tabela**, porque o botão que
+ * a usa está no cabeçalho.
  *
  * **Alvo primário: tela grande.** É trabalho de escritório, feito uma vez por semana — o RNF6 cronometra
  * T-04, não esta.
@@ -85,40 +90,44 @@ export default async function Participantes() {
   const responsabilidades = Object.fromEntries(mapaDeResponsabilidades) as Readonly<Record<string, number>>;
 
   return (
-    <div className="flex flex-col gap-5.5">
-      <CabecalhoDaPagina
-        titulo="Participantes"
-        fato={<Fato participantes={vinculos.length} pedidos={pedidos.length} />}
-        acao={
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Sempre: a tela já é de `vinculo.gerir`, e a lista nunca é vazia, porque quem gere está nela.
-                O arquivo leva e-mail e telefone (item 124). */}
-            <BotaoDeExportacao endereco="/api/vinculos/exportacao" />
-            <Link
-              href="/vinculos/nova"
-              className={cn(
-                buttonVariants({ variant: "marca" }),
-                "text-interface min-h-11 rounded-sm px-4 font-semibold has-[>svg]:px-4",
-              )}
-            >
-              <UserPlus aria-hidden="true" />
-              Cadastrar participante
-            </Link>
-          </div>
-        }
-      />
+    <ProvedorDaSelecao>
+      <div className="flex flex-col gap-5.5">
+        <CabecalhoDaPagina
+          titulo="Participantes"
+          fato={<Fato participantes={vinculos.length} pedidos={pedidos.length} />}
+          acao={
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Sempre: a tela já é de `vinculo.gerir`, e a lista nunca é vazia, porque quem gere está nela.
+                  O arquivo leva e-mail e telefone (item 124). */}
+              <BotaoDeExportacao endereco="/api/vinculos/exportacao" />
+              {/* Só com seleção (item 122): secundário, à esquerda do cadastro. */}
+              <ConviteEmMassa organizacaoId={escopo.ctx.vinculo.organizacaoId} />
+              <Link
+                href="/vinculos/nova"
+                className={cn(
+                  buttonVariants({ variant: "marca" }),
+                  "text-interface min-h-11 rounded-sm px-4 font-semibold has-[>svg]:px-4",
+                )}
+              >
+                <UserPlus aria-hidden="true" />
+                Cadastrar participante
+              </Link>
+            </div>
+          }
+        />
 
-      <TabelaDeParticipantes
-        pedidos={pedidos.map(projetarPedidoDeEntradaDetalhe)}
-        vinculos={vinculosProjetados}
-        impedimentos={impedimentos}
-        responsabilidades={responsabilidades}
-        areas={areas.map(projetarArea)}
-        organizacaoId={escopo.ctx.vinculo.organizacaoId}
-        euPessoaId={escopo.ctx.pessoaId}
-        etiquetas={etiquetas}
-      />
-    </div>
+        <TabelaDeParticipantes
+          pedidos={pedidos.map(projetarPedidoDeEntradaDetalhe)}
+          vinculos={vinculosProjetados}
+          impedimentos={impedimentos}
+          responsabilidades={responsabilidades}
+          areas={areas.map(projetarArea)}
+          organizacaoId={escopo.ctx.vinculo.organizacaoId}
+          euPessoaId={escopo.ctx.pessoaId}
+          etiquetas={etiquetas}
+        />
+      </div>
+    </ProvedorDaSelecao>
   );
 }
 

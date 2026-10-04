@@ -33,6 +33,34 @@ export class CodigoPublicoNaoEncontrado extends ErroDeDominio {
   }
 }
 
+/**
+ * `409 CONVITE_INDISPONIVEL` — este participante não recebe convite pessoal (item 121). A tela esconde o
+ * botão; a API recusa o mesmo.
+ */
+export class ConviteIndisponivel extends ErroDeDominio {
+  constructor(motivo: "encarregado" | "ja-tem-conta") {
+    super(
+      "CONVITE_INDISPONIVEL",
+      "Convite indisponível",
+      motivo === "encarregado" ? "Encarregados não usam o aplicativo." : "Esta pessoa já usa o aplicativo.",
+    );
+  }
+}
+
+/** `422 LOTE_DE_ENVIO_INVALIDO` — a lista do envio por e-mail está vazia, repetida ou acima do lote (item 122). */
+export class LoteDeEnvioInvalido extends ErroDeDominio {
+  constructor(detalhe: string) {
+    super("LOTE_DE_ENVIO_INVALIDO", "Lote de envio inválido", detalhe);
+  }
+}
+
+/** `404 CONVITE_PESSOAL_NAO_VALE` — o convite não leva a lugar nenhum. Não diz por quê (item 121). */
+export class ConvitePessoalNaoVale extends ErroDeDominio {
+  constructor() {
+    super("CONVITE_PESSOAL_NAO_VALE", "Convite não vale", "Este convite não vale mais.");
+  }
+}
+
 /** `409 JA_VINCULADO` — a Pessoa já tem vínculo ativo naquela organização. */
 export class JaVinculado extends ErroDeDominio {
   constructor() {

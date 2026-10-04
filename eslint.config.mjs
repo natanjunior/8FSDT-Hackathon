@@ -42,10 +42,10 @@ import nextTypescript from "eslint-config-next/typescript";
  * | 2 · `infraestrutura/` só é importada por `composicao/` | **sim** — `INFRAESTRUTURA` |
  * | 2b · `composicao/` só é importada por `interface/http/` | **sim** — `COMPOSICAO` |
  * | 3 · só pela superfície pública do módulo | **sim** — `SUPERFICIE_PUBLICA` |
- * | *(sem número — não fala de camada)* `semOrganizacao` só nos cinco caminhos da lista fechada do contrato §4.4 | **sim** — `SEM_ORGANIZACAO` |
+ * | *(sem número — não fala de camada)* `semOrganizacao` só nos seis caminhos da lista fechada do contrato §4.4 | **sim** — `SEM_ORGANIZACAO` |
  * | *(sem número)* `portasDeAnexo` só no único `route.ts` que emite credencial de upload | **sim** — `PORTAS_DE_ANEXO` |
  * | *(sem número)* `armazenamentoDeAnexos` só nos dois `route.ts` que reivindicam ou leem anexo | **sim** — `ARMAZENAMENTO_DE_ANEXOS` |
- * | *(sem número)* `semSessao` e `resolverConviteParaTela` só na rota e na página do convite | **sim** — `SEM_SESSAO` |
+ * | *(sem número)* `semSessao` e as duas estradas diretas só nas rotas e nas páginas dos dois convites | **sim** — `SEM_SESSAO` |
  *
  * E uma que **não é regra numerada da ADR-0006** — vem da §5.2 da `arquitetura.md`,
  * que é onde a inversão de dependência mora:
@@ -86,9 +86,12 @@ const SDKS = {
     "@supabase/*/**",
     "@azure/*",
     "@azure/*/**",
+    // Item 122 (ADR-0022): o e-mail do convite sai por SMTP, e o cliente mora em `clientes/correio.ts`.
+    "nodemailer",
+    "nodemailer/**",
   ],
   message:
-    "SDK só em src/infraestrutura/clientes/ (ADR-0006, regra 1). Banco, storage e autenticação entram por " +
+    "SDK só em src/infraestrutura/clientes/ (ADR-0006, regra 1). Banco, storage, autenticação e e-mail entram por " +
     "porta declarada pela Aplicação; quem consome recebe a implementação, não o cliente (ADR-0005).",
 };
 
@@ -203,27 +206,29 @@ const RELATIVO_PARA_FORA = {
  * **A lista fechada da ADR-0003, virada mecanismo.**
  *
  * *"Exatamente cinco operações não passam pelo repositório escopado"* (contrato §4.4), e *"qualquer
- * endpoint acrescentado a esta lista é mudança de contrato que exige revisão explícita"*. Aqui o sexto
- * `route.ts` que tentar importar `semOrganizacao` **não passa no lint** — a revisão explícita passa a ser
- * uma linha neste arquivo, com o caminho do endpoint escrita nela.
+ * endpoint acrescentado a esta lista é mudança de contrato que exige revisão explícita"*. Aqui o
+ * `route.ts` a mais que tentar importar `semOrganizacao` **não passa no lint** — a revisão explícita passa
+ * a ser uma linha neste arquivo, com o caminho do endpoint escrita nela. A sexta rota entrou assim: o
+ * aceite do convite pessoal (item 121, ADR-0021), que escreve pela chave da sessão e pelo token apresentado.
  */
 const SEM_ORGANIZACAO = {
   group: ["@/interface/http"],
   importNames: ["semOrganizacao"],
   message:
-    "semOrganizacao é para as CINCO operações da lista fechada do contrato §4.4 e mais nenhuma: " +
+    "semOrganizacao é para as SEIS rotas da lista fechada do contrato §4.4 e mais nenhuma: " +
     "GET /contexto, PATCH /contexto/pessoa, PUT /contexto/organizacao, POST /organizacoes, " +
-    "POST /pedidos-de-entrada. Acrescentar um sexto é emenda à ADR-0003, e passa por acrescentar o " +
-    "caminho em eslint.config.mjs.",
+    "POST /pedidos-de-entrada e POST /convites-pessoais/{token}/aceite (ADR-0021). Acrescentar outra é " +
+    "ADR nova, e passa por acrescentar o caminho em eslint.config.mjs.",
 };
 
-/** Os cinco `route.ts` da lista fechada. Os cinco existem. */
+/** Os seis `route.ts` da lista fechada. Os seis existem. */
 const ROTAS_SEM_ORGANIZACAO = [
   "app/api/contexto/route.ts",
   "app/api/contexto/pessoa/route.ts",
   "app/api/contexto/organizacao/route.ts",
   "app/api/organizacoes/route.ts",
   "app/api/pedidos-de-entrada/route.ts",
+  "app/api/convites-pessoais/[[]token[]]/aceite/route.ts",
 ];
 
 /**
@@ -276,25 +281,30 @@ const ROTAS_DE_ARMAZENAMENTO = [
 ];
 
 /**
- * **A quarta lista fechada** (item 86, ADR-0018).
+ * **A quarta lista fechada** (item 86, ADR-0018; ampliada pelo item 121, ADR-0021).
  *
- * `semSessao` e `resolverConviteParaTela` entregam a única porta que roda **sem sessão**: o nome e o
- * código de uma organização a partir do código. Um segundo consumidor é um segundo lugar em que alguém
- * sem conta lê o banco, e isso é ADR nova.
+ * `semSessao` e as duas estradas diretas entregam as duas portas que rodam **sem sessão**: o nome e o
+ * código de uma organização a partir do código, e o nome de uma pessoa, o da organização e o papel a
+ * partir do token do convite pessoal. Um terceiro consumidor é um terceiro lugar em que alguém sem conta
+ * lê o banco, e isso é ADR nova.
  */
 const SEM_SESSAO = {
   group: ["@/interface/http"],
-  importNames: ["semSessao", "resolverConviteParaTela"],
+  importNames: ["semSessao", "resolverConviteParaTela", "resolverConvitePessoalParaTela"],
   message:
-    "semSessao e resolverConviteParaTela são de GET /convites/{codigo} e da página /convite/{codigo}, e " +
-    "de mais nenhum arquivo: é a única leitura do produto sem sessão (ADR-0018). Acrescentar um terceiro " +
-    "consumidor é emenda de ADR, e passa por acrescentar o caminho em eslint.config.mjs.",
+    "semSessao, resolverConviteParaTela e resolverConvitePessoalParaTela são das rotas e das páginas dos " +
+    "dois convites (GET /convites/{codigo}, /convite/{codigo}, GET /convites-pessoais/{token} e " +
+    "/convite-pessoal/{token}), e de mais nenhum arquivo: são as duas leituras do produto sem sessão " +
+    "(ADR-0021). Acrescentar outro consumidor é ADR nova, e passa por acrescentar o caminho em " +
+    "eslint.config.mjs.",
 };
 
-/** Os dois arquivos do convite. Os colchetes literais seguem a regra de `ROTAS_DE_ARMAZENAMENTO`. */
+/** Os quatro arquivos dos dois convites. Os colchetes literais seguem a regra de `ROTAS_DE_ARMAZENAMENTO`. */
 const ARQUIVOS_SEM_SESSAO = [
   "app/api/convites/[[]codigo[]]/route.ts",
   "app/convite/[[]codigo[]]/page.tsx",
+  "app/api/convites-pessoais/[[]token[]]/route.ts",
+  "app/convite-pessoal/[[]token[]]/page.tsx",
 ];
 
 const proibir = (...grupos) => ["error", { patterns: grupos }];
@@ -466,7 +476,7 @@ const configuracao = [
   },
 
   // -------------------------------------------------------------------------
-  // Os cinco `route.ts` da lista fechada do contrato §4.4.
+  // Os seis `route.ts` da lista fechada do contrato §4.4.
   // -------------------------------------------------------------------------
   {
     files: ROTAS_SEM_ORGANIZACAO,
@@ -550,7 +560,7 @@ const configuracao = [
   },
 
   // -------------------------------------------------------------------------
-  // Os dois arquivos do convite, os únicos que rodam sem sessão (item 86).
+  // Os quatro arquivos dos dois convites, os únicos que rodam sem sessão (item 86, item 121).
   // -------------------------------------------------------------------------
   {
     files: ARQUIVOS_SEM_SESSAO,
@@ -561,7 +571,7 @@ const configuracao = [
         COMPOSICAO,
         SUPERFICIE_PUBLICA,
         RELATIVO_PARA_FORA,
-        // Dispensam `SEM_SESSAO`, que é o que os define, e mantêm as outras três: nenhum dos dois está
+        // Dispensam `SEM_SESSAO`, que é o que os define, e mantêm as outras três: nenhum dos quatro está
         // na lista da §4.4, nem emite credencial de upload, nem lê anexo.
         SEM_ORGANIZACAO,
         PORTAS_DE_ANEXO,

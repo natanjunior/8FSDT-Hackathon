@@ -5,6 +5,8 @@ import { criarTransacao } from "@/infraestrutura/clientes";
 import { escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
 import { repositorioEscopadoDeOcorrencias } from "@/infraestrutura/repositorios/ocorrencia";
 import {
+  CHAVES_DA_FUSAO,
+  conferirChavesDaFusao,
   repositorioDePedidosDeEntrada,
   repositorioEscopadoDeVinculos,
   repositorioGlobalDeVinculos,
@@ -820,10 +822,18 @@ describe("impedimentosDeRemocao — o que a tela precisa saber, por vínculo", (
    * **`leituras_de_ocorrencia.pessoa_id` está na lista e não no `tem_historico`** (item 117): apaga em
    * cascata, e leitura não é rastro.
    *
+   * **`convites_pessoais` tem duas pontas e só uma entra no `tem_historico`** (item 121): quem gerou o
+   * convite é rastro e a chave é `restrict`; o convite recebido apaga em cascata com o vínculo, porque
+   * remover um participante sem rastro não pode ser recusado por um link que ninguém usou.
+   *
+   * **`envios_de_convite` tem uma ponta só para `vinculos`, e ela é rastro** (item 122): quem enviou o
+   * e-mail agiu, e a chave é `restrict`. A outra chave dela aponta para `convites_pessoais` e é `set null`,
+   * para que remover um participante sem rastro apague o convite dele sem apagar o registro do que saiu.
+   *
    * **A ordem vem do `sort()` do JavaScript**, e não do `order by`: a collation do banco trataria `.` e `_`
    * de outro jeito, e o teste passaria a depender dela.
    */
-  it("as colunas que apontam para vinculos são exatamente as vinte que a consulta cobre, em treze tabelas", async () => {
+  it("as colunas que apontam para vinculos são exatamente as vinte e três que a consulta cobre, em quinze tabelas", async () => {
     const COBERTAS = [
       "anexos.anexado_por_pessoa_id",
       "areas.atualizado_por_pessoa_id",
@@ -835,6 +845,9 @@ describe("impedimentosDeRemocao — o que a tela precisa saber, por vínculo", (
       "categorias.criado_por_pessoa_id",
       "compartilhamentos.com_pessoa_id",
       "compartilhamentos.por_pessoa_id",
+      "convites_pessoais.criado_por_pessoa_id",
+      "convites_pessoais.pessoa_id",
+      "envios_de_convite.enviado_por_pessoa_id",
       "leituras_de_ocorrencia.pessoa_id",
       "mensagens.autor_pessoa_id",
       "mudancas_de_configuracao.autor_pessoa_id",
@@ -859,7 +872,59 @@ describe("impedimentosDeRemocao — o que a tela precisa saber, por vínculo", (
     );
 
     expect(linhas.map((l) => l.par).sort()).toStrictEqual(COBERTAS);
-    expect(new Set(COBERTAS.map((par) => par.split(".")[0])).size).toBe(13);
+    expect(new Set(COBERTAS.map((par) => par.split(".")[0])).size).toBe(15);
+  });
+});
+
+describe("a fusão conhece toda chave para vinculos e para pessoas (item 121, critério 6)", () => {
+  /**
+   * **A guarda de cima protege o botão de remover; esta protege a fusão.** Uma chave nova para
+   * `vinculos` ou para `pessoas` que ninguém classificou é uma tabela que a fusão do convite pessoal
+   * esqueceria de reapontar, e três das chaves de hoje apagam em cascata: esquecer não dá erro, apaga dado.
+   * **Varre os dois pais**, porque `contatos` pendura em `pessoas (id)`, e uma varredura só de `vinculos`
+   * não a encontraria.
+   */
+  it("o catálogo real não tem chave sem classificação", async () => {
+    const catalogo = await consulta<{ tabela: string; chave: string }>(
+      `select c.conrelid::regclass::text as tabela, c.conname::text as chave
+         from pg_constraint c
+        where c.contype = 'f'
+          and c.confrelid in ('public.vinculos'::regclass, 'public.pessoas'::regclass)`,
+    );
+    expect(conferirChavesDaFusao(catalogo)).toStrictEqual([]);
+  });
+
+  it("uma tabela nova que a fusão não conhece reprova, nomeando a tabela", () => {
+    const real = Object.values(CHAVES_DA_FUSAO)
+      .flat()
+      .map((par) => {
+        const [tabela, chave] = par.split(".");
+        return { tabela: tabela ?? "", chave: chave ?? "" };
+      });
+    const defeitos = conferirChavesDaFusao([...real, { tabela: "lembretes", chave: "lembretes_vinculo_fk" }]);
+    expect(defeitos).toStrictEqual([
+      "lembretes: a chave lembretes_vinculo_fk aponta para vinculos ou pessoas e não está em nenhuma lista da fusão",
+    ]);
+  });
+
+  it("uma chave em duas listas também reprova", () => {
+    const catalogo = [{ tabela: "contatos", chave: "contatos_pessoa_fk" }];
+    expect(
+      conferirChavesDaFusao(catalogo, {
+        reapontadas: ["contatos.contatos_pessoa_fk"],
+        deQuemFez: ["contatos.contatos_pessoa_fk"],
+      }),
+    ).toStrictEqual(["contatos: a chave contatos_pessoa_fk está em mais de uma lista da fusão"]);
+  });
+
+  it("uma lista velha também reprova", () => {
+    const real = Object.values(CHAVES_DA_FUSAO)
+      .flat()
+      .filter((par) => par !== "contatos.contatos_pessoa_fk")
+      .map((par) => ({ tabela: par.split(".")[0] ?? "", chave: par.split(".")[1] ?? "" }));
+    expect(conferirChavesDaFusao(real)).toStrictEqual([
+      "contatos: a chave contatos_pessoa_fk está numa lista da fusão e não existe mais no banco",
+    ]);
   });
 });
 
