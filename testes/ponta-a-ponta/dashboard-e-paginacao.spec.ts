@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { cobre } from "./cobertura";
-import { entrar, HELENA, marcaDoInstante, RECANTO, registrarOcorrencia } from "./mundo";
+import { conteudoDaCasca, entrar, HELENA, marcaDoInstante, RECANTO, registrarOcorrencia } from "./mundo";
 
 /**
  * ============================================================================
@@ -324,9 +324,9 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   await trintaDias.click();
   await expect(trintaDias).toHaveAttribute("aria-busy", "true");
   await expect(painelDoPeriodo).toBeVisible();
-  await expect(helena.locator('main [aria-busy="true"]')).toHaveCount(1);
+  await expect(conteudoDaCasca(helena).locator('[aria-busy="true"]')).toHaveCount(1);
   await expect(painelDoPeriodo).toBeHidden();
-  await expect(helena.locator('main [aria-busy="true"]')).toHaveCount(0);
+  await expect(conteudoDaCasca(helena).locator('[aria-busy="true"]')).toHaveCount(0);
   expect(new URL(helena.url()).searchParams.has("de")).toBe(true);
   await helena.unroute(RESPOSTA_DO_RECORTE);
 
@@ -870,7 +870,7 @@ test("o teclado no painel: o salto, os gráficos fora da tabulação e a gaveta 
   await expect(salto).toBeFocused();
   await expect(salto).toBeInViewport();
   await helena.keyboard.press("Enter");
-  await expect(helena.locator("main#conteudo")).toBeFocused();
+  await expect(conteudoDaCasca(helena)).toBeFocused();
   await helena.keyboard.press("Tab");
   expect(await helena.evaluate(() => document.activeElement?.closest("#conteudo") !== null)).toBe(true);
   cobre(test.info(), "7.2 · 10", { criterio: "94.6" });
