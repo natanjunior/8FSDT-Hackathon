@@ -510,6 +510,12 @@ describe("o alcance do 44j — as peças da tabela e da ordem manual", () => {
     }
   });
 
+  it("o checkbox entrou no catálogo, do pacote radix-ui (critério 122.3)", () => {
+    const fonte = ler("src/interface/componentes/ui/checkbox.tsx");
+    expect(fonte).toContain('import { Checkbox as CheckboxPrimitive } from "radix-ui"');
+    expect(fonte).not.toMatch(/@radix-ui\//u);
+  });
+
   it("o arrastar é o nativo do HTML, sem pacote novo (critério 44j.9)", () => {
     const fonte = ler("src/interface/ganchos/use-arrasto-de-linha.ts");
     expect(fonte).toContain("dataTransfer");
