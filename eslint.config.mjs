@@ -86,9 +86,12 @@ const SDKS = {
     "@supabase/*/**",
     "@azure/*",
     "@azure/*/**",
+    // Item 122 (ADR-0022): o e-mail do convite sai por SMTP, e o cliente mora em `clientes/correio.ts`.
+    "nodemailer",
+    "nodemailer/**",
   ],
   message:
-    "SDK só em src/infraestrutura/clientes/ (ADR-0006, regra 1). Banco, storage e autenticação entram por " +
+    "SDK só em src/infraestrutura/clientes/ (ADR-0006, regra 1). Banco, storage, autenticação e e-mail entram por " +
     "porta declarada pela Aplicação; quem consome recebe a implementação, não o cliente (ADR-0005).",
 };
 

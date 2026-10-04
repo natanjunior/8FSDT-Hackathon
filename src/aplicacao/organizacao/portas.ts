@@ -720,6 +720,17 @@ export interface RepositorioEscopadoDeEtiquetas {
   apagar(etiquetaId: string): Promise<ResultadoDoApagarEtiqueta>;
 }
 
+/** Uma mensagem de e-mail, já montada (item 122). Texto puro, e o HTML equivalente. */
+export type Mensagem = { para: string; assunto: string; texto: string; html: string };
+
+/**
+ * **A porta de saída do e-mail** (item 122). Resolve quando o provedor **aceitou**; rejeita quando ele
+ * recusou ou o tempo acabou. Aceito não é entregue: devolução e caixa de spam ficam fora.
+ */
+export interface Carteiro {
+  enviar(mensagem: Mensagem): Promise<void>;
+}
+
 /** O convite vivo de um vínculo, como o Gestor o vê (item 121). O token sai daqui: quem lê tem `vinculo.gerir`. */
 export type ConvitePessoalVivo = {
   token: string;

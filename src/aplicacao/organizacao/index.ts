@@ -78,6 +78,7 @@ export {
 } from "./erros";
 export type {
   AlteracaoDeConfiguracao,
+  Carteiro,
   AreaAtualizada,
   AreaLida,
   CategoriaLida,
@@ -96,6 +97,7 @@ export type {
   EtiquetaLida,
   ImpedimentoDeRemocao,
   LeituraDeConvitesPessoais,
+  Mensagem,
   MudancaDeConfiguracaoLida,
   NovaArea,
   NovaCategoria,
