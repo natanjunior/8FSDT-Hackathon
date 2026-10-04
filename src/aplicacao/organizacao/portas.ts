@@ -752,6 +752,41 @@ export interface RepositorioEscopadoDeConvitesPessoais {
   renovar(pessoaId: string, token: string, porPessoaId: string): Promise<ConvitePessoalVivo>;
 }
 
+/** O desfecho de um envio por e-mail, decidido dentro da transação daquela pessoa (item 122). */
+export type DesfechoDoRegistro =
+  | { desfecho: "enviado"; enviadoEm: string }
+  | { desfecho: "limite-do-dia" | "limite-do-participante" | "falha-no-envio" };
+
+/** O que o modal precisa saber dos envios de uma pessoa (item 122). */
+export type ResumoDosEnvios = {
+  /** O último envio a esta pessoa, por qualquer endereço, ou `null`. */
+  ultimoEnvioEm: string | null;
+  /** Quantos envios o vínculo já recebeu, somando convites invalidados. */
+  doParticipante: number;
+  /** Se `email` já recebeu convite hoje (dia de Brasília) nesta organização. */
+  enderecoJaRecebeuHoje: boolean;
+};
+
+/**
+ * **A porta escopada dos envios do convite por e-mail** (item 122). O repositório não conhece o provedor:
+ * quem entrega é a Aplicação, pela chamada de retorno `entregar`.
+ */
+export interface RepositorioEscopadoDeEnviosDeConvite {
+  /**
+   * **Uma transação por pessoa**: garante e trava o convite vivo, confere os dois limites, insere a linha,
+   * chama `entregar` e só confirma se ela resolver. Se `entregar` rejeitar, desfaz tudo e devolve
+   * `falha-no-envio`: envio que falhou não conta para limite nenhum.
+   */
+  registrarEnvio(entrada: {
+    pessoaId: string;
+    email: string;
+    porPessoaId: string;
+    token: string;
+    entregar: (vivo: ConvitePessoalVivo) => Promise<void>;
+  }): Promise<DesfechoDoRegistro>;
+  resumoDe(pessoaId: string, email: string | null): Promise<ResumoDosEnvios>;
+}
+
 /**
  * O que a leitura sem sessão do convite pessoal pode saber (item 121, critério 8). **Nenhum contato**:
  * contato só é legível dentro da organização do vínculo, e quem abre o link sem conta não está em

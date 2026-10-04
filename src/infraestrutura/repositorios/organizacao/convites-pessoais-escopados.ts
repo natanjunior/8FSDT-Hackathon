@@ -11,21 +11,38 @@ import type { ConsultaEscopada, TransacaoEscopada } from "@/infraestrutura/conte
  * esta porta.
  */
 
-type LinhaDoVivo = {
+/** A linha do convite vivo. Exportada para o repositório dos envios (item 122), que a lê na transação dele. */
+export type LinhaDoVivo = {
+  id: string;
   token: string;
   criado_em: Date;
   criado_por_pessoa_id: string;
   criado_por_nome: string;
 };
 
-const SELECIONAR_VIVO = `
-  select c.token, c.criado_em, c.criado_por_pessoa_id, p.nome as criado_por_nome
+/**
+ * O convite vivo de um vínculo. **Exportada para o repositório dos envios** (item 122), que a roda pela
+ * transação dele com `for update of c`: um SQL, duas formas de acesso.
+ */
+export const SELECIONAR_VIVO = `
+  select c.id, c.token, c.criado_em, c.criado_por_pessoa_id, p.nome as criado_por_nome
     from convites_pessoais c
     join pessoas p on p.id = c.criado_por_pessoa_id
    where c.organizacao_id = $1 and c.pessoa_id = $2
      and c.invalidado_em is null and c.aceito_em is null`;
 
-function projetar(linha: LinhaDoVivo): ConvitePessoalVivo {
+/**
+ * Cria o convite vivo se não houver; se houver, não faz nada. `$2` é a pessoa, `$3` o token, `$4` quem gera.
+ * Exportada pela mesma razão de `SELECIONAR_VIVO`.
+ */
+export const INSERIR_SE_NAO_HA_VIVO = `
+  insert into convites_pessoais (organizacao_id, pessoa_id, token, criado_por_pessoa_id)
+       values ($1, $2, $3, $4)
+  on conflict (organizacao_id, pessoa_id)
+        where invalidado_em is null and aceito_em is null
+  do nothing`;
+
+export function projetarVivo(linha: LinhaDoVivo): ConvitePessoalVivo {
   return {
     token: linha.token,
     criadoEm: linha.criado_em.toISOString(),
@@ -40,7 +57,7 @@ export function repositorioEscopadoDeConvitesPessoais(
   return {
     async vivoDe(pessoaId) {
       const [linha] = await consulta<LinhaDoVivo>(SELECIONAR_VIVO, [pessoaId]);
-      return linha === undefined ? null : projetar(linha);
+      return linha === undefined ? null : projetarVivo(linha);
     },
 
     /**
@@ -49,17 +66,10 @@ export function repositorioEscopadoDeConvitesPessoais(
      * mesmo vivo. Uma checagem-e-depois-insere perderia a corrida.
      */
     async garantir(pessoaId, token, porPessoaId) {
-      await consulta(
-        `insert into convites_pessoais (organizacao_id, pessoa_id, token, criado_por_pessoa_id)
-              values ($1, $2, $3, $4)
-         on conflict (organizacao_id, pessoa_id)
-               where invalidado_em is null and aceito_em is null
-         do nothing`,
-        [pessoaId, token, porPessoaId],
-      );
+      await consulta(INSERIR_SE_NAO_HA_VIVO, [pessoaId, token, porPessoaId]);
       const [linha] = await consulta<LinhaDoVivo>(SELECIONAR_VIVO, [pessoaId]);
       if (linha === undefined) throw new Error("garantir não achou o vivo depois do insert — invariante violada");
-      return projetar(linha);
+      return projetarVivo(linha);
     },
 
     async renovar(pessoaId, token, porPessoaId) {
@@ -77,7 +87,7 @@ export function repositorioEscopadoDeConvitesPessoais(
         );
         const [linha] = await dentro<LinhaDoVivo>(SELECIONAR_VIVO, [pessoaId]);
         if (linha === undefined) throw new Error("renovar não achou o vivo — invariante violada");
-        return projetar(linha);
+        return projetarVivo(linha);
       });
     },
   };

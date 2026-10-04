@@ -8,6 +8,7 @@ import type {
   RepositorioEscopadoDeAreas,
   RepositorioEscopadoDeCategorias,
   RepositorioEscopadoDeConvitesPessoais,
+  RepositorioEscopadoDeEnviosDeConvite,
   RepositorioEscopadoDeEtiquetas,
   RepositorioEscopadoDePedidosDeEntrada,
   RepositorioEscopadoDeVinculos,
@@ -172,6 +173,8 @@ export type RepositoriosEscopados = {
   etiquetas: RepositorioEscopadoDeEtiquetas;
   /** O convite pessoal, do lado do Gestor (item 121). Escopado como todos: o `where` é `$1`. */
   convitesPessoais: RepositorioEscopadoDeConvitesPessoais;
+  /** Os envios do convite por e-mail (item 122). Escopado como todos: o `where` é `$1`. */
+  enviosDeConvite: RepositorioEscopadoDeEnviosDeConvite;
   categorias: RepositorioEscopadoDeCategorias;
   areas: RepositorioEscopadoDeAreas;
   /**

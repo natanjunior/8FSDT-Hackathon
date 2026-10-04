@@ -94,6 +94,7 @@ export type {
   CorrecaoDeOrganizacao,
   DadosDaCorrecao,
   DadosDoCadastro,
+  DesfechoDoRegistro,
   EtiquetaLida,
   ImpedimentoDeRemocao,
   LeituraDeConvitesPessoais,
@@ -122,6 +123,7 @@ export type {
   RepositorioEscopadoDeAreas,
   RepositorioEscopadoDeCategorias,
   RepositorioEscopadoDeConvitesPessoais,
+  RepositorioEscopadoDeEnviosDeConvite,
   RepositorioEscopadoDeEtiquetas,
   RepositorioEscopadoDePedidosDeEntrada,
   RepositorioEscopadoDeVinculos,
@@ -143,6 +145,7 @@ export type {
   ResultadoDoAceite,
   ResultadoDoCadastro,
   ResultadoDoPedidoDeEntrada,
+  ResumoDosEnvios,
   RotulosDoSolicitante,
   VinculoLido,
 } from "./portas";

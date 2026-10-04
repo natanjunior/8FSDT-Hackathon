@@ -3,6 +3,7 @@ export { repositorioGlobalDeVinculos } from "./vinculos-globais";
 export { repositorioEscopadoDeVinculos } from "./vinculos-escopados";
 export { repositorioEscopadoDeEtiquetas } from "./etiquetas-escopadas";
 export { repositorioEscopadoDeConvitesPessoais } from "./convites-pessoais-escopados";
+export { repositorioEscopadoDeEnviosDeConvite } from "./envios-de-convite-escopados";
 export { leituraDeConvitesPessoais, repositorioDeConvitesPessoais } from "./convites-pessoais";
 export { CHAVES_DA_FUSAO, conferirChavesDaFusao, type ChaveDoCatalogo } from "./chaves-da-fusao";
 export { repositorioDeOrganizacoes } from "./organizacoes";

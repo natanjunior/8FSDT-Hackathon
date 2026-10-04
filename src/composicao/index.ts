@@ -32,6 +32,7 @@ import {
   repositorioEscopadoDeAreas,
   repositorioEscopadoDeCategorias,
   repositorioEscopadoDeConvitesPessoais,
+  repositorioEscopadoDeEnviosDeConvite,
   repositorioEscopadoDeEtiquetas,
   repositorioEscopadoDePedidosDeEntrada,
   repositorioEscopadoDeVinculos,
@@ -109,6 +110,12 @@ export function montarPortasEscopadas(organizacaoId: string): RepositoriosEscopa
     // O convite pessoal do lado do Gestor (item 121): a consulta para ler e garantir, que é uma instrução
     // só com `on conflict`, e a transação escopada para renovar, que carimba o vivo e insere outro.
     convitesPessoais: repositorioEscopadoDeConvitesPessoais(
+      consulta,
+      escoparTransacao(criarTransacao(), organizacaoId),
+    ),
+    // Os envios do convite por e-mail (item 122): a consulta para o resumo, e a transação escopada para o
+    // registro, que garante o convite, confere os limites, grava e só confirma se o provedor aceitou.
+    enviosDeConvite: repositorioEscopadoDeEnviosDeConvite(
       consulta,
       escoparTransacao(criarTransacao(), organizacaoId),
     ),
