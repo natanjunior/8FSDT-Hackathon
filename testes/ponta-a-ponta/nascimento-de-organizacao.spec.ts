@@ -921,6 +921,79 @@ test("o convite por link: sem conta, criar conta e voltar, pedir, a outra organi
 
 /**
  * ============================================================================
+ *  O convite pessoal (item 121)
+ * ============================================================================
+ *
+ * A Gestora cadastra uma pessoa sem conta, abre *Convidar* no detalhe dela e lê o link; uma janela nova,
+ * no celular, abre o link, vê o próprio nome no cadastro e cria a conta. Ela entra direto, sem fila, e a
+ * lista da Gestora a mostra uma vez só, agora com conta.
+ */
+test("o convite pessoal: o Gestor copia o link, e a pessoa cadastrada entra sem fila (item 121)", async ({
+  browser,
+}) => {
+  const NOME_G = "Gestora do Convite Pessoal";
+  const EMAIL_G = `gestora-pessoal.${MARCA}@example.com`;
+  const ORG = `Convite Pessoal ${MARCA}`;
+  const NOME_P = `Convidada ${MARCA}`;
+
+  const g = await (await browser.newContext()).newPage();
+  await criarConta(g, NOME_G, EMAIL_G);
+  await criarOrganizacao(g, ORG);
+
+  // 1 · A Gestora cadastra a pessoa sem conta, como Solicitante.
+  await g.goto("/vinculos");
+  await g.getByRole("link", { name: "Cadastrar participante" }).click();
+  await g.waitForURL(/\/vinculos\/nova$/u);
+  await g.getByLabel("Nome").fill(NOME_P);
+  await g.getByRole("radio", { name: /^Solicitante/u }).check();
+  await g.getByRole("button", { name: "Cadastrar" }).click();
+  await g.waitForURL(/\/vinculos$/u);
+  // "sem conta", e não "sem contato cadastrado", que a mesma linha também diz.
+  await expect(linhaDe(g, NOME_P)).toContainText(/sem conta(?!to)/u);
+
+  // 2 · No detalhe, Convidar abre o modal com o link inteiro, e ele cabe em 360 px.
+  await linhaDe(g, NOME_P).getByRole("link", { name: "Editar participante" }).click();
+  await g.waitForURL(/\/vinculos\/[0-9a-f-]+\/editar$/u);
+  await g.setViewportSize({ width: 360, height: 640 });
+  await g.getByRole("button", { name: "Convidar" }).click();
+  const modal = g.getByRole("dialog", { name: `Convidar ${NOME_P}` });
+  await expect(modal.getByRole("textbox")).toHaveValue(/\/convite-pessoal\/[A-Za-z0-9_-]{43}$/u);
+  const link = await modal.getByRole("textbox").inputValue();
+  expect(await transbordo(g)).toStrictEqual(SEM_TRANSBORDO);
+
+  // Abrir de novo devolve o mesmo link: a garantia é idempotente.
+  await g.keyboard.press("Escape");
+  await g.getByRole("button", { name: "Convidar" }).click();
+  await expect(g.getByRole("dialog", { name: `Convidar ${NOME_P}` }).getByRole("textbox")).toHaveValue(link);
+  await g.keyboard.press("Escape");
+
+  // 3 · Sem sessão, a pessoa abre o link, vê o próprio nome, e cria a conta com o nome já preenchido.
+  const c = await (await browser.newContext({ viewport: { width: 360, height: 640 } })).newPage();
+  await c.goto(link);
+  await expect(c.getByRole("heading", { name: NOME_P })).toBeVisible();
+  await expect(c.getByText(`${ORG} convida você para participar como Solicitante.`)).toBeVisible();
+  await expect(c.getByLabel("Seu nome")).toHaveValue(NOME_P);
+  await expect(c.getByLabel("E-mail")).toHaveValue("");
+  expect(await transbordo(c)).toStrictEqual(SEM_TRANSBORDO);
+  await c.getByLabel("E-mail").fill(`convidada-pessoal.${MARCA}@example.com`);
+  await c.getByLabel(/^Senha/u).fill(SENHA);
+  await c.getByRole("button", { name: "Criar conta" }).click();
+  await c.waitForURL(/\/ocorrencias/u);
+  await expect(c.getByText(ORG).first()).toBeVisible();
+
+  // 4 · O link morreu no aceite, e a lista da Gestora mostra a pessoa uma vez, agora com conta.
+  const ninguem = await (await browser.newContext()).newPage();
+  await ninguem.goto(link);
+  await expect(ninguem.getByRole("heading", { name: "Este convite não vale mais." })).toBeVisible();
+
+  await g.setViewportSize({ width: 1280, height: 720 });
+  await g.goto("/vinculos");
+  await expect(linhaDe(g, NOME_P)).toHaveCount(1);
+  await expect(linhaDe(g, NOME_P)).not.toContainText(/sem conta(?!to)/u);
+});
+
+/**
+ * ============================================================================
  *  O QR na área (item 111)
  * ============================================================================
  *
