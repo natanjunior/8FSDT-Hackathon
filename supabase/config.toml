@@ -11,11 +11,13 @@
 #  inteiras, com o mesmo erro. As portas estão agora em 5469x. Confira a sua com:
 #    netsh interface ipv4 show excludedportrange protocol=tcp
 #
-#  Se colidir de novo, mova nos SEIS lugares que nomeiam as portas — não há
+#  Se colidir de novo, mova nos OITO lugares que nomeiam as portas — não há
 #  override por máquina neste arquivo, e é por isso que a decisão está escrita:
 #    1. este arquivo            4. `testes/ponta-a-ponta/recuperacao-de-senha.spec.ts` (a caixa de e-mail)
 #    2. `.env.local`            5. `testes/integracao/banco.test.ts` (as URLs de exemplo)
 #    3. `.env.example`          6. `ferramentas/verificadores/auth-publicado.mjs` (o comentário)
+#    7. `.env.example` (a CORREIO_SMTP_URL, item 122)
+#    8. `ferramentas/ambiente-local.mjs` (a CORREIO_SMTP_URL, item 122)
 #  e o aviso do `README.md`. Em 30/09/2026 o 4 foi esquecido, e o ponta a ponta da
 #  recuperação de senha caiu com a caixa inalcançável — não com erro de porta.
 # ============================================================================
@@ -124,7 +126,8 @@ enabled = true
 # Port to use for the email testing server web interface.
 port = 54694
 # Uncomment to expose additional ports for testing user applications that send emails.
-# smtp_port = 54325
+# Aberta pelo item 122: o convite por e-mail sai por aqui no ambiente local.
+smtp_port = 54695
 # pop3_port = 54326
 # admin_email = "admin@email.com"
 # sender_name = "Admin"

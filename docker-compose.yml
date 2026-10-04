@@ -62,7 +62,7 @@ services:
     ports:
       - "3000:3000"
 
-    # As quatro variáveis chegam em tempo de execução, do arquivo que o git
+    # As variáveis da aplicação chegam em tempo de execução, do arquivo que o git
     # ignora. Nenhuma delas está na imagem.
     env_file:
       - .env.local
@@ -79,7 +79,7 @@ services:
     # provedor — e apareceu como `401`, que é indistinguível de credencial
     # errada.
     #
-    # Regra que fica: **as quatro variáveis da aplicação vivem em um lugar só.**
+    # Regra que fica: **as variáveis da aplicação vivem em um lugar só.**
     environment:
       NODE_ENV: production
 
