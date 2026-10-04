@@ -47,6 +47,13 @@ export class ConviteIndisponivel extends ErroDeDominio {
   }
 }
 
+/** `422 LOTE_DE_ENVIO_INVALIDO` — a lista do envio por e-mail está vazia, repetida ou acima do lote (item 122). */
+export class LoteDeEnvioInvalido extends ErroDeDominio {
+  constructor(detalhe: string) {
+    super("LOTE_DE_ENVIO_INVALIDO", "Lote de envio inválido", detalhe);
+  }
+}
+
 /** `404 CONVITE_PESSOAL_NAO_VALE` — o convite não leva a lugar nenhum. Não diz por quê (item 121). */
 export class ConvitePessoalNaoVale extends ErroDeDominio {
   constructor() {

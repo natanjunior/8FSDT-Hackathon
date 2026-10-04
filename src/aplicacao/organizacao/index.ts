@@ -33,6 +33,14 @@ export {
   type ConvitePessoalLido,
   type SituacaoDoConvitePessoal,
 } from "./convite-pessoal";
+export {
+  emailDoConvite,
+  enviarConvitesPorEmail,
+  montarMensagemDoConvite,
+  situacaoDoConvitePorEmail,
+  type ResumoDoEnvio,
+  type SituacaoDoConvitePorEmail,
+} from "./envio-de-convite";
 export { apagarEtiqueta, atribuirEtiqueta, criarEtiqueta, listarEtiquetas, tirarEtiqueta } from "./etiquetas";
 export {
   alterarConfiguracao,
@@ -66,6 +74,7 @@ export {
   EtiquetaNaoEncontrada,
   JaVinculado,
   ListaDesatualizada,
+  LoteDeEnvioInvalido,
   NomeDeAreaDuplicado,
   NomeDeCategoriaDuplicado,
   PedidoDeEntradaPendente,

@@ -15,6 +15,8 @@ import type {
 import {
   CodigoPublicoEmUso,
   type NovaOrganizacao,
+  type Carteiro,
+  type Mensagem,
   type PedidoDaPessoa,
   type RepositorioDeConvitesPessoais,
   type RepositorioDeOrganizacoes,
@@ -109,6 +111,31 @@ export function pedidosGlobaisFalsos(
 export function escritaDePedidosFalsa(): RepositorioDePedidosDeEntrada {
   return {
     registrar: () => Promise.reject(new Error("porta de escrita não exercida por este duplo")),
+  };
+}
+
+/**
+ * O duplo do carteiro (item 122): registra as mensagens que recebeu, e `falharCom` o faz rejeitar.
+ */
+export function carteiroFalso(): {
+  carteiro: Carteiro;
+  mensagens: Mensagem[];
+  falharCom: (erro: Error) => void;
+} {
+  const mensagens: Mensagem[] = [];
+  let falha: Error | null = null;
+  return {
+    mensagens,
+    falharCom: (erro) => {
+      falha = erro;
+    },
+    carteiro: {
+      enviar: (mensagem) => {
+        if (falha !== null) return Promise.reject(falha);
+        mensagens.push(mensagem);
+        return Promise.resolve();
+      },
+    },
   };
 }
 
