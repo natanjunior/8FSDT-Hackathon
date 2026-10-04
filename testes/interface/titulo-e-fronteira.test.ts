@@ -183,10 +183,11 @@ function paginas(): string[] {
 const SEM_TITULO_PROPRIO: Readonly<Record<string, string>> = {};
 
 describe("toda página tem título de aba — critérios 90.1 e 90.2", () => {
-  it("são 23 páginas, e a contagem é a do backlog", () => {
+  it("são 24 páginas, e a contagem é a do backlog", () => {
     // **21 até o item 86**, que acrescentou `/convite/{codigo}` e `/convidar`. **24 desde o item 111**, com
-    // o QR da área. **23 desde o item 120**, que apagou `/convidar`.
-    expect(paginas()).toHaveLength(23);
+    // o QR da área. **23 desde o item 120**, que apagou `/convidar`. **24 desde o item 121**, com
+    // `/convite-pessoal/{token}`.
+    expect(paginas()).toHaveLength(24);
   });
 
   it.each(paginas())("%s exporta metadata com title, ou generateMetadata", (pagina) => {

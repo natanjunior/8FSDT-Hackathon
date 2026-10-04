@@ -7,8 +7,10 @@ import { listarAreas, listarEtiquetas, verVinculo } from "@/aplicacao/organizaca
 import { CabecalhoDaPagina } from "@/interface/componentes/cabecalho-da-pagina";
 import { CaminhoDaPagina } from "@/interface/componentes/caminho-da-pagina";
 import { CartaoDeEtiquetas } from "@/interface/componentes/cartao-de-etiquetas";
+import { ConvidarParticipante } from "@/interface/componentes/convidar-participante";
+import { TEXTOS_DO_CONVITE_PESSOAL, conviteNoDetalhe } from "@/interface/componentes/convite-pessoal";
 import { FormularioDeVinculo } from "@/interface/componentes/formulario-de-vinculo";
-import { fatoDeEdicao } from "@/interface/componentes/frases-de-participantes";
+import { fatoDeEdicao, rotuloDoPapel } from "@/interface/componentes/frases-de-participantes";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
 import { resolverEscopoParaTela } from "@/interface/http";
 import { projetarArea, projetarEtiqueta } from "@/interface/projecoes";
@@ -51,11 +53,32 @@ export default async function EditarParticipante({
 
   if (vinculo === null) notFound();
 
+  // **O convite pessoal** (item 121): o botão só para Solicitante ou Gestor sem conta; nos outros dois
+  // casos, uma frase com o porquê. Texto, e não botão desabilitado, que não recebe foco nem é lido.
+  const convite = conviteNoDetalhe(vinculo);
+  const acaoDoConvite =
+    convite === "botao" ? (
+      <ConvidarParticipante
+        pessoaId={pessoaId}
+        nome={vinculo.pessoa.nome}
+        organizacaoId={escopo.ctx.vinculo.organizacaoId}
+        organizacao={escopo.resolucao.ativo?.organizacao.nome ?? ""}
+        papel={rotuloDoPapel(vinculo.papel)}
+      />
+    ) : (
+      <p className="text-interface text-tinta-suave">
+        {convite === "encarregado"
+          ? TEXTOS_DO_CONVITE_PESSOAL.semConviteEncarregado
+          : TEXTOS_DO_CONVITE_PESSOAL.semConviteComConta}
+      </p>
+    );
+
   return (
     <div className="flex flex-col gap-5.5">
       <CaminhoDaPagina anterior={{ rotulo: "Participantes", href: "/vinculos" }} atual={vinculo.pessoa.nome} />
       <CabecalhoDaPagina
         titulo="Editar participante"
+        acao={acaoDoConvite}
         fato={fatoDeEdicao(
           vinculo.pessoa.nome,
           vinculo.papel,

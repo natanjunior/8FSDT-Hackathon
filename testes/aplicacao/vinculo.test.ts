@@ -409,7 +409,7 @@ describe("ler o convite pessoal (item 121)", () => {
     expect(await lerConvitePessoal(leitura(VIVO_POR_TOKEN), null, "x")).toStrictEqual({
       situacao: "sem-sessao",
       pessoa: { nome: "Maria Souza" },
-      organizacao: { nome: "Jardim das Acácias" },
+      organizacao: { id: "org-jardim", nome: "Jardim das Acácias" },
       papel: "solicitante",
     });
   });

@@ -66,7 +66,11 @@ export type SituacaoDoConvitePessoal = "sem-sessao" | "pode-aceitar" | "ja-parti
 export type ConvitePessoalLido = {
   situacao: SituacaoDoConvitePessoal;
   pessoa: { nome: string };
-  organizacao: { nome: string };
+  /**
+   * O `id` serve à página, que acha a organização entre os vínculos da sessão na face *já participa*. **A
+   * projeção da API não o publica**: sem sessão, o corpo leva só os dois nomes e o papel.
+   */
+  organizacao: { id: string; nome: string };
   papel: Papel;
 };
 
@@ -85,7 +89,7 @@ export async function lerConvitePessoal(
   if (vivo === null) return null;
   const base = {
     pessoa: { nome: vivo.nomeDaPessoa },
-    organizacao: { nome: vivo.nomeDaOrganizacao },
+    organizacao: { id: vivo.organizacaoId, nome: vivo.nomeDaOrganizacao },
     papel: vivo.papel,
   };
   if (quem === null) return { ...base, situacao: "sem-sessao" };

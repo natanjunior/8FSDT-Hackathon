@@ -14,8 +14,15 @@ vi.mock("next/headers", () => ({
   },
 }));
 
+import {
+  TEXTOS_DO_CONVITE_PESSOAL,
+  conviteNoDetalhe,
+  desfechoDoAceite,
+  rodapeDoModal,
+} from "@/interface/componentes/convite-pessoal";
 import { modulosDoQr } from "@/interface/componentes/qr";
-import { destinoDoConvite, linkDoConvite } from "@/interface/http";
+import { destinoDoConvite, linkDoConvite, linkDoConvitePessoal } from "@/interface/http";
+import { projetarConvitePessoal } from "@/interface/projecoes";
 
 /**
  * ============================================================================
@@ -195,5 +202,71 @@ describe("o convite pessoal, do lado do Gestor (item 121, critérios 1 e 9)", ()
       expect(fonte.match(/^export const (GET|POST|PUT|PATCH|DELETE) /gmu), rota).toStrictEqual(["export const POST "]);
       expect(fonte, rota).toContain('comContexto({ exige: "vinculo.gerir" }');
     }
+  });
+});
+
+describe("o convite pessoal, nas telas (item 121)", () => {
+  it("o detalhe mostra o botão só para quem pode receber convite", () => {
+    expect(conviteNoDetalhe({ papel: "solicitante", temConta: false })).toBe("botao");
+    expect(conviteNoDetalhe({ papel: "gestor", temConta: false })).toBe("botao");
+    expect(conviteNoDetalhe({ papel: "encarregado", temConta: false })).toBe("encarregado");
+    expect(conviteNoDetalhe({ papel: "solicitante", temConta: true })).toBe("com-conta");
+  });
+
+  it("o botão Entrar segue, refaz a página ou diz que não foi possível (critério 4)", () => {
+    expect(desfechoDoAceite(200)).toBe("ir");
+    expect(desfechoDoAceite(404)).toBe("refazer");
+    expect(desfechoDoAceite(409)).toBe("refazer");
+    expect(desfechoDoAceite(500)).toBe("falha");
+    expect(desfechoDoAceite(0)).toBe("falha");
+  });
+
+  it("o link pessoal é a página do convite sobre a origem do pedido", () => {
+    const token = "T".repeat(43);
+    expect(linkDoConvitePessoal("https://x.example", token)).toBe(`https://x.example/convite-pessoal/${token}`);
+  });
+
+  it("o rodapé do modal diz quando e quem gerou, em dd/mm", () => {
+    expect(rodapeDoModal("2026-10-02T15:00:00.000Z", "Ana Lima")).toBe("Gerado em 02/10 por Ana Lima");
+  });
+
+  it("a resposta sem sessão leva só os nomes e o papel, e nao-vale vai sozinho (critério 8)", () => {
+    expect(projetarConvitePessoal(null)).toStrictEqual({ situacao: "nao-vale" });
+    expect(
+      projetarConvitePessoal({
+        situacao: "sem-sessao",
+        pessoa: { nome: "Maria Souza" },
+        organizacao: { id: "org-jardim", nome: "Jardim das Acácias" },
+        papel: "solicitante",
+      }),
+    ).toStrictEqual({
+      situacao: "sem-sessao",
+      pessoa: { nome: "Maria Souza" },
+      organizacao: { nome: "Jardim das Acácias" },
+      papel: "solicitante",
+    });
+  });
+
+  it("a página lê só pela estrada direta, tem as quatro faces e não marca gênero", () => {
+    const pagina = ler("app/convite-pessoal/[token]/page.tsx");
+    expect(pagina).toContain("resolverConvitePessoalParaTela(token)");
+    expect(pagina).not.toContain("@/composicao");
+    for (const situacao of ['"sem-sessao"', '"pode-aceitar"', '"ja-participa"']) expect(pagina).toContain(situacao);
+    expect(pagina).toContain("TEXTOS.naoVale");
+    // A face sem sessão monta o cadastro com o token e o nome, e nunca com o e-mail.
+    expect(pagina).toContain("<FormularioDeCadastro convite={token} nomeInicial={convite.pessoa.nome}");
+    expect(pagina).not.toMatch(/email/iu);
+    // A face de quem tem conta diz em que conta a pessoa está, e dá o caminho de sair.
+    expect(pagina).toContain("contaEmUso(contexto.pessoa.nome)");
+    expect(pagina).toContain("<CaminhoDeSair />");
+    expect(pagina).not.toMatch(/convidad[ao]/iu);
+    expect(JSON.stringify(TEXTOS_DO_CONVITE_PESSOAL)).not.toMatch(/convidad[ao]/iu);
+  });
+
+  it("o detalhe monta o modal só quando o convite cabe", () => {
+    const detalhe = ler("app/(casca)/vinculos/[pessoaId]/editar/page.tsx");
+    expect(detalhe).toContain('convite === "botao" ? (');
+    expect(detalhe).toContain("<ConvidarParticipante");
+    expect(detalhe).toContain("TEXTOS_DO_CONVITE_PESSOAL.semConviteEncarregado");
   });
 });
