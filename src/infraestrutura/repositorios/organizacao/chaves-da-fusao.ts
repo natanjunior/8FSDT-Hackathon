@@ -41,6 +41,7 @@ export const CHAVES_DA_FUSAO = {
     "categorias.categorias_criado_por_fk",
     "compartilhamentos.compartilhamentos_por_fk",
     "convites_pessoais.convites_pessoais_criado_por_fk",
+    "envios_de_convite.envios_de_convite_enviado_por_fk",
     "leituras_de_ocorrencia.leituras_de_ocorrencia_pessoa_fk",
     "mensagens.mensagens_autor_fk",
     "mudancas_de_configuracao.mudancas_de_configuracao_autor_fk",

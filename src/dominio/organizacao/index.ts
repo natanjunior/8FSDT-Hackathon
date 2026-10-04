@@ -15,6 +15,12 @@ export {
 } from "./CodigoPublico";
 export { TIPOS_DE_AREA, ehTipoDeArea, type TipoArea } from "./TipoArea";
 export {
+  ENVIOS_POR_PARTICIPANTE,
+  LOTE_DE_ENVIO,
+  MOTIVOS_DE_NAO_ENVIO,
+  type MotivoDeNaoEnvio,
+} from "./EnvioDeConvite";
+export {
   SITUACOES_DO_PEDIDO,
   ehSituacaoDoPedido,
   type SituacaoDoPedido,

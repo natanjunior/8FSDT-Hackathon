@@ -826,10 +826,14 @@ describe("impedimentosDeRemocao — o que a tela precisa saber, por vínculo", (
    * convite é rastro e a chave é `restrict`; o convite recebido apaga em cascata com o vínculo, porque
    * remover um participante sem rastro não pode ser recusado por um link que ninguém usou.
    *
+   * **`envios_de_convite` tem uma ponta só para `vinculos`, e ela é rastro** (item 122): quem enviou o
+   * e-mail agiu, e a chave é `restrict`. A outra chave dela aponta para `convites_pessoais` e é `set null`,
+   * para que remover um participante sem rastro apague o convite dele sem apagar o registro do que saiu.
+   *
    * **A ordem vem do `sort()` do JavaScript**, e não do `order by`: a collation do banco trataria `.` e `_`
    * de outro jeito, e o teste passaria a depender dela.
    */
-  it("as colunas que apontam para vinculos são exatamente as vinte e duas que a consulta cobre, em catorze tabelas", async () => {
+  it("as colunas que apontam para vinculos são exatamente as vinte e três que a consulta cobre, em quinze tabelas", async () => {
     const COBERTAS = [
       "anexos.anexado_por_pessoa_id",
       "areas.atualizado_por_pessoa_id",
@@ -843,6 +847,7 @@ describe("impedimentosDeRemocao — o que a tela precisa saber, por vínculo", (
       "compartilhamentos.por_pessoa_id",
       "convites_pessoais.criado_por_pessoa_id",
       "convites_pessoais.pessoa_id",
+      "envios_de_convite.enviado_por_pessoa_id",
       "leituras_de_ocorrencia.pessoa_id",
       "mensagens.autor_pessoa_id",
       "mudancas_de_configuracao.autor_pessoa_id",
@@ -867,7 +872,7 @@ describe("impedimentosDeRemocao — o que a tela precisa saber, por vínculo", (
     );
 
     expect(linhas.map((l) => l.par).sort()).toStrictEqual(COBERTAS);
-    expect(new Set(COBERTAS.map((par) => par.split(".")[0])).size).toBe(14);
+    expect(new Set(COBERTAS.map((par) => par.split(".")[0])).size).toBe(15);
   });
 });
 

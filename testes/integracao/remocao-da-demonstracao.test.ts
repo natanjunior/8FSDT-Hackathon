@@ -265,6 +265,7 @@ describe("o gatilho da trilha: a porta nomeada, e só ela", () => {
 
 /** Todas as tabelas com `organizacao_id` que a remoção precisa esvaziar, mais as duas do fim. */
 const TABELAS_COM_ORGANIZACAO = [
+  "envios_de_convite",
   "convites_pessoais",
   "leituras_de_ocorrencia",
   "compartilhamentos",

@@ -296,9 +296,9 @@ export function repositorioEscopadoDeVinculos(
       // **Uma consulta só, partindo de `vinculos`.** É a quinta leitura de T-08 — tela grande, trabalho de
       // escritório, uma vez por semana (inventário, T-08). O RNF6 cronometra T-04, não esta.
       //
-      // **Os treze `exists` do `tem_historico` cobrem treze das CATORZE tabelas** que apontam para
-      // `vinculos (pessoa_id, organizacao_id)`, por dezoito colunas: `atribuicoes`, `categorias` e
-      // `organizacoes` com duas, `areas` com três, e as outras nove com uma. O `exists` de fora é o do
+      // **Os catorze `exists` do `tem_historico` cobrem catorze das QUINZE tabelas** que apontam para
+      // `vinculos (pessoa_id, organizacao_id)`, por dezenove colunas: `atribuicoes`, `categorias` e
+      // `organizacoes` com duas, `areas` com três, e as outras dez com uma. O `exists` de fora é o do
       // último Gestor. A lista não sai da prosa do contrato, que
       // nomeia quatro: sai do esquema, e `testes/integracao/vinculo.test.ts` tem um caso que quebra no dia
       // em que uma tabela nova entrar sem passar por aqui.
@@ -316,6 +316,9 @@ export function repositorioEscopadoDeVinculos(
       //
       // **`convites_pessoais` tem duas pontas e só uma entra aqui** (item 121), pela razão de
       // `vinculos_etiquetas`: quem gerou é rastro e a chave é `restrict`; o convite recebido apaga em cascata.
+      //
+      // **`envios_de_convite` entra pela ponta de quem enviou** (item 122); a outra chave dela aponta para
+      // `convites_pessoais`, e não para cá.
       //
       // **`organizacoes` passou a ter duas colunas em 16/09/2026** (item 46 · 47): quem corrige o nome da
       // organização deixa rastro em `atualizado_por_pessoa_id`, com FK `on delete restrict`. Sem esta
@@ -369,6 +372,8 @@ export function repositorioEscopadoDeVinculos(
                              where t.organizacao_id = $1 and t.autor_pessoa_id = v.pessoa_id)
                  or exists (select 1 from convites_pessoais t
                              where t.organizacao_id = $1 and t.criado_por_pessoa_id = v.pessoa_id)
+                 or exists (select 1 from envios_de_convite t
+                             where t.organizacao_id = $1 and t.enviado_por_pessoa_id = v.pessoa_id)
                  or exists (select 1 from vinculos_etiquetas t
                              where t.organizacao_id = $1 and t.atribuido_por_pessoa_id = v.pessoa_id)) as tem_historico
            from vinculos v
