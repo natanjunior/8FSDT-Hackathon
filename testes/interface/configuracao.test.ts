@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 import * as lucide from "lucide-react";
 import { describe, expect, it } from "vitest";
 
@@ -1045,5 +1048,18 @@ describe("o campo dos dias para parada — item 101", () => {
     expect(APOIO_DOS_DIAS).toBe("De 1 a 90. Pausadas não contam.");
     expect(DIAS_FORA_DA_FAIXA.endsWith(".")).toBe(true);
     for (const frase of [APOIO_DOS_DIAS, DIAS_FORA_DA_FAIXA]) expect(frase).not.toMatch(/_/u);
+  });
+});
+
+describe("a peça tabs — critério 120.14", () => {
+  const fonte = readFileSync(fileURLToPath(new URL("../../src/interface/componentes/ui/tabs.tsx", import.meta.url)), "utf8");
+
+  it("vem do radix-ui unificado, com a variante line, e sem pacote novo", () => {
+    expect(fonte).toContain('import { Tabs as TabsPrimitive } from "radix-ui"');
+    expect(fonte).toContain('line: "gap-1 bg-transparent"');
+    const origens = [...fonte.matchAll(/from "([^"]+)"/gu)].map((achado) => achado[1] ?? "");
+    expect(origens.sort()).toStrictEqual(
+      ["@/interface/componentes/utilitarios", "class-variance-authority", "radix-ui", "react"].sort(),
+    );
   });
 });
