@@ -165,17 +165,18 @@ async function entrar(pagina: Page, email: string, senha: string): Promise<void>
 /**
  * Funda a organização pela tela própria — a `/organizacao/criar` que o item 44o separou da face A.
  *
- * O destino é Convidar pessoas, desde o item 116 (critério 7).
+ * O destino é a aba de participantes da configuração, desde o item 120 (antes, Convidar pessoas, item 116).
  */
 async function criarOrganizacao(pagina: Page, nome: string): Promise<void> {
   await pagina.getByRole("link", { name: "Criar uma organização" }).click();
   await pagina.waitForURL(/\/organizacao\/criar$/u);
   await pagina.getByLabel("Nome da organização").fill(nome);
   await pagina.getByRole("button", { name: "Criar uma organização" }).click();
-  await pagina.waitForURL(/\/convidar$/u);
-  // **A criação entrega o código que a tela prometeu** (critério 116.7).
-  await expect(pagina.getByRole("heading", { name: "Convidar pessoas", level: 1 })).toBeVisible();
-  await expect(pagina.getByRole("button", { name: "Copiar o código" })).toBeVisible();
+  await pagina.waitForURL(/\/configuracao\?aba=participantes$/u);
+  // **A criação entrega o código que a tela prometeu** (critério 116.7), agora no cartão do convite.
+  await expect(pagina.getByRole("heading", { name: "Configuração da organização", level: 1 })).toBeVisible();
+  await expect(pagina.getByRole("tab", { name: "Configurações de participantes" })).toHaveAttribute("aria-selected", "true");
+  await expect(pagina.getByRole("region", { name: "Convidar pessoas" }).getByRole("button", { name: "Copiar", exact: true })).toBeVisible();
 }
 
 /**
@@ -810,14 +811,14 @@ test("o convite por link: sem conta, criar conta e voltar, pedir, a outra organi
   const o = await contextoDeO.newPage();
   const ninguem = await (await browser.newContext()).newPage();
 
-  // 1 · G funda e abre "Convidar pessoas" pelo menu (critério 86.1, a metade visível).
+  // 1 · G funda e cai na aba de participantes, onde está o convite (critérios 86.1 e 120.22).
   await criarConta(g, NOME_G, EMAIL_G);
   await criarOrganizacao(g, ORG_CONVITE);
-  await g.getByRole("link", { name: "Convidar pessoas" }).click();
-  await g.waitForURL(/\/convidar$/u);
-  const link = (await g.locator("code").first().innerText()).trim();
-  expect(link).toMatch(/\/\?e=[A-Z0-9]{8}$/u);
-  const codigo = link.slice(link.indexOf("?e=") + 3);
+  await expect(g.getByRole("link", { name: "Convidar pessoas" })).toHaveCount(0);
+  const convite = g.getByRole("region", { name: "Convidar pessoas" });
+  const codigo = (await convite.getByLabel("Código da organização").inputValue()).trim();
+  expect(codigo).toMatch(/^[A-Z0-9]{8}$/u);
+  await expect(convite.getByRole("button", { name: "Copiar link" })).toBeVisible();
   await expect(g.getByRole("img", { name: `QR do link de convite para ${ORG_CONVITE}` })).toBeVisible();
 
   // 2 · Quem já participa abre o próprio link.
@@ -902,7 +903,7 @@ test("o convite por link: sem conta, criar conta e voltar, pedir, a outra organi
   await n.waitForURL(new RegExp(`/convite/${codigo}$`, "u"));
   await expect(n.getByRole("heading", { name: "Pedido enviado" })).toBeVisible();
 
-  // 9 · G vê os dois pedidos em Participantes, aprova N como Solicitante, e N é recusada em /convidar (86.1).
+  // 9 · G vê os dois pedidos em Participantes, aprova N como Solicitante, e N é recusada na configuração (86.1, 120.22).
   await g.goto("/vinculos");
   await responderOPedidoDe(g, NOME_N).click();
   // Os localizadores do passo 5 do teste de cima, escopados ao diálogo.
@@ -912,9 +913,9 @@ test("o convite por link: sem conta, criar conta e voltar, pedir, a outra organi
   await expect(g.getByRole("dialog")).toHaveCount(0);
   await expect(linhaDe(g, NOME_O)).toBeVisible();
 
-  await n.goto("/convidar");
+  await n.goto("/configuracao");
   await expect(n.getByText("Seu papel nesta organização não dá acesso a esta página.")).toBeVisible();
-  await expect(n.locator("code")).toHaveCount(0);
+  await expect(n.getByRole("region", { name: "Convidar pessoas" })).toHaveCount(0);
   await expect(n.getByRole("link", { name: "Convidar pessoas" })).toHaveCount(0);
 });
 

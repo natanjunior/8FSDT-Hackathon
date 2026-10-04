@@ -137,12 +137,11 @@ describe("a marca da barra lateral — critério 1", () => {
     expect(estaMarcado("/meus-dados", "/meus-dados")).toBe(true);
   });
 
-  it("a lista tem os oito destinos da barra, sem repetição", () => {
+  it("a lista tem os sete destinos da barra, sem repetição", () => {
     expect([...DESTINOS_DA_BARRA].sort()).toStrictEqual([
       "/configuracao",
       "/configuracao/areas",
       "/configuracao/categorias",
-      "/convidar",
       "/dashboard",
       "/meus-dados",
       "/ocorrencias",
@@ -286,9 +285,11 @@ describe("a barra lateral — critérios 1 e 2 no componente", () => {
 });
 
 /**
- * As nove páginas que recusam sem redirecionar, com o título da face normal e a permissão.
+ * As oito páginas que recusam sem redirecionar, com o título da face normal e a permissão.
  *
- * **A nona é o QR da área** (item 111), debaixo de T-14 e com a mesma permissão.
+ * **A oitava é o QR da área** (item 111), debaixo de T-14 e com a mesma permissão.
+ *
+ * **Eram nove até o item 120**, que apagou `/convidar`: o convite virou cartão da configuração.
  *
  * **Eram onze até o item 44k**, que apagou as quatro rotas próprias de criar e editar de T-09 e T-14: as
  * duas listas passaram a criar e editar em modal, e o estado sem acesso das duas telas ficou sendo a
@@ -296,7 +297,6 @@ describe("a barra lateral — critérios 1 e 2 no componente", () => {
  */
 const PAGINAS_QUE_RECUSAM: Readonly<Record<string, readonly [string, string]>> = {
   "app/(casca)/configuracao/page.tsx": ["Configuração da organização", "organizacao.configurar"],
-  "app/(casca)/convidar/page.tsx": ["Convidar pessoas", "vinculo.gerir"],
   "app/(casca)/configuracao/categorias/page.tsx": ["Categorias", "organizacao.configurar"],
   "app/(casca)/configuracao/areas/page.tsx": ["Áreas", "organizacao.configurar"],
   "app/(casca)/configuracao/areas/[areaId]/qr/page.tsx": ["QR da área", "organizacao.configurar"],
@@ -307,7 +307,7 @@ const PAGINAS_QUE_RECUSAM: Readonly<Record<string, readonly [string, string]>> =
 };
 
 describe("o estado sem acesso nas páginas — critérios 3 e 4", () => {
-  it("as páginas da casca que recusam sem redirecionar são as nove", () => {
+  it("as páginas da casca que recusam sem redirecionar são as oito", () => {
     const recusam = arquivosDe("app/(casca)")
       .filter((caminho) => caminho.endsWith("/page.tsx"))
       .filter((caminho) =>

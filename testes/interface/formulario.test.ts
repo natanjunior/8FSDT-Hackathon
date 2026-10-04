@@ -2480,9 +2480,8 @@ describe("o alcance do 65 — as duas portas de entrada", () => {
     expect(fonte).toContain('<ExibicaoDeCodigo codigo={codigo} rotulo="Código da organização" />');
     expect(fonte).toContain("Selecione e copie:");
     expect(fonte).not.toContain("Selecione o código e copie.");
-    // O `select-all` existe uma vez por peça, e é o do texto que só aparece na falha: a de T-15 e, desde o
-    // item 116, a `CodigoComCopia` de `/convidar`.
-    expect([...fonte.matchAll(/select-all/gu)]).toHaveLength(2);
+    // O `select-all` existe uma vez na peça, e é o do texto que só aparece na falha.
+    expect([...fonte.matchAll(/select-all/gu)]).toHaveLength(1);
     expect(fonte).not.toContain("gruposDoCodigo");
   });
 

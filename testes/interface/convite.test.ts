@@ -138,68 +138,49 @@ describe("o QR do convite", () => {
   });
 });
 
-describe("a tela do Gestor — critério 86.1 na fonte", () => {
-  it("exige vinculo.gerir e recusa com o SemAcesso da casca", () => {
-    const fonte = ler("app/(casca)/convidar/page.tsx");
-    expect(fonte).toContain('resolverEscopoParaTela("vinculo.gerir")');
-    expect(fonte).toContain('return <SemAcesso titulo="Convidar pessoas" permissao="vinculo.gerir" />;');
-    // O link e o QR só existem depois da recusa: nada deles no ramo sem permissão.
-    const recusa = fonte.indexOf("<SemAcesso");
-    expect(fonte.indexOf("montarLinkDoConvite(")).toBeGreaterThan(recusa);
+describe("o convite mora na configuração — critérios 120.21 e 120.22", () => {
+  it("a página /convidar não existe mais, e o menu não a oferece", () => {
+    expect(() => ler("app/(casca)/convidar/page.tsx")).toThrow();
+    const menu = ler("src/interface/componentes/casca/navegacao.tsx");
+    expect(menu).not.toContain('destino="/convidar"');
+    expect(menu).not.toContain('rotulo="Convidar pessoas"');
   });
 
-  it("o item do menu só existe para quem gere vínculos, abaixo de Participantes", () => {
-    const fonte = ler("src/interface/componentes/casca/navegacao.tsx");
-    const participantes = fonte.indexOf('destino="/vinculos"');
-    const convidar = fonte.indexOf('destino="/convidar"');
-    expect(convidar).toBeGreaterThan(participantes);
-    const trecho = fonte.slice(fonte.lastIndexOf("{podeGerirVinculos && (", convidar), convidar);
-    expect(trecho).toContain("podeGerirVinculos");
-    expect(fonte).toContain('rotulo="Convidar pessoas"');
-  });
-});
-
-describe("o código no desfecho da criação — critério 116.7", () => {
-  it("criar a organização leva a Convidar pessoas, com o aviso", () => {
+  it("criar a organização leva à aba de participantes da configuração, com o aviso", () => {
     const fonte = ler("src/interface/componentes/formulario-de-nova-organizacao.tsx");
-    expect(fonte).toContain('router.push("/convidar")');
+    expect(fonte).toContain('router.push("/configuracao?aba=participantes")');
+    expect(fonte).not.toContain('router.push("/convidar")');
+    // O destino de antes do 116 também não volta (era a guarda de `convite.test.ts:166`).
     expect(fonte).not.toContain('router.push("/ocorrencias")');
     expect(fonte).toContain('avisarSucesso("Organização criada")');
   });
 
-  it("o cartão do código se copia, e os dois botões dizem o que copiam", () => {
-    const pagina = ler("app/(casca)/convidar/page.tsx");
-    expect(pagina).toContain("<CodigoComCopia codigo={organizacao.codigoPublico} />");
-    const codigo = ler("src/interface/componentes/codigo-da-organizacao.tsx");
-    expect(codigo).toContain('<span className="sr-only"> o código</span>');
-    expect(codigo).toContain("useCopiar(codigo)");
-    const link = ler("src/interface/componentes/link-do-convite.tsx");
-    expect(link).toContain('<span className="sr-only"> o link</span>');
+  it("o cartão tem três colunas: o código como na Identidade, o link que se copia, e o QR", () => {
+    const cartao = ler("src/interface/componentes/convite-da-organizacao.tsx");
+    const codigo = cartao.indexOf("<CodigoDaOrganizacao codigo={organizacao.codigoPublico} />");
+    const link = cartao.indexOf("<CopiaDoLink link={link} />");
+    const qr = cartao.indexOf("<QrDoLink");
+    expect(codigo).toBeGreaterThan(-1);
+    expect(link).toBeGreaterThan(codigo);
+    expect(qr).toBeGreaterThan(link);
+    // Três colunas só a partir de `xl`: o código pede até 398 px e o QR 224, e a `lg` cada terço dá ~210.
+    expect(cartao).toContain("xl:grid-cols-[minmax(0,24.875rem)_minmax(0,1fr)_auto]");
+    expect(cartao).not.toMatch(/\blg:grid-cols-3\b/u);
   });
 
-  it("o Código vem antes do QR, os dois em meia largura a partir de lg, e a razão escrita é a nova (critérios 118.2 e 118.3)", () => {
-    const fonte = ler("app/(casca)/convidar/page.tsx");
-    const link = fonte.indexOf('tituloId="link"');
-    const codigo = fonte.indexOf('tituloId="codigo"');
-    const qr = fonte.indexOf('tituloId="qr"');
-    expect(link).toBeGreaterThan(-1);
-    // **O código é o que se dita por telefone ou se digita; o QR é para o cartaz.** Quem convida alcança
-    // primeiro o que vai usar na conversa.
-    expect(codigo).toBeGreaterThan(link);
-    expect(qr).toBeGreaterThan(codigo);
-    // Os dois dentro de uma grade de duas colunas que só vale a partir de `lg`: a `md` o miolo dá cerca
-    // de 242 px por coluna, e o QR pede 272. Abaixo disso, coluna. E alturas independentes, que é o
-    // `items-start`: uma pílula de oito caracteres contra um quadrado de 224 px.
-    const grade = fonte.lastIndexOf('<div className="grid', codigo);
-    expect(grade).toBeGreaterThan(link);
-    const abertura = fonte.slice(grade, fonte.indexOf(">", grade));
-    expect(abertura).toContain("lg:grid-cols-2");
-    expect(abertura).toContain("items-start");
-    // O QR está na mesma grade, e não num terceiro bloco: nada fecha a grade antes dele. A grade fecha
-    // com seis espaços de recuo; os divs de dentro dos cartões, com dez.
-    expect(fonte.slice(grade, qr)).not.toContain("\n      </div>");
-    // A razão escrita no cabeçalho deixou de afirmar a ordem antiga.
-    expect(fonte).not.toContain("ordem é a de quem abre para mandar");
-    expect(fonte).toContain("se dita por telefone ou se digita");
+  it("Copiar link copia o link, e o link não aparece escrito fora da falha", () => {
+    const fonte = ler("src/interface/componentes/link-do-convite.tsx");
+    expect(fonte).toContain("useCopiar(link)");
+    expect(fonte).toContain('{desfecho === "copiado" ? "Copiado" : "Copiar link"}');
+    expect(fonte).not.toContain("<code");
+    // Na falha da área de transferência, o link aparece selecionado para Ctrl+C.
+    expect(fonte).toContain("select-all");
+  });
+
+  it("a página guarda o cartão por vinculo.gerir, como a aba", () => {
+    const pagina = ler("app/(casca)/configuracao/page.tsx");
+    const participantes = pagina.slice(pagina.indexOf("participantes: geriVinculos"), pagina.indexOf("historico: ("));
+    expect(participantes).toContain("<ConviteDaOrganizacao");
+    expect(pagina.indexOf("montarLinkDoConvite(")).toBeGreaterThan(pagina.indexOf("const geriVinculos"));
   });
 });

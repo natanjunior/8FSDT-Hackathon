@@ -16,6 +16,7 @@ import { AbasDaConfiguracao } from "@/interface/componentes/abas-da-configuracao
 import { CabecalhoDaPagina } from "@/interface/componentes/cabecalho-da-pagina";
 import { CabecaDoCartao, Cartao } from "@/interface/componentes/cartao";
 import { CodigoDaOrganizacao } from "@/interface/componentes/codigo-da-organizacao";
+import { ConviteDaOrganizacao } from "@/interface/componentes/convite-da-organizacao";
 import { dataEHora } from "@/interface/componentes/datas";
 import { EdicaoDasRegras } from "@/interface/componentes/edicao-das-regras";
 import { EdicaoDeNome } from "@/interface/componentes/edicao-de-nome";
@@ -43,7 +44,7 @@ import {
   type EstadoDaTela,
 } from "@/interface/componentes/rotulos-do-solicitante";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
-import { resolverEscopoParaTela } from "@/interface/http";
+import { montarLinkDoConvite, resolverEscopoParaTela } from "@/interface/http";
 import {
   projetarConfiguracao,
   projetarEtiqueta,
@@ -142,6 +143,8 @@ export default async function ConfiguracaoDaOrganizacao({
   const uso = usoPorEtiqueta(vinculosLidos.map(projetarVinculo));
 
   const ativo = escopo.resolucao.ativo;
+  // O link do convite só se monta para quem vê o cartão.
+  const link = geriVinculos && ativo !== null ? await montarLinkDoConvite(ativo.organizacao.codigoPublico) : null;
 
   return (
     <div className="flex flex-col gap-5.5">
@@ -329,6 +332,12 @@ export default async function ConfiguracaoDaOrganizacao({
                 uso={uso}
                 organizacaoId={escopo.ctx.vinculo.organizacaoId}
               />
+              {ativo !== null && link !== null && (
+                <ConviteDaOrganizacao
+                  organizacao={{ nome: ativo.organizacao.nome, codigoPublico: ativo.organizacao.codigoPublico }}
+                  link={link}
+                />
+              )}
             </>
           ) : null,
           historico: (
