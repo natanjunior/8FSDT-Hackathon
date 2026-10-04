@@ -7,6 +7,7 @@ import { parse } from "yaml";
 import {
   chaveDoNome,
   cortarParaALinha,
+  diferencaDaEscolha,
   nomeDoRestante,
   nomeParaCriar,
   sugestoes,
@@ -266,5 +267,39 @@ describe("a peça de seleção múltipla — critérios 120.9 e 120.10", () => {
     expect(FONTE_DA_PECA).toContain("<Command shouldFilter={!onSearch && !filtrar}>");
     expect(FONTE_DA_PECA).not.toMatch(/"(?:Select…|Search…|No results\.|Loading…)"/u);
     expect(FONTE_DA_PECA).not.toContain("Create &ldquo;");
+  });
+});
+
+describe("cada gesto da seleção múltipla é uma escrita (critério 120.9)", () => {
+  it("entrou um id, ou um nome novo vindo do criar", () => {
+    expect(diferencaDaEscolha(["1"], ["1", "2"])).toStrictEqual({ tipo: "entrou", valor: "2" });
+    expect(diferencaDaEscolha([], ["Encanador"])).toStrictEqual({ tipo: "entrou", valor: "Encanador" });
+  });
+
+  it("saiu um", () => {
+    expect(diferencaDaEscolha(["1", "2"], ["2"])).toStrictEqual({ tipo: "saiu", valor: "1" });
+  });
+
+  it("nada mudou é null, e a ordem não conta como mudança", () => {
+    expect(diferencaDaEscolha(["1", "2"], ["2", "1"])).toBeNull();
+  });
+});
+
+describe("o cartão do detalhe — critérios 120.8 e 120.9", () => {
+  const cartao = readFileSync(fileURLToPath(new URL("../../src/interface/componentes/cartao-de-etiquetas.tsx", import.meta.url)), "utf8");
+
+  it("tem o molde de Pessoa e Contatos, e grava na hora", () => {
+    expect(cartao).toContain('<Cartao tituloId="bloco-etiquetas">');
+    expect(cartao).toContain('<CabecaDoCartao id="bloco-etiquetas" titulo="Etiquetas" apoio="Cada mudança vale na hora." />');
+    expect(cartao).not.toContain("FaixaDoCartao");
+    expect(cartao).toContain('<div className="p-[15px] md:p-[18px]">');
+  });
+
+  it("adiciona pela seleção múltipla, e a gaveta antiga some do arquivo", () => {
+    expect(cartao).toContain("<MultiSelect");
+    expect(cartao).toContain("creatable");
+    expect(cartao).toContain("filtrar={");
+    expect(cartao).toContain("podeCriar={");
+    expect(cartao).not.toMatch(/ui\/sheet|<Sheet|PainelDeEtiquetar/u);
   });
 });

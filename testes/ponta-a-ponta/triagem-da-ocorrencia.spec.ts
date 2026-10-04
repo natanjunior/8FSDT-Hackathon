@@ -1225,7 +1225,7 @@ test("nenhuma tela da casca rola na horizontal em 360 e 390 px, com o sino (crit
  * reaproveita, então a segunda corrida termina no mesmo estado. Os nomes levam o sufixo do teste para não
  * se confundirem com etiqueta de outro caso.
  */
-test("as etiquetas nascem no detalhe, aparecem na lista e cabem em 360 px (item 115)", async ({ browser }) => {
+test("as etiquetas nascem no detalhe pela seleção múltipla, aparecem na lista e cabem em 360 px (itens 115 e 120)", async ({ browser }) => {
   const contexto = await browser.newContext({ viewport: { width: 360, height: 800 } });
   const helena = await contexto.newPage();
 
@@ -1241,16 +1241,18 @@ test("as etiquetas nascem no detalhe, aparecem na lista e cabem em 360 px (item 
   await helena.goto(edicao);
   await assentar(helena);
 
+  const cartao = helena.getByRole("region", { name: "Etiquetas" });
   const NOMES = ["Azulejista 115", "Bombeiro 115", "Carpinteiro 115", "Datilógrafa 115"];
   for (const nome of NOMES) {
-    const cartao = helena.getByRole("region", { name: "Etiquetas" });
     if (await cartao.getByText(nome, { exact: true }).isVisible()) continue;
-    await helena.getByRole("button", { name: "Adicionar", exact: true }).click();
-    await helena.getByRole("combobox", { name: "Etiqueta" }).fill(nome);
+    await cartao.getByRole("combobox").click();
+    await helena.getByPlaceholder("Buscar ou criar").fill(nome);
     await helena.getByRole("option", { name: new RegExp(`^(Criar “)?${nome}”?$`, "u") }).click();
     await expect(helena.getByText(`${nome} adicionada`)).toBeVisible();
     await helena.keyboard.press("Escape");
   }
+  // A ficha tira pelo teclado: o X é botão de verdade, com nome (critério 120.9).
+  await expect(cartao.getByRole("button", { name: "Tirar Azulejista 115" })).toBeVisible();
 
   await helena.goto("/vinculos");
   await assentar(helena);

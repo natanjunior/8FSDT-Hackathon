@@ -633,6 +633,26 @@ describe("o alcance do 44j — as peças da tabela e da ordem manual", () => {
     }
   });
 
+  it("o cartão de etiquetas vem depois de Contatos e fora do formulário, e o Salvar continua no fim (critério 120.8)", () => {
+    const formulario = ler("src/interface/componentes/formulario-de-vinculo.tsx");
+    const contatos = formulario.indexOf("TEXTOS_DO_FORMULARIO.cartaoContatos");
+    const fechaForm = formulario.indexOf("</form>");
+    const fresta = formulario.indexOf("{depoisDosContatos}");
+    const rodape = formulario.indexOf("<RodapeDaPagina");
+    expect(contatos).toBeGreaterThan(-1);
+    // O formulário fecha depois de Contatos; a fresta vem depois dele; e o rodapé, por último.
+    expect(fechaForm).toBeGreaterThan(contatos);
+    expect(fresta).toBeGreaterThan(fechaForm);
+    expect(rodape).toBeGreaterThan(fresta);
+    // O botão de enviar mora fora do `<form>`, e se liga a ele pelo atributo `form`.
+    expect(formulario).toContain("<form id={idDoFormulario}");
+    expect(formulario).toContain("formulario={idDoFormulario}");
+    expect(ler("src/interface/componentes/modal.tsx")).toContain("form={formulario}");
+    const pagina = ler("app/(casca)/vinculos/[pessoaId]/editar/page.tsx");
+    expect(pagina.indexOf("<FormularioDeVinculo")).toBeLessThan(pagina.indexOf("<CartaoDeEtiquetas"));
+    expect(pagina).toContain("depoisDosContatos={");
+  });
+
   it("na edição, o cartão Pessoa é Nome, Unidade e Papel, em três colunas a partir de md (item 68a)", () => {
     const fonte = ler("src/interface/componentes/formulario-de-vinculo.tsx");
     const inicio = fonte.indexOf('<div className="grid md:grid-cols-3">');

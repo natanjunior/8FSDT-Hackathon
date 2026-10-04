@@ -250,9 +250,9 @@ Abaixo do filtro por papel entra uma segunda régua, por etiqueta, com uma etiqu
 endereço. As duas se combinam, e as contagens de cada uma são da lista inteira. O botão Etiquetas do
 cabeçalho abre um painel que só apaga, e a confirmação diz em quantas pessoas a etiqueta está.
 
-No detalhe do participante, o cartão Etiquetas fica fora do formulário, antes dele, e grava a cada gesto:
-escolher uma sugestão ou escrever uma nova acrescenta, e o botão ao lado de cada uma a tira. Na escolha do
-responsável de uma ocorrência, as etiquetas aparecem ao lado do nome, sem filtro.
+No detalhe do participante, o cartão Etiquetas vem depois de Contatos e grava a cada gesto. É uma seleção
+múltipla com busca: escolher uma etiqueta ou escrever uma nova acrescenta, e o botão de cada ficha a tira.
+Na escolha do responsável de uma ocorrência, as etiquetas aparecem ao lado do nome, sem filtro.
 
 ## Celular primeiro, e o que muda na tela grande
 
@@ -262,8 +262,8 @@ a leitura e a conversa nasceram no celular, porque é onde o morador está.
 Na tela grande a lista de ocorrências ganha colunas e o detalhe ganha uma coluna lateral; no celular os
 dois viram pilha, e as ações que na tela grande abrem um painel ancorado abrem uma gaveta inferior, que é
 onde o polegar alcança. A exceção é a busca de pessoas para compartilhar, que abre em tela cheia no
-celular: ela tem teclado, e uma gaveta inferior com o teclado aberto some atrás dele. O painel de etiquetar
-um participante segue a mesma exceção, pela mesma razão.
+celular: ela tem teclado, e uma gaveta inferior com o teclado aberto some atrás dele. A seleção de
+etiquetas no detalhe do participante abre ancorada ao campo nas duas larguras.
 
 ## Os estados que não são telas
 

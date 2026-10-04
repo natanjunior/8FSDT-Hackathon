@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useId, useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent, type ReactNode } from "react";
 
 import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
 import { CONTORNO_DE_ACAO } from "@/interface/componentes/botao-de-icone";
@@ -88,11 +88,18 @@ export function FormularioDeVinculo({
   modo,
   areas,
   organizacaoId,
+  depoisDosContatos,
 }: {
   modo: Modo;
   areas: ReadonlyArray<{ id: string; nome: string }>;
   /** A organização com que a página renderizou — a afirmação do contrato §4.3. */
   organizacaoId: string;
+  /**
+   * **O que vem entre Contatos e o rodapé, fora do `<form>`** (item 120): o cartão de etiquetas, que grava
+   * a cada gesto. Fora do elemento, `Enter` dentro dele não envia o formulário, e o botão de salvar se liga
+   * pelo atributo `form`.
+   */
+  depoisDosContatos?: ReactNode;
 }) {
   const router = useRouter();
   const prefixo = useId();
@@ -116,6 +123,7 @@ export function FormularioDeVinculo({
 
   const idDoNome = `${prefixo}-nome`;
   const idDoPapel = `${prefixo}-papel`;
+  const idDoFormulario = `${prefixo}-formulario`;
 
   // A ordem das chaves é a do documento: é ela que decide para onde o foco vai no envio com problema.
   const campos: Record<string, string> = {};
@@ -242,74 +250,78 @@ export function FormularioDeVinculo({
   );
 
   return (
-    <form noValidate onSubmit={(evento) => void enviar(evento)} className="flex flex-col gap-5.5">
-      <Cartao tituloId={`${prefixo}-pessoa`}>
-        <CabecaDoCartao id={`${prefixo}-pessoa`} titulo={TEXTOS_DO_FORMULARIO.cartaoPessoa} />
-        {modo.tipo === "cadastro" ? (
-          <div className="flex flex-col gap-4.5 p-[15px] md:p-[18px]">
-            <div className="grid gap-4.5 lg:grid-cols-2">
-              {campoDoNome}
-              {campoDaUnidade}
+    <div className="flex flex-col gap-5.5">
+      <form id={idDoFormulario} noValidate onSubmit={(evento) => void enviar(evento)} className="flex flex-col gap-5.5">
+        <Cartao tituloId={`${prefixo}-pessoa`}>
+          <CabecaDoCartao id={`${prefixo}-pessoa`} titulo={TEXTOS_DO_FORMULARIO.cartaoPessoa} />
+          {modo.tipo === "cadastro" ? (
+            <div className="flex flex-col gap-4.5 p-[15px] md:p-[18px]">
+              <div className="grid gap-4.5 lg:grid-cols-2">
+                {campoDoNome}
+                {campoDaUnidade}
+              </div>
+              <GrupoDeEscolha
+                id={`${idDoPapel}-grupo`}
+                legenda={TEXTOS_DO_FORMULARIO.papel}
+                obrigatorio
+                aoSair={formulario.aoSair("papel")}
+                erro={formulario.erroDe("papel")}
+              >
+                <OpcoesDePapel
+                  id={idDoPapel}
+                  rotulo={TEXTOS_DO_FORMULARIO.papel}
+                  valor={papel}
+                  inerte={enviando}
+                  emColunas
+                  aoMudar={(escolhido) => {
+                    setPapel(escolhido);
+                    formulario.mudou("papel");
+                  }}
+                />
+              </GrupoDeEscolha>
             </div>
-            <GrupoDeEscolha
-              id={`${idDoPapel}-grupo`}
-              legenda={TEXTOS_DO_FORMULARIO.papel}
-              obrigatorio
-              aoSair={formulario.aoSair("papel")}
-              erro={formulario.erroDe("papel")}
-            >
-              <OpcoesDePapel
-                id={idDoPapel}
-                rotulo={TEXTOS_DO_FORMULARIO.papel}
-                valor={papel}
-                inerte={enviando}
-                emColunas
-                aoMudar={(escolhido) => {
-                  setPapel(escolhido);
-                  formulario.mudou("papel");
-                }}
-              />
-            </GrupoDeEscolha>
-          </div>
-        ) : (
-          <div className="grid md:grid-cols-3">
-            <div className="p-[15px] md:p-[18px]">
-              {modo.temConta ? <Leitura rotulo={TEXTOS_DO_FORMULARIO.nome} valor={modo.nome} /> : campoDoNome}
+          ) : (
+            <div className="grid md:grid-cols-3">
+              <div className="p-[15px] md:p-[18px]">
+                {modo.temConta ? <Leitura rotulo={TEXTOS_DO_FORMULARIO.nome} valor={modo.nome} /> : campoDoNome}
+              </div>
+              <div className="border-linha-suave border-t p-[15px] md:border-t-0 md:border-l md:p-[18px]">
+                {campoDaUnidade}
+              </div>
+              <div className="border-linha-suave border-t p-[15px] md:border-t-0 md:border-l md:p-[18px]">
+                <Leitura rotulo={TEXTOS_DO_FORMULARIO.papel} valor={rotuloDoPapel(modo.papel)} />
+              </div>
             </div>
-            <div className="border-linha-suave border-t p-[15px] md:border-t-0 md:border-l md:p-[18px]">
-              {campoDaUnidade}
-            </div>
-            <div className="border-linha-suave border-t p-[15px] md:border-t-0 md:border-l md:p-[18px]">
-              <Leitura rotulo={TEXTOS_DO_FORMULARIO.papel} valor={rotuloDoPapel(modo.papel)} />
-            </div>
-          </div>
-        )}
-      </Cartao>
+          )}
+        </Cartao>
 
-      <Cartao tituloId={`${prefixo}-contatos`}>
-        <CabecaDoCartao
-          id={`${prefixo}-contatos`}
-          titulo={TEXTOS_DO_FORMULARIO.cartaoContatos}
-          apoio={editaNomeEContatos ? <ApoioDaOrdem /> : undefined}
-        />
-        {editaNomeEContatos ? (
-          <SubFormularioDeContatos
-            prefixo={prefixo}
-            contatos={contatos}
-            inerte={enviando}
-            aoMudar={setContatos}
-            aoMudarValor={(chave) => {
-              formulario.mudou(campoDoContato(chave));
-            }}
-            aoSairDoValor={(chave) => formulario.aoSair(campoDoContato(chave))}
-            erroDoValor={(chave) => formulario.erroDe(campoDoContato(chave), errosDoServidor)}
+        <Cartao tituloId={`${prefixo}-contatos`}>
+          <CabecaDoCartao
+            id={`${prefixo}-contatos`}
+            titulo={TEXTOS_DO_FORMULARIO.cartaoContatos}
+            apoio={editaNomeEContatos ? <ApoioDaOrdem /> : undefined}
           />
-        ) : (
-          <ContatosEmLeitura contatos={modo.tipo === "correcao" ? modo.contatosAtuais : []} />
-        )}
-      </Cartao>
+          {editaNomeEContatos ? (
+            <SubFormularioDeContatos
+              prefixo={prefixo}
+              contatos={contatos}
+              inerte={enviando}
+              aoMudar={setContatos}
+              aoMudarValor={(chave) => {
+                formulario.mudou(campoDoContato(chave));
+              }}
+              aoSairDoValor={(chave) => formulario.aoSair(campoDoContato(chave))}
+              erroDoValor={(chave) => formulario.erroDe(campoDoContato(chave), errosDoServidor)}
+            />
+          ) : (
+            <ContatosEmLeitura contatos={modo.tipo === "correcao" ? modo.contatosAtuais : []} />
+          )}
+        </Cartao>
 
-      {mensagem !== null && <ErroDoFormulario>{mensagem}</ErroDoFormulario>}
+        {mensagem !== null && <ErroDoFormulario>{mensagem}</ErroDoFormulario>}
+      </form>
+
+      {depoisDosContatos}
 
       <RodapeDaPagina obrigatorios={obrigatorios}>
         <Link
@@ -329,9 +341,10 @@ export function FormularioDeVinculo({
           enviando={enviando}
           rotulo={cadastro ? TEXTOS_DO_FORMULARIO.cadastrar : TEXTOS_DO_FORMULARIO.salvar}
           rotuloEnviando={cadastro ? TEXTOS_DO_FORMULARIO.cadastrando : TEXTOS_DO_FORMULARIO.salvando}
+          formulario={idDoFormulario}
         />
       </RodapeDaPagina>
-    </form>
+    </div>
   );
 }
 

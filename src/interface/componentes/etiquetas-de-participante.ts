@@ -59,6 +59,22 @@ export function nomeParaCriar(todas: readonly EtiquetaNaTela[], texto: string): 
 }
 
 /**
+ * **Cada gesto da seleção múltipla é uma escrita só** (item 120). A peça devolve a lista inteira; aqui se
+ * acha o que mudou. O valor que entra é o `id` de uma etiqueta existente, ou o texto aparado de uma nova
+ * — a peça põe o texto do *Criar* na lista. A ordem não conta.
+ */
+export function diferencaDaEscolha(
+  antes: readonly string[],
+  depois: readonly string[],
+): { tipo: "entrou"; valor: string } | { tipo: "saiu"; valor: string } | null {
+  const entrou = depois.find((valor) => !antes.includes(valor));
+  if (entrou !== undefined) return { tipo: "entrou", valor: entrou };
+  const saiu = antes.find((valor) => !depois.includes(valor));
+  if (saiu !== undefined) return { tipo: "saiu", valor: saiu };
+  return null;
+}
+
+/**
  * **Quantas pessoas têm cada etiqueta, contado sobre os vínculos que a tela já tem** (critério 7). São os
  * ativos, e vínculo revogado não guarda etiqueta (o `revogar` as apaga), então o número é o do banco.
  * Etiqueta sem uso não aparece no mapa: ausente é zero.

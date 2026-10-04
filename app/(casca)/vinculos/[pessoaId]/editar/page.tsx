@@ -71,14 +71,6 @@ export default async function EditarParticipante({
           ),
         )}
       />
-      {/* **Fora do formulário, e antes dele** (item 115): o cartão grava a cada gesto, o formulário no rodapé. */}
-      <CartaoDeEtiquetas
-        pessoaId={pessoaId}
-        nome={vinculo.pessoa.nome}
-        organizacaoId={escopo.ctx.vinculo.organizacaoId}
-        daPessoa={vinculo.etiquetas.map(projetarEtiqueta)}
-        todas={todasAsEtiquetas.map(projetarEtiqueta)}
-      />
       <FormularioDeVinculo
         modo={{
           tipo: "correcao",
@@ -91,6 +83,16 @@ export default async function EditarParticipante({
         }}
         areas={areas.map(projetarArea)}
         organizacaoId={escopo.ctx.vinculo.organizacaoId}
+        depoisDosContatos={
+          // **Depois de Contatos, fora do formulário** (item 120, critério 8): o cartão grava a cada gesto.
+          <CartaoDeEtiquetas
+            pessoaId={pessoaId}
+            nome={vinculo.pessoa.nome}
+            organizacaoId={escopo.ctx.vinculo.organizacaoId}
+            daPessoa={vinculo.etiquetas.map(projetarEtiqueta)}
+            todas={todasAsEtiquetas.map(projetarEtiqueta)}
+          />
+        }
       />
     </div>
   );
