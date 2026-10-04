@@ -242,11 +242,14 @@ export async function acaoDeRegistrarLeitura(ocorrenciaId: string): Promise<void
     return;
   }
 
-  // **O layout da raiz, e não `/ocorrencias`** (item 117): o sino mora no layout da casca, que não se
-  // renderiza de novo na navegação, e só o tipo `layout` o alcança. Numa função de servidor isso atualiza a
-  // tela atual e faz toda página visitada se refazer na volta. **O custo, dito:** uma segunda renderização
-  // de T-05 no servidor a cada abertura — o preço de o número cair na hora.
-  revalidatePath("/", "layout");
+  // **O layout da casca, e não `/ocorrencias`** (item 117): o sino mora nele, que não se renderiza de novo
+  // na navegação, e só o tipo `layout` o alcança. Numa função de servidor isso atualiza a tela atual e faz
+  // toda página visitada se refazer na volta. **O custo, dito:** uma segunda renderização de T-05 no
+  // servidor a cada abertura — o preço de o número cair na hora.
+  //
+  // **E não o da raiz** (item 123): `"/"` expira a etiqueta que toda página pré-renderizada carrega, e a
+  // documentação, que não aceita endereço fora da lista, passa a responder 404 até o processo reiniciar.
+  revalidatePath("/(casca)", "layout");
 }
 
 /**
@@ -268,5 +271,5 @@ export async function acaoDeMarcarComoNaoLida(ocorrenciaId: string): Promise<voi
     registrarFalha(erro, "/", "ACAO", novoTraceId());
     return;
   }
-  revalidatePath("/", "layout");
+  revalidatePath("/(casca)", "layout");
 }
