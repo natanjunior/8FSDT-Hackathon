@@ -20,7 +20,24 @@ import {
   desfechoDoAceite,
   rodapeDoModal,
 } from "@/interface/componentes/convite-pessoal";
+import {
+  FRASE_DO_MOTIVO,
+  desfechoDoLote,
+  excessoDoLote,
+  faixaDaSelecao,
+  perguntaDoLote,
+  rotuloDoBotaoEmMassa,
+} from "@/interface/componentes/envio-de-convite";
+import { paginar, type LinhaDeParticipante } from "@/interface/componentes/linhas-de-participantes";
 import { modulosDoQr } from "@/interface/componentes/qr";
+import {
+  SELECAO_VAZIA,
+  alternar,
+  alternarPagina,
+  estadoDaPagina,
+  selecionavel,
+} from "@/interface/componentes/selecao-de-participantes";
+import { MOTIVOS_DE_NAO_ENVIO } from "@/dominio/organizacao";
 import { LoteDeEnvioInvalido } from "@/aplicacao/organizacao";
 import { destinoDoConvite, linkDoConvite, linkDoConvitePessoal, problemaDe } from "@/interface/http";
 import { envioDeConvitesSchema } from "@/interface/schemas";
@@ -299,5 +316,106 @@ describe("o envio por e-mail (item 122)", () => {
     const { status, corpo } = problemaDe(new LoteDeEnvioInvalido("Envie até 20 por vez."), "/api/convites-pessoais/envios");
     expect(status).toBe(422);
     expect(corpo.codigo).toBe("LOTE_DE_ENVIO_INVALIDO");
+  });
+});
+
+describe("a seleção e o envio em massa (item 122)", () => {
+  const vinculoNaLinha = (id: string) =>
+    ({ tipo: "vinculo", chave: `vinculo:${id}`, nome: `Pessoa ${id}`, vinculo: { pessoa: { pessoaId: id } } }) as unknown as LinhaDeParticipante;
+  const pedidoNaLinha = (id: string) =>
+    ({ tipo: "pedido", chave: `pedido:${id}`, nome: `Pedido ${id}` }) as unknown as LinhaDeParticipante;
+  const comoVinculo = (linha: LinhaDeParticipante) => {
+    if (!selecionavel(linha)) throw new Error("linha de pedido");
+    return linha;
+  };
+
+  it("só linha de vínculo é selecionável, inclusive Encarregado, quem tem conta e o próprio Gestor", () => {
+    expect(selecionavel(vinculoNaLinha("a"))).toBe(true);
+    expect(selecionavel(pedidoNaLinha("p"))).toBe(false);
+  });
+
+  it("alternar marca e desmarca, e a seleção sobrevive à troca de página", () => {
+    const linhas = Array.from({ length: 30 }, (_, i) => vinculoNaLinha(`v${String(i)}`));
+    const primeira = paginar(linhas, 1).itens;
+    const segunda = paginar(linhas, 2).itens;
+    let selecao = alternar(SELECAO_VAZIA, comoVinculo(primeira[0]!));
+    selecao = alternar(selecao, comoVinculo(segunda[0]!));
+    expect([...selecao.keys()]).toStrictEqual([
+      comoVinculo(primeira[0]!).vinculo.pessoa.pessoaId,
+      comoVinculo(segunda[0]!).vinculo.pessoa.pessoaId,
+    ]);
+    expect(alternar(selecao, comoVinculo(primeira[0]!)).size).toBe(1);
+  });
+
+  it("a caixa do cabeçalho: nenhuma, parte, todas, e página só de pedidos", () => {
+    const pagina = [vinculoNaLinha("a"), vinculoNaLinha("b"), pedidoNaLinha("p")];
+    expect(estadoDaPagina(SELECAO_VAZIA, pagina)).toBe(false);
+    expect(estadoDaPagina(alternar(SELECAO_VAZIA, comoVinculo(pagina[0]!)), pagina)).toBe("indeterminate");
+    expect(estadoDaPagina(alternarPagina(SELECAO_VAZIA, pagina), pagina)).toBe(true);
+    expect(estadoDaPagina(SELECAO_VAZIA, [pedidoNaLinha("p")])).toBe(false);
+  });
+
+  it("marcar a página não toca o que está marcado fora dela, e desmarcar tira só as dela", () => {
+    const fora = vinculoNaLinha("fora");
+    const pagina = [vinculoNaLinha("a"), vinculoNaLinha("b")];
+    const marcada = alternarPagina(alternar(SELECAO_VAZIA, comoVinculo(fora)), pagina);
+    expect(marcada.size).toBe(3);
+    const desmarcada = alternarPagina(marcada, pagina);
+    expect([...desmarcada.keys()]).toStrictEqual(["fora"]);
+  });
+
+  it("as frases da faixa, do botão, da pergunta e do excesso", () => {
+    expect(faixaDaSelecao(1)).toBe("1 selecionado");
+    expect(faixaDaSelecao(3)).toBe("3 selecionados");
+    expect(rotuloDoBotaoEmMassa(3)).toBe("Convidar por e-mail (3)");
+    expect(perguntaDoLote(1)).toBe("Enviar convite por e-mail para 1 participante?");
+    expect(perguntaDoLote(12)).toBe("Enviar convite por e-mail para 12 participantes?");
+    expect(excessoDoLote(20)).toBeNull();
+    expect(excessoDoLote(23)).toBe("Envie até 20 por vez. Desmarque 3 para continuar.");
+  });
+
+  it("as sete frases dos motivos, exatas", () => {
+    expect(Object.keys(FRASE_DO_MOTIVO).sort()).toStrictEqual([...MOTIVOS_DE_NAO_ENVIO].sort());
+    expect(FRASE_DO_MOTIVO).toStrictEqual({
+      "vinculo-revogado": "Não participa mais",
+      "sem-email": "Sem e-mail cadastrado",
+      "ja-tem-conta": "Já usa o aplicativo",
+      encarregado: "Encarregados não recebem convite",
+      "limite-do-dia": "Este endereço já recebeu convite hoje",
+      "limite-do-participante": "Já recebeu os 10 convites por e-mail",
+      "falha-no-envio": "O e-mail não pôde ser enviado. Tente de novo mais tarde",
+    });
+  });
+
+  it("o lote: 200 é o resumo; 422, 500 e a rede são a falha inteira", () => {
+    expect(desfechoDoLote(200)).toBe("resumo");
+    expect(desfechoDoLote(422)).toBe("falha-inteira");
+    expect(desfechoDoLote(500)).toBe("falha-inteira");
+    expect(desfechoDoLote(0)).toBe("falha-inteira");
+  });
+
+  it("a tabela monta a caixa só na linha selecionável, pelo provedor, e não escreve a seleção no endereço", () => {
+    const tabela = ler("src/interface/componentes/tabela-de-participantes.tsx");
+    expect(tabela).toContain('import { Checkbox } from "@/interface/componentes/ui/checkbox"');
+    expect(tabela).toContain("{selecionavel(linha) && (");
+    expect(tabela).toContain("useSelecao()");
+    expect(tabela).not.toMatch(/escreverEndereco\([^)]*selecao/u);
+    expect(tabela).not.toContain("localStorage");
+  });
+
+  it("a página monta o provedor em volta do cabeçalho e da tabela, e o botão antes do cadastro", () => {
+    const pagina = ler("app/(casca)/vinculos/page.tsx");
+    expect(pagina.indexOf("<ProvedorDaSelecao>")).toBeLessThan(pagina.indexOf("<CabecalhoDaPagina"));
+    expect(pagina.indexOf("</ProvedorDaSelecao>")).toBeGreaterThan(pagina.indexOf("<TabelaDeParticipantes"));
+    expect(pagina.indexOf("<ConviteEmMassa")).toBeLessThan(pagina.indexOf("Cadastrar participante"));
+  });
+
+  it("o diálogo é AlertDialog, confirma com botão comum, some o Enviar acima do lote e não fecha enviando", () => {
+    const dialogo = ler("src/interface/componentes/convite-em-massa.tsx");
+    expect(dialogo).toContain("<AlertDialog ");
+    expect(dialogo).not.toContain("<AlertDialogAction");
+    expect(dialogo).toContain("excessoDoLote(n) === null && (");
+    expect(dialogo).toContain("onEscapeKeyDown");
+    expect(dialogo).toContain("if (enviando) return;");
   });
 });
