@@ -247,8 +247,11 @@ demais; no celular, a mesma regra vale numa linha abaixo do papel, e a lista nã
 aparece quando a organização tem alguma etiqueta.
 
 Abaixo do filtro por papel entra uma segunda régua, por etiqueta, com uma etiqueta por vez e o estado no
-endereço. As duas se combinam, e as contagens de cada uma são da lista inteira. O botão Etiquetas do
-cabeçalho abre um painel que só apaga, e a confirmação diz em quantas pessoas a etiqueta está.
+endereço. As duas se combinam, e as contagens de cada uma são da lista inteira.
+
+As etiquetas da organização ficam na configuração, num cartão próprio: cada uma com quantos participantes
+a têm, uma busca pelo nome e o botão de apagar, que confirma dizendo em quantas pessoas ela está. Uma
+etiqueta nasce ali, num modal só com o nome, ou no detalhe de um participante.
 
 No detalhe do participante, o cartão Etiquetas vem depois de Contatos e grava a cada gesto. É uma seleção
 múltipla com busca: escolher uma etiqueta ou escrever uma nova acrescenta, e o botão de cada ficha a tira.

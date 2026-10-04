@@ -1106,6 +1106,16 @@ describe("as abas da configuração — critérios 120.13, 120.15 e 120.16", () 
     expect(historico).toContain('tituloId="mudancas"');
   });
 
+  it("o cartão de etiquetas só existe com vinculo.gerir, e a leitura dele também (critério 120.20)", () => {
+    const participantes = pagina.slice(pagina.indexOf("participantes: geriVinculos"), pagina.indexOf("historico: ("));
+    expect(participantes).toContain("<EtiquetasDaOrganizacao");
+    // As leituras do cartão só acontecem com a permissão: nada de etiqueta ou vínculo para quem não gere.
+    // E no MESMO `Promise.all` das outras leituras (spec §3.5.2): uma segunda volta ao banco pesaria no cold start.
+    expect(pagina).toMatch(/geriVinculos \? listarEtiquetas\(escopo\.repos\.etiquetas\) : Promise\.resolve\(\[\]\)/u);
+    expect(pagina).toMatch(/geriVinculos \? listarVinculos\(escopo\.repos\.vinculos\) : Promise\.resolve\(\[\]\)/u);
+    expect(pagina.match(/await Promise\.all\(/gu)).toHaveLength(1);
+  });
+
   const componente = readFileSync(fileURLToPath(new URL("../../src/interface/componentes/abas-da-configuracao.tsx", import.meta.url)), "utf8");
 
   it("as abas são line, quebram linha no celular, e trocar escreve o endereço sem entrada de histórico", () => {

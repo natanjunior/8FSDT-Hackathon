@@ -4,7 +4,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
-import { contarAreas, contarCategorias, lerConfiguracao } from "@/aplicacao/organizacao";
+import {
+  contarAreas,
+  contarCategorias,
+  lerConfiguracao,
+  listarEtiquetas,
+  listarVinculos,
+} from "@/aplicacao/organizacao";
 import { type AbaDaConfiguracao, lerAba } from "@/interface/componentes/aba-da-configuracao";
 import { AbasDaConfiguracao } from "@/interface/componentes/abas-da-configuracao";
 import { CabecalhoDaPagina } from "@/interface/componentes/cabecalho-da-pagina";
@@ -14,6 +20,8 @@ import { dataEHora } from "@/interface/componentes/datas";
 import { EdicaoDasRegras } from "@/interface/componentes/edicao-das-regras";
 import { EdicaoDeNome } from "@/interface/componentes/edicao-de-nome";
 import { EdicaoDosRotulos } from "@/interface/componentes/edicao-dos-rotulos";
+import { EtiquetasDaOrganizacao } from "@/interface/componentes/etiquetas-da-organizacao";
+import { usoPorEtiqueta } from "@/interface/componentes/etiquetas-de-participante";
 import {
   APOIO_DO_CARTAO_DE_REGRAS,
   APOIO_DO_LIMITE,
@@ -36,7 +44,12 @@ import {
 } from "@/interface/componentes/rotulos-do-solicitante";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
 import { resolverEscopoParaTela } from "@/interface/http";
-import { projetarConfiguracao, rotuloPadraoDoSolicitante } from "@/interface/projecoes";
+import {
+  projetarConfiguracao,
+  projetarEtiqueta,
+  projetarVinculo,
+  rotuloPadraoDoSolicitante,
+} from "@/interface/projecoes";
 
 /**
  * **T-15 · Configuração da organização** — *"O que desta organização eu posso ajustar?"*
@@ -116,11 +129,17 @@ export default async function ConfiguracaoDaOrganizacao({
     : ["ocorrencias", "historico"];
   const inicial = lerAba((await searchParams)["aba"], disponiveis);
 
-  const [categorias, areas, configuracao] = await Promise.all([
+  // **A leitura do cartão também é guardada** (critério 20): sem `vinculo.gerir`, nem etiqueta nem vínculo
+  // saem do banco nesta página. A contagem e a confirmação usam o MESMO `uso` (critério 18).
+  const [categorias, areas, configuracao, etiquetasLidas, vinculosLidos] = await Promise.all([
     contarCategorias(escopo.repos.categorias),
     contarAreas(escopo.repos.areas),
     lerConfiguracao(escopo.repos.configuracao).then(projetarConfiguracao),
+    geriVinculos ? listarEtiquetas(escopo.repos.etiquetas) : Promise.resolve([]),
+    geriVinculos ? listarVinculos(escopo.repos.vinculos) : Promise.resolve([]),
   ]);
+  const etiquetas = etiquetasLidas.map(projetarEtiqueta);
+  const uso = usoPorEtiqueta(vinculosLidos.map(projetarVinculo));
 
   const ativo = escopo.resolucao.ativo;
 
@@ -303,7 +322,15 @@ export default async function ConfiguracaoDaOrganizacao({
               </Cartao>
             </>
           ),
-          participantes: null,
+          participantes: geriVinculos ? (
+            <>
+              <EtiquetasDaOrganizacao
+                etiquetas={etiquetas}
+                uso={uso}
+                organizacaoId={escopo.ctx.vinculo.organizacaoId}
+              />
+            </>
+          ) : null,
           historico: (
             <>
               {/* **A história por último** (item 99). Cada mudança é uma pilha de duas linhas, e não uma tabela:

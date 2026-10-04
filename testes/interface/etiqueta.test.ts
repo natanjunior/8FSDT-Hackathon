@@ -6,10 +6,13 @@ import { parse } from "yaml";
 
 import {
   chaveDoNome,
+  contagemDeParticipantes,
   cortarParaALinha,
   diferencaDaEscolha,
+  filtrarEtiquetas,
   nomeDoRestante,
   nomeParaCriar,
+  reciboDaCriacao,
   sugestoes,
   textoDoApagar,
   tituloDoApagar,
@@ -304,4 +307,35 @@ describe("o cartão do detalhe — critérios 120.8 e 120.9", () => {
     expect(cartao).toContain("podeCriar={");
     expect(cartao).not.toMatch(/ui\/sheet|<Sheet|PainelDeEtiquetar/u);
   });
+});
+
+describe("o cartão da configuração — critérios 120.17 a 120.19", () => {
+  it("a contagem carrega a palavra, nunca só o número", () => {
+    expect(contagemDeParticipantes(0)).toBe("Nenhum participante");
+    expect(contagemDeParticipantes(1)).toBe("1 participante");
+    expect(contagemDeParticipantes(6)).toBe("6 participantes");
+  });
+
+  it("a busca é a do projeto: ignora acento e caixa, e esconde o que não casa", () => {
+    expect(filtrarEtiquetas(TODAS, "eletrica").map((e) => e.nome)).toStrictEqual(["Elétrica"]);
+    expect(filtrarEtiquetas(TODAS, "ELE").map((e) => e.nome)).toStrictEqual(["Eletricista", "Elétrica"]);
+    expect(filtrarEtiquetas(TODAS, "  ")).toHaveLength(4);
+  });
+
+  it("o recibo diz se nasceu ou se já existia", () => {
+    expect(reciboDaCriacao("Eletricista", true)).toBe("Eletricista criada");
+    expect(reciboDaCriacao("Eletricista", false)).toBe("Eletricista já existia");
+  });
+
+  const cartao = readFileSync(fileURLToPath(new URL("../../src/interface/componentes/etiquetas-da-organizacao.tsx", import.meta.url)), "utf8");
+
+  it("só apagar e buscar: sem editar e sem ordem; e a confirmação usa o mesmo número da linha", () => {
+    expect(cartao).not.toMatch(/Pencil|ControlesDeOrdem|aoMover|arrast/u);
+    expect(cartao).toContain("<ApagarEtiqueta");
+    expect(cartao).toContain("quantas={uso[etiqueta.id] ?? 0}");
+    expect(cartao).toContain("contagemDeParticipantes(uso[etiqueta.id] ?? 0)");
+  });
+
+  // O arquivo só sai na Tarefa 10, quando `vinculos/page.tsx` deixar de importá-lo; lá o corpo é escrito.
+  it.todo("a gerência antiga saiu do repositório");
 });
