@@ -3115,3 +3115,34 @@ describe("uma falha, uma mensagem — critério 116.9", () => {
     expect(ler("src/interface/componentes/formulario-de-nova-senha.tsx")).toContain('avisarSucesso("Senha alterada"');
   });
 });
+
+describe("o rótulo acima do campo, e o ícone do seletor — critérios 120.25 e 120.26", () => {
+  it("T-03: cada menu e o título têm rótulo visível acima, e o gatilho mostra só o valor", () => {
+    const barra = ler("src/interface/componentes/barra-de-filtros.tsx");
+    expect(barra).toContain('className="border-linha flex flex-wrap items-end gap-2 border-b px-4 py-3"');
+    // O menu: rótulo em cima, valor no gatilho, e o nome acessível de sempre (o ponta a ponta acha por ele).
+    // O nome acessível contém o texto visível (WCAG 2.5.3): sem valor, *"Status: Qualquer"*.
+    expect(barra).toContain("aria-label={marcados.length === 0 ? `${nome}: Qualquer` : rotuloDoChip(nome, opcoes, marcados)}");
+    expect(barra).toContain('{valorDoGatilho(opcoes, marcados, "Qualquer")}');
+    // O título: `label` de verdade, sem `aria-label` que o esconda.
+    expect(barra).toMatch(/<label htmlFor=\{idDoTitulo\} className=\{ROTULO_ACIMA\}>\s*Título\s*<\/label>/u);
+    expect(barra).not.toContain('aria-label="Buscar pelo título"');
+  });
+
+  it("Categorias e Áreas: o rótulo da busca deixa de ficar ao lado", () => {
+    const lista = ler("src/interface/componentes/lista-de-ordem-manual.tsx");
+    expect(lista).not.toContain('<div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-3">');
+  });
+
+  it("o Painel: Período escrito acima do seletor", () => {
+    const painel = ler("app/(casca)/dashboard/page.tsx");
+    expect(painel).toMatch(/<span aria-hidden="true" className=\{ROTULO_ACIMA\}>\s*Período\s*<\/span>\s*<SeletorDePeriodo/u);
+  });
+
+  it("o seletor de organização mostra o prédio, mudo, e o nome acessível não muda", () => {
+    const seletor = ler("src/interface/componentes/casca/seletor-de-organizacao.tsx");
+    expect(seletor).toContain('<Building2 aria-hidden="true" className="text-tinta-suave size-4 shrink-0" />');
+    expect(seletor).toContain('aria-label="Organização"');
+    expect(seletor.indexOf("<Building2")).toBeLessThan(seletor.indexOf("<SelectValue"));
+  });
+});

@@ -2,14 +2,16 @@
 
 import { ChevronDown, Search, X } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { FiltroComBusca } from "@/interface/componentes/filtro-com-busca";
 import {
+  ROTULO_ACIMA,
   comTitulo,
   comValorUnico,
   PARAMETROS_DE_FILTRO,
   semFiltros,
+  valorDoGatilho,
   type OpcaoComBusca,
 } from "@/interface/componentes/filtros-da-lista";
 import { Button } from "@/interface/componentes/ui/button";
@@ -46,9 +48,9 @@ export type OpcaoDeFiltro = { valor: string; rotulo: string };
  * **`push`, não `replace`:** numa tela cuja interação principal é filtrar, voltar-como-desfazer vale mais
  * que sair da tela num toque. **O preço, dito:** quatro marcas são quatro entradas de histórico.
  *
- * **A-5 — nada é comunicado só por cor.** O estado ligado **sempre carrega a palavra**, no próprio rótulo
- * do chip: `Status: Pausada`, `Status: 2 selecionados`. Borda, peso e `aria-pressed` acompanham;
- * sozinhos, não valeriam.
+ * **A-5 — nada é comunicado só por cor.** O estado ligado **sempre carrega a palavra**, no nome acessível
+ * do gatilho: `Status: Pausada`, `Status: 2 selecionados`; o rótulo visível fica acima. Borda, peso e
+ * `aria-pressed` acompanham; sozinhos, não valeriam.
  *
  * **O recorte não mora mais aqui.** Desde o item 44c ele é o `toggle-group` do cabeçalho da página — a
  * barra é a das três dimensões do item 15, e recorte nunca foi uma delas.
@@ -117,7 +119,7 @@ export function BarraDeFiltros({
   return (
     <div
       aria-busy={pendente}
-      className="border-linha flex flex-wrap items-center gap-2 border-b px-4 py-3"
+      className="border-linha flex flex-wrap items-end gap-2 border-b px-4 py-3"
     >
       <CampoDoTitulo consultaAtual={consultaAtual} />
 
@@ -213,8 +215,10 @@ function chip(ligado: boolean): string {
 /**
  * Um chip com o menu de múltipla escolha atrás.
  *
- * **O rótulo é o sinal.** Sem valor, o nome da dimensão; com um, o **nome do valor**; com mais de um, a
- * contagem. Nunca um ponto colorido, nunca um número solto.
+ * **O rótulo fica acima, e o gatilho mostra o valor** (item 120, bloco 12): *Qualquer*, o nome do valor,
+ * ou a contagem. O nome acessível é o de `rotuloDoChip` — *Status: Pausada* —, e sem valor *Status:
+ * Qualquer*, para conter o texto visível (WCAG 2.5.3). É o compromisso A-5, e o ponta a ponta acha o menu
+ * pelo trecho *Status*. Nunca um ponto colorido, nunca um número solto.
  *
  * **Cada marca é uma navegação** — não há estado local de rascunho e não há botão *Aplicar*. Durante a
  * transição o React mantém a árvore anterior pintada, que é o critério **15.4**.
@@ -235,23 +239,33 @@ function MenuDeFiltro({
   const ligado = marcados.length > 0;
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger className={chip(ligado)} aria-pressed={ligado}>
-        {rotuloDoChip(nome, opcoes, marcados)}
-        <ChevronDown aria-hidden="true" className="size-4 shrink-0" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        {opcoes.map((opcao) => (
-          <DropdownMenuCheckboxItem
-            key={opcao.valor}
-            checked={marcados.includes(opcao.valor)}
-            onCheckedChange={() => aoAlternar(parametro, opcao.valor)}
-          >
-            {opcao.rotulo}
-          </DropdownMenuCheckboxItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="flex flex-col gap-1.5">
+      {/* `aria-hidden`: o nome acessível do gatilho já começa pelo nome da dimensão. */}
+      <span aria-hidden="true" className={ROTULO_ACIMA}>
+        {nome}
+      </span>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          className={chip(ligado)}
+          aria-pressed={ligado}
+          aria-label={marcados.length === 0 ? `${nome}: Qualquer` : rotuloDoChip(nome, opcoes, marcados)}
+        >
+          {valorDoGatilho(opcoes, marcados, "Qualquer")}
+          <ChevronDown aria-hidden="true" className="size-4 shrink-0" />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          {opcoes.map((opcao) => (
+            <DropdownMenuCheckboxItem
+              key={opcao.valor}
+              checked={marcados.includes(opcao.valor)}
+              onCheckedChange={() => aoAlternar(parametro, opcao.valor)}
+            >
+              {opcao.rotulo}
+            </DropdownMenuCheckboxItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }
 
@@ -286,6 +300,7 @@ const ESPERA_DA_DIGITACAO = 300;
  * reprova, e este projeto não tem `eslint-disable` para gastar.
  */
 function CampoDoTitulo({ consultaAtual }: { consultaAtual: string }) {
+  const idDoTitulo = useId();
   const { navegar } = useNavegacaoDaLista();
   const daUrl = new URLSearchParams(consultaAtual).get("titulo") ?? "";
 
@@ -324,35 +339,40 @@ function CampoDoTitulo({ consultaAtual }: { consultaAtual: string }) {
   }
 
   return (
-    <div className="relative w-full md:w-[280px]">
-      <Search
-        aria-hidden="true"
-        className="text-tinta-suave pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
-      />
-      {/* O preflight do Tailwind 4 zera a decoração da busca e não o botão de cancelar; sem isto, Chrome e Safari
-          desenham um segundo ✕ ao lado do nosso (item 104, A-107). O `type="search"` fica pelo teclado do celular. */}
-      <Input
-        type="search"
-        value={texto}
-        onChange={(evento) => {
-          digitar(evento.target.value);
-        }}
-        aria-label="Buscar pelo título"
-        placeholder="Buscar pelo título"
-        className="border-linha text-interface text-tinta h-11 pr-11 pl-9 [&::-webkit-search-cancel-button]:appearance-none"
-      />
-      {texto !== "" && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={limpar}
-          aria-label="Limpar a busca por título"
-          className="text-tinta-suave absolute top-1/2 right-0 size-11 -translate-y-1/2 rounded-sm"
-        >
-          <X aria-hidden="true" />
-        </Button>
-      )}
+    <div className="flex w-full flex-col gap-1.5 md:w-[280px]">
+      <label htmlFor={idDoTitulo} className={ROTULO_ACIMA}>
+        Título
+      </label>
+      <div className="relative w-full">
+        <Search
+          aria-hidden="true"
+          className="text-tinta-suave pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
+        />
+        {/* O preflight do Tailwind 4 zera a decoração da busca e não o botão de cancelar; sem isto, Chrome e Safari
+            desenham um segundo ✕ ao lado do nosso (item 104, A-107). O `type="search"` fica pelo teclado do celular. */}
+        <Input
+          type="search"
+          id={idDoTitulo}
+          value={texto}
+          onChange={(evento) => {
+            digitar(evento.target.value);
+          }}
+          placeholder="Buscar pelo título"
+          className="border-linha text-interface text-tinta h-11 pr-11 pl-9 [&::-webkit-search-cancel-button]:appearance-none"
+        />
+        {texto !== "" && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={limpar}
+            aria-label="Limpar a busca por título"
+            className="text-tinta-suave absolute top-1/2 right-0 size-11 -translate-y-1/2 rounded-sm"
+          >
+            <X aria-hidden="true" />
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
