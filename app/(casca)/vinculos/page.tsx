@@ -12,6 +12,7 @@ import {
   listarResponsabilidadesEmAberto,
   listarVinculos,
 } from "@/aplicacao/organizacao";
+import { BotaoDeExportacao } from "@/interface/componentes/botao-de-exportacao";
 import { CabecalhoDaPagina } from "@/interface/componentes/cabecalho-da-pagina";
 import { usoPorEtiqueta } from "@/interface/componentes/etiquetas-de-participante";
 import type { ImpedimentoNaTela } from "@/interface/componentes/frases-da-remocao";
@@ -92,6 +93,9 @@ export default async function Participantes() {
         fato={<Fato participantes={vinculos.length} pedidos={pedidos.length} />}
         acao={
           <div className="flex flex-wrap items-center gap-2">
+            {/* Sempre: a tela já é de `vinculo.gerir`, e a lista nunca é vazia, porque quem gere está nela.
+                O arquivo leva e-mail e telefone (item 124). */}
+            <BotaoDeExportacao endereco="/api/vinculos/exportacao" />
             {/* Sem etiqueta não há o que gerir: a primeira nasce no detalhe de um participante (item 115). */}
             {etiquetas.length > 0 && (
               <GerenciaDeEtiquetas
