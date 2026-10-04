@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import { listarAreas } from "@/aplicacao/organizacao";
+import { BotaoDeExportacao } from "@/interface/componentes/botao-de-exportacao";
 import { CabecalhoDaPagina } from "@/interface/componentes/cabecalho-da-pagina";
 import { FRASE_DAS_AREAS } from "@/interface/componentes/frases-da-configuracao";
 import { ModalDeArea } from "@/interface/componentes/modal-de-area";
@@ -48,7 +49,13 @@ export default async function Areas() {
       <CabecalhoDaPagina
         titulo="Áreas"
         fato={<Fato ativas={ativas} total={areas.length} />}
-        acao={<ModalDeArea modo="criar" organizacaoId={organizacaoId} />}
+        acao={
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Com a lista vazia não há o que exportar (item 124). */}
+            {areas.length > 0 && <BotaoDeExportacao endereco="/api/areas/exportacao" />}
+            <ModalDeArea modo="criar" organizacaoId={organizacaoId} />
+          </div>
+        }
       />
 
       <TabelaDeAreas itens={areas.map(projetarArea)} organizacaoId={organizacaoId} />

@@ -67,8 +67,14 @@ export function avisarSucesso(titulo: string, descricao?: string): void {
   toast.success(titulo, descricaoOpcional(descricao));
 }
 
-export function avisarErro(titulo: string, descricao?: string): void {
-  toast.error(titulo, descricaoOpcional(descricao));
+/** Uma ação no próprio aviso: *Tentar de novo*, por exemplo (item 124). */
+export type AcaoDoAviso = { readonly rotulo: string; readonly aoClicar: () => void };
+
+export function avisarErro(titulo: string, descricao?: string, acao?: AcaoDoAviso): void {
+  toast.error(titulo, {
+    ...descricaoOpcional(descricao),
+    ...(acao === undefined ? {} : { action: { label: acao.rotulo, onClick: acao.aoClicar } }),
+  });
 }
 
 /** **Fica até ser fechado**: o pacote não arma temporizador quando a duração é infinita. */

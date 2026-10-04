@@ -887,6 +887,38 @@ paths:
         "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
+  /vinculos/exportacao:
+    get:
+      tags: [Vínculos]
+      operationId: exportarVinculos
+      summary: Os participantes da organização, num arquivo CSV
+      description: |
+        Os participantes ativos da organização, sem os pedidos de entrada. Sem parâmetro: não há filtro nem
+        página.
+        O arquivo abre no Excel em pt-BR: BOM UTF-8, ponto e vírgula, CRLF, valores em palavra, e texto que
+        começa com `=`, `+`, `-` ou `@` sai com um apóstrofo na frente.
+        
+        O arquivo leva e-mail e telefone de cada participante, e por isso a guarda é a mesma do
+        `GET /vinculos`.
+
+        *Permissão: `vinculo.gerir`.*
+      parameters:
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "200":
+          description: O arquivo. Colunas `Nome`, `Papel`, `Área`, `Tem conta`, `E-mail`, `Telefone`, `Etiquetas`, `Participa desde`, `Atualizado em`.
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              example: 'attachment; filename="participantes-edificio-aurora-2026-10-03.csv"'
+          content:
+            text/csv:
+              schema: { type: string }
+              example: "\uFEFFNome;Papel;Área;Tem conta;E-mail;Telefone;Etiquetas;Participa desde;Atualizado em\r\n"
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
   /vinculos/{pessoaId}:
     patch:
       tags: [Vínculos]
@@ -1382,6 +1414,36 @@ paths:
         "409": { $ref: "#/components/responses/ListaDesatualizada" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
+  /categorias/exportacao:
+    get:
+      tags: [Configuração]
+      operationId: exportarCategorias
+      summary: As categorias da organização, num arquivo CSV
+      description: |
+        Todas as categorias, ativas e inativas, na ordem da lista. Sem parâmetro: não há filtro nem página.
+        O arquivo abre no Excel em pt-BR: BOM UTF-8, ponto e vírgula, CRLF, valores em palavra, e texto que
+        começa com `=`, `+`, `-` ou `@` sai com um apóstrofo na frente.
+        
+        A permissão é a da tela, e não a do `GET /categorias`, que o formulário de registro consome.
+
+        *Permissão: `organizacao.configurar`.*
+      parameters:
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "200":
+          description: O arquivo. Colunas `Ordem`, `Nome`, `Ativa`.
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              example: 'attachment; filename="categorias-edificio-aurora-2026-10-03.csv"'
+          content:
+            text/csv:
+              schema: { type: string }
+              example: "\uFEFFOrdem;Nome;Ativa\r\n1;Vazamentos;Sim\r\n"
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
   /areas:
     get:
       tags: [Configuração]
@@ -1559,6 +1621,36 @@ paths:
         "409": { $ref: "#/components/responses/ListaDesatualizada" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
+  /areas/exportacao:
+    get:
+      tags: [Configuração]
+      operationId: exportarAreas
+      summary: As áreas da organização, num arquivo CSV
+      description: |
+        Todas as áreas, ativas e inativas, na ordem da lista. Sem parâmetro: não há filtro nem página.
+        O arquivo abre no Excel em pt-BR: BOM UTF-8, ponto e vírgula, CRLF, valores em palavra, e texto que
+        começa com `=`, `+`, `-` ou `@` sai com um apóstrofo na frente.
+        
+        A permissão é a da tela, e não a do `GET /areas`, que o formulário de registro consome.
+
+        *Permissão: `organizacao.configurar`.*
+      parameters:
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "200":
+          description: O arquivo. Colunas `Ordem`, `Nome`, `Tipo`, `Ativa`.
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              example: 'attachment; filename="areas-edificio-aurora-2026-10-03.csv"'
+          content:
+            text/csv:
+              schema: { type: string }
+              example: "\uFEFFOrdem;Nome;Tipo;Ativa\r\n1;Garagem;Área comum;Sim\r\n"
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
   /anexos/autorizacoes:
     post:
       tags: [Anexo]
@@ -2034,6 +2126,39 @@ paths:
         "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
+  /ocorrencias/exportacao:
+    get:
+      tags: [Ocorrências — leitura]
+      operationId: exportarOcorrencias
+      summary: Todas as ocorrências da organização, num arquivo CSV
+      description: |
+        Todas as ocorrências da organização, de todos os estados, da atualizada por último para a mais antiga.
+        Sem parâmetro: não há filtro nem página, e o filtro da tela não chega ao arquivo.
+        O arquivo abre no Excel em pt-BR: BOM UTF-8, ponto e vírgula, CRLF, valores em palavra, e texto que
+        começa com `=`, `+`, `-` ou `@` sai com um apóstrofo na frente.
+        
+        As dezesseis colunas: `ID`, `Título`, `Descrição`, `Status`, `Prioridade`, `Categoria`, `Área`,
+        `Tipo da área`, `Solicitante`, `Responsável`, `Motivo da pausa`, `Solução aplicada`, `Nota da avaliação`,
+        `Anexos`, `Registrada em` e `Atualizada em`. Data e hora em `dd/mm/aaaa hh:mm`, no fuso de São Paulo.
+
+        *Permissão: `ocorrencia.ler_todas`.*
+      parameters:
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "200":
+          description: O arquivo. Colunas listadas na descrição.
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              example: 'attachment; filename="ocorrencias-edificio-aurora-2026-10-03.csv"'
+          content:
+            text/csv:
+              schema: { type: string }
+              example: "\uFEFFID;Título;Descrição;Status;Prioridade;Categoria;Área;Tipo da área;Solicitante;Responsável;Motivo da pausa;Solução aplicada;Nota da avaliação;Anexos;Registrada em;Atualizada em\r\n"
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
   /ocorrencias/{ocorrenciaId}:
     get:
       tags: [Ocorrências — leitura]

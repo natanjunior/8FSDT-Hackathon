@@ -3,11 +3,13 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { ArmazenamentoDeAnexos } from "@/aplicacao/anexo";
 import { mesEmSaoPaulo } from "@/aplicacao/dashboard";
-import { registrarOcorrencia } from "@/aplicacao/ocorrencia";
+import { exportarOcorrencias, registrarOcorrencia } from "@/aplicacao/ocorrencia";
 import {
   ListaDesatualizada,
   criarArea,
   criarCategoria,
+  listarAreas,
+  listarCategorias,
   listarVinculos,
   reordenarAreas,
   reordenarCategorias,
@@ -834,6 +836,93 @@ describe("as consultas de configuração não atravessam organizações", () => 
         return [idDaOcorrenciaEmB];
       },
     },
+  });
+
+  /**
+   * **Os quatro arquivos do item 124** (critério 6). Cada entrada chama a mesma função de aplicação que o
+   * `route.ts` chama. A ocorrência tem consulta nova (`exportar()`); as três de cadastro reaproveitam a
+   * leitura da tela, com inativas, que é o recorte do arquivo.
+   *
+   * **As áreas e as categorias esperadas são lidas da tabela, direto e sem escopo**, num `beforeAll` deste
+   * bloco: outros testes do arquivo semeiam inativas nas mesmas organizações (`"Arquivada da Aurora"`),
+   * e com `incluirInativas` um literal dependeria da ordem dos blocos. A prova continua sendo *"exatamente
+   * o que é de A, e nada só de A em B"*.
+   */
+  describe("os arquivos exportados — item 124", () => {
+    const nomesNaTabela = { areas: { a: [] as string[], b: [] as string[] }, categorias: { a: [] as string[], b: [] as string[] } };
+
+    beforeAll(async () => {
+      for (const tabela of ["areas", "categorias"] as const) {
+        for (const [lado, organizacaoId] of [["a", idRecanto], ["b", idAurora]] as const) {
+          const linhas = await consulta<{ nome: string }>(`select nome from ${tabela} where organizacao_id = $1`, [
+            organizacaoId,
+          ]);
+          nomesNaTabela[tabela][lado] = linhas.map((linha) => linha.nome);
+        }
+      }
+    });
+
+    casosDeIsolamento(mundo, {
+      nome: "GET /ocorrencias/exportacao",
+      consultar: (organizacaoId) => exportarOcorrencias(portasDe(organizacaoId).ocorrencias),
+      chaveDaLinha: (ocorrencia) => ocorrencia.id,
+      esperadas: {
+        get emA() {
+          return [idDaOcorrenciaEmA];
+        },
+        get emB() {
+          return [idDaOcorrenciaEmB];
+        },
+      },
+    });
+
+    casosDeIsolamento(mundo, {
+      nome: "GET /vinculos/exportacao",
+      consultar: (organizacaoId) =>
+        listarVinculos(
+          repositorioEscopadoDeVinculos(
+            escoparConsulta(consulta, organizacaoId),
+            escoparTransacao(criarTransacao(), organizacaoId),
+          ),
+        ),
+      chaveDaLinha: (vinculo) => vinculo.pessoa.pessoaId,
+      esperadas: {
+        get emA() {
+          return [idSindica, idMoradora];
+        },
+        get emB() {
+          return [idSindica];
+        },
+      },
+    });
+
+    casosDeIsolamento(mundo, {
+      nome: "GET /areas/exportacao",
+      consultar: (organizacaoId) => listarAreas(areasEm(organizacaoId), { incluirInativas: true }),
+      chaveDaLinha: (area) => area.nome,
+      esperadas: {
+        get emA() {
+          return nomesNaTabela.areas.a;
+        },
+        get emB() {
+          return nomesNaTabela.areas.b;
+        },
+      },
+    });
+
+    casosDeIsolamento(mundo, {
+      nome: "GET /categorias/exportacao",
+      consultar: (organizacaoId) => listarCategorias(categoriasEm(organizacaoId), { incluirInativas: true }),
+      chaveDaLinha: (categoria) => categoria.nome,
+      esperadas: {
+        get emA() {
+          return nomesNaTabela.categorias.a;
+        },
+        get emB() {
+          return nomesNaTabela.categorias.b;
+        },
+      },
+    });
   });
 
   /**

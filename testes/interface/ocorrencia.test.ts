@@ -4650,16 +4650,41 @@ describe("88.2 · a abertura não decide nada sobre papel", () => {
 describe("88.4 · a abertura é ação de servidor, e ela invalida a lista", () => {
   const acoes = lerFonte("src/interface/acoes/index.ts").replace(/\r\n/gu, "\n");
 
-  it("a ação existe, resolve o escopo, e invalida o layout da raiz — item 117", () => {
+  it("a ação existe, resolve o escopo, e invalida o layout da casca — itens 117 e 123", () => {
     const inicio = acoes.indexOf("export async function acaoDeRegistrarLeitura(");
     expect(inicio).toBeGreaterThanOrEqual(0);
     const corpo = acoes.slice(inicio, acoes.indexOf("\n}\n", inicio) + 3);
 
     expect(corpo).toContain("resolverEscopoParaTela");
-    expect(corpo).toContain('revalidatePath("/", "layout")');
+    expect(corpo).toContain('revalidatePath("/(casca)", "layout")');
     // **Nada volta para quem chamou.** A ação é endereço público: um retorno diria se a ocorrência existe,
     // e a recusa do produto é indistinguível de *"não existe"* (contrato §6.3).
     expect(corpo).not.toMatch(/\breturn\s+[^;\s]/u);
+  });
+
+  it("marcar como não lida também invalida a casca, e não a raiz — item 123", () => {
+    const inicio = acoes.indexOf("export async function acaoDeMarcarComoNaoLida(");
+    expect(inicio).toBeGreaterThanOrEqual(0);
+    const corpo = acoes.slice(inicio, acoes.indexOf("\n}\n", inicio) + 3);
+
+    expect(corpo).toContain('revalidatePath("/(casca)", "layout")');
+  });
+
+  /**
+   * **Item 123.** `revalidatePath("/", "layout")` expira a etiqueta `_N_T_/layout`, que toda página
+   * pré-renderizada carrega. A documentação é um catch-all com `dynamicParams = false`: sem cache, o Next
+   * lança `NoFallbackError` antes de renderizar, e ela fica em 404 até o processo reiniciar. Bastava uma
+   * ocorrência aberta.
+   */
+  it("nenhum código de app/ ou src/ revalida o layout da raiz — item 123", () => {
+    const fontes = [
+      ...globSync("app/**/*.{ts,tsx}", { cwd: RAIZ }),
+      ...globSync("src/**/*.{ts,tsx}", { cwd: RAIZ }),
+    ];
+    expect(fontes.length).toBeGreaterThan(0);
+    for (const fonte of fontes) {
+      expect(lerFonte(fonte), fonte).not.toMatch(/revalidatePath\(\s*["']\/["']\s*,\s*["']layout["']\s*\)/u);
+    }
   });
 
   it("nenhuma rota de app/ grava a leitura direto", () => {
