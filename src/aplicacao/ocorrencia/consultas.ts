@@ -6,6 +6,7 @@ import type {
   AtribuicaoLida,
   ComentarioLido,
   FiltroDeOcorrencias,
+  OcorrenciaExportadaLida,
   OcorrenciaLida,
   OcorrenciaResumoLida,
   OrdenacaoDeOcorrencias,
@@ -261,6 +262,16 @@ export async function verLinhaDoTempo(
   ];
 
   return eventos.sort(porInstante);
+}
+
+/**
+ * A exportação de Ocorrências (item 124). **A permissão é conferida na porta**: o `route.ts` exige
+ * `ocorrencia.ler_todas`, então quem chega aqui lê o conjunto inteiro, e não há recorte de autor a aplicar.
+ */
+export function exportarOcorrencias(
+  repositorio: RepositorioEscopadoDeOcorrencias,
+): Promise<readonly OcorrenciaExportadaLida[]> {
+  return repositorio.exportar();
 }
 
 /** O padrão do contrato (`openapi.yaml`, parâmetro `Limite`). */

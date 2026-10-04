@@ -6,6 +6,7 @@ import type {
   ContagensLidas,
   ColunaDeOrdenacao,
   FiltroDeOcorrencias,
+  OcorrenciaExportadaLida,
   OcorrenciaLida,
   OcorrenciaResumoLida,
   OrdenacaoDeOcorrencias,
@@ -981,7 +982,12 @@ const selectDoResumo = (naoAberta: string, paradaHaDias: string) => `
 ${LATERAL_DO_RESPONSAVEL}
    where o.organizacao_id = $1`;
 
-function montarResumo(linha: LinhaDeResumo): OcorrenciaResumoLida {
+/** As colunas que o resumo e a exportação dividem. As três que diferem ficam com cada montagem. */
+type ColunasComuns = Omit<LinhaDeResumo, "avaliada" | "nao_aberta" | "parada_ha_dias">;
+type CamposComuns = Omit<OcorrenciaResumoLida, "avaliada" | "naoAberta" | "paradaHaDias">;
+
+/** O que o resumo e a exportação montam igual (item 124: reaproveitado, e não copiado). */
+function camposComuns(linha: ColunasComuns): CamposComuns {
   return {
     id: linha.id,
     titulo: linha.titulo,
@@ -1001,6 +1007,16 @@ function montarResumo(linha: LinhaDeResumo): OcorrenciaResumoLida {
     // .total_anexos` está na lista dos recusados (modelo §7.1): desnormaliza-se o que é **filtrado ou
     // ordenado**, nunca o que é só projetado.
     quantidadeDeAnexos: linha.quantidade_de_anexos,
+    // Fora de `pausada` o motivo é nulo por construção — o `CHECK` da migração 005 garante o par.
+    motivoPausa: linha.status === "pausada" ? linha.motivo_pausa : null,
+    registradaEm: linha.registrada_em.toISOString(),
+    atualizadaEm: linha.atualizada_em.toISOString(),
+  };
+}
+
+function montarResumo(linha: LinhaDeResumo): OcorrenciaResumoLida {
+  return {
+    ...camposComuns(linha),
     avaliada: linha.avaliada,
     // **`null` é "a pergunta não foi feita"** — fora do recorte da aba (item 88). Ver `portas.ts`.
     naoAberta: linha.nao_aberta,
@@ -1014,10 +1030,53 @@ function montarResumo(linha: LinhaDeResumo): OcorrenciaResumoLida {
      * compararia texto com número.
      */
     paradaHaDias: linha.parada_ha_dias,
-    // Fora de `pausada` o motivo é nulo por construção — o `CHECK` da migração 005 garante o par.
-    motivoPausa: linha.status === "pausada" ? linha.motivo_pausa : null,
-    registradaEm: linha.registrada_em.toISOString(),
-    atualizadaEm: linha.atualizada_em.toISOString(),
+  };
+}
+
+/** As colunas da exportação: as comuns, mais o que o resumo deixa fora de propósito (item 124). */
+type LinhaDaExportacao = ColunasComuns & {
+  descricao: string;
+  solucao_aplicada: string | null;
+  avaliacao_nota: number | null;
+};
+
+/**
+ * **A exportação (item 124)**: as colunas do resumo, mais `descricao`, `solucao_aplicada` e
+ * `avaliacao_nota`, sem as duas que dependem de quem lê ou do corte. Os mesmos `join`, que partem de
+ * `vinculos` antes de `pessoas`, e o mesmo `where o.organizacao_id = $1`.
+ */
+const SELECT_DA_EXPORTACAO = `
+  select o.id, o.titulo, o.descricao, o.status, o.prioridade,
+         o.categoria_id, c.nome as categoria_nome,
+         o.area_id, a.nome as area_nome, o.area_tipo,
+         o.autor_pessoa_id, pa.nome as autor_nome,
+         resp.responsavel_pessoa_id, resp.responsavel_nome,
+         ult.motivo_pausa,
+         (select count(*) from anexos ax
+           where ax.ocorrencia_id = o.id and ax.organizacao_id = o.organizacao_id)::int as quantidade_de_anexos,
+         o.solucao_aplicada,
+         o.avaliacao_nota::int as avaliacao_nota,
+         o.registrada_em, o.atualizada_em
+    from ocorrencias o
+    join categorias c on c.id = o.categoria_id and c.organizacao_id = o.organizacao_id
+    join areas      a on a.id = o.area_id       and a.organizacao_id = o.organizacao_id
+    join vinculos  va on va.pessoa_id = o.autor_pessoa_id and va.organizacao_id = o.organizacao_id
+    join pessoas   pa on pa.id = va.pessoa_id
+    left join lateral (
+      select r.motivo_pausa from registros_transicao r
+       where r.ocorrencia_id = o.id and r.organizacao_id = o.organizacao_id
+       order by r.sequencia desc limit 1
+    ) ult on true
+${LATERAL_DO_RESPONSAVEL}
+   where o.organizacao_id = $1
+   order by o.atualizada_em desc, o.id desc`;
+
+function montarExportada(linha: LinhaDaExportacao): OcorrenciaExportadaLida {
+  return {
+    ...camposComuns(linha),
+    descricao: linha.descricao,
+    solucaoAplicada: linha.solucao_aplicada,
+    notaDaAvaliacao: linha.avaliacao_nota,
   };
 }
 
@@ -1968,6 +2027,11 @@ export function repositorioEscopadoDeOcorrencias(
       );
 
       return linhas.map(montarResumo);
+    },
+
+    async exportar() {
+      const linhas = await consulta<LinhaDaExportacao>(SELECT_DA_EXPORTACAO, []);
+      return linhas.map(montarExportada);
     },
 
     /**

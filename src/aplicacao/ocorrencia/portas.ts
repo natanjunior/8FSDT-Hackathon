@@ -302,6 +302,18 @@ export type OcorrenciaResumoLida = {
 };
 
 /**
+ * Como a ocorrência sai no **arquivo exportado** (item 124). É o resumo sem o que depende de quem lê ou do
+ * corte da página (`naoAberta`, `paradaHaDias`), e com o que o resumo deixa fora de propósito porque a
+ * lista não o mostra: `descricao`, `solucaoAplicada` e a nota.
+ */
+export type OcorrenciaExportadaLida = Omit<OcorrenciaResumoLida, "naoAberta" | "paradaHaDias" | "avaliada"> & {
+  descricao: string;
+  solucaoAplicada: string | null;
+  /** `null` quando não há avaliação. No lugar do booleano `avaliada`: a nota diz o que ele diz, e mais. */
+  notaDaAvaliacao: number | null;
+};
+
+/**
  * O ponto de retomada da paginação: **o par que o índice de listagem ordena**.
  *
  * O `id` não é enfeite — é o desempate. Sem ele, duas ocorrências com o mesmo `registrada_em` deixam a
@@ -802,6 +814,11 @@ export interface RepositorioEscopadoDeOcorrencias {
    * uma linha a mais: o `total` responde.
    */
   listar(filtro: FiltroDeListagem): Promise<readonly OcorrenciaResumoLida[]>;
+  /**
+   * **Todas as ocorrências da organização, sem página, sem filtro e sem corte** (item 124). Na ordem padrão
+   * da lista, atualizada por último primeiro. O volume de uma organização cabe na memória (`docs/api.md`).
+   */
+  exportar(): Promise<readonly OcorrenciaExportadaLida[]>;
   /**
    * O sino de quem pergunta (item 117): as linhas e o total de não lidas **numa instrução só**, para os
    * dois nunca discordarem (critério 4). O total conta todas; as linhas param em `limite`.
