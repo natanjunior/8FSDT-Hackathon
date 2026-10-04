@@ -1,10 +1,11 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { cobertura, cobre } from "./cobertura";
 
 import {
   AURORA,
   ciclo,
+  conteudoDaCasca,
   abrirOSino,
   ENCARREGADA_DO_AURORA,
   entrar,
@@ -1056,10 +1057,19 @@ test.fixme(
 /**
  * **A página assentada**, que é quando a medida vale. Os `loading.tsx` da casca são esqueletos mais
  * estreitos que o conteúdo, e medir neles daria zero falso; a fonte muda a largura do nome no seletor.
+ *
+ * **E há dois `<main>` na árvore, por desenho.** O layout da casca é assíncrono, e numa navegação dura a
+ * espera da raiz (`app/loading.tsx`, a moldura de conta com *"Acordando o servidor"*) chega antes dele, com
+ * um `<main>` próprio. Os dois convivem até a troca. Localizador de teste não pode supor um só: o
+ * `locator("main")` que estava aqui recusou no modo estrito e derrubou a medida de 360 px (item 119).
+ *
+ * Por isso o ajudante assenta **o conteúdo da página**, e não "o `<main>`": na casca, `conteudoDaCasca`;
+ * fora dela, quem chama diz qual é. **E não espera a espera sumir**: o que importa é o conteúdo visível e
+ * sem esqueleto, e o que mais estiver na árvore não é da conta da medida.
  */
-async function assentar(pagina: Page): Promise<void> {
-  await expect(pagina.locator("main")).toBeVisible();
-  await expect(pagina.locator("main .animate-pulse")).toHaveCount(0);
+async function assentar(pagina: Page, conteudo: Locator = conteudoDaCasca(pagina)): Promise<void> {
+  await expect(conteudo).toBeVisible();
+  await expect(conteudo.locator(".animate-pulse")).toHaveCount(0);
   await pagina.evaluate(async () => {
     await document.fonts.ready;
   });
@@ -1301,7 +1311,12 @@ test("o código da organização cabe no celular, nas três telas que o exibem (
     for (const { pagina, rota, casca } of telas) {
       await pagina.setViewportSize({ width: largura, height: 844 });
       await pagina.goto(rota);
-      await assentar(pagina);
+      await assentar(
+        pagina,
+        casca
+          ? conteudoDaCasca(pagina)
+          : pagina.getByRole("main").filter({ has: pagina.locator('[data-slot="input-otp-slot"]') }),
+      );
       const onde = `${rota} a ${largura} px`;
 
       /**

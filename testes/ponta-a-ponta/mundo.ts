@@ -1,5 +1,9 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
+import { ID_DO_CONTEUDO } from "@/interface/componentes/pular-para-o-conteudo";
+
+export { ID_DO_CONTEUDO };
+
 /**
  * ============================================================================
  *  O mundo de teste da semente — os localizadores num módulo só
@@ -257,4 +261,14 @@ export async function abrirOSino(pagina: Page): Promise<Locator> {
   if (!(await dialogo.isVisible()) && !(await balao.isVisible())) await botaoDoSino(pagina).click();
   await expect(dialogo.or(balao)).toBeVisible();
   return (await dialogo.isVisible()) ? dialogo : balao;
+}
+
+/**
+ * **O conteúdo da casca, pelo `id` que o salto do item 94 já usa.** Enquanto o layout da casca resolve, a
+ * espera da raiz (`app/loading.tsx`) põe um `<main>` próprio na árvore, e os dois convivem: é desenho, e
+ * está explicado no `assentar()` de `triagem-da-ocorrencia.spec.ts`. `locator("main")` sozinho recusa no
+ * modo estrito, ou escolhe o errado.
+ */
+export function conteudoDaCasca(pagina: Page): Locator {
+  return pagina.locator(`main#${ID_DO_CONTEUDO}`);
 }
