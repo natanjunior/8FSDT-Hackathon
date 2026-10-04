@@ -1259,9 +1259,11 @@ test("as etiquetas nascem no detalhe pela seleção múltipla, aparecem na lista
   await expect(helena.getByText("+2").first()).toBeVisible();
   expect(await transbordo(helena)).toStrictEqual(SEM_TRANSBORDO);
 
-  // O filtro: uma etiqueta por vez, no endereço.
-  await helena.getByRole("radio", { name: /Azulejista 115/u }).click();
+  // O filtro: uma etiqueta por vez, na linha da busca, e no endereço (critério 120.12).
+  await helena.getByRole("combobox", { name: "Etiqueta" }).click();
+  await helena.getByRole("option", { name: /^Azulejista 115/u }).click();
   await expect(helena).toHaveURL(/etiqueta=/u);
+  expect(await transbordo(helena)).toStrictEqual(SEM_TRANSBORDO);
 
   await contexto.close();
 });

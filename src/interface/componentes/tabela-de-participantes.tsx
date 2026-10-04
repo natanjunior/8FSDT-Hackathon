@@ -11,11 +11,13 @@ import { DecisaoDePedidoDeEntrada } from "@/interface/componentes/decisao-de-ped
 import type { EtiquetaNaTela } from "@/interface/componentes/etiquetas-de-participante";
 import { EtiquetasNaLinha } from "@/interface/componentes/etiquetas-na-linha";
 import { FichaDePessoa } from "@/interface/componentes/ficha-de-pessoa";
+import { EscolhaComBusca } from "@/interface/componentes/filtro-com-busca";
 import {
   CAIXA_DO_FILTRO,
   CONTAGEM_DO_FILTRO,
   OPCAO_DO_FILTRO,
 } from "@/interface/componentes/filtro-rapido";
+import { ROTULO_ACIMA } from "@/interface/componentes/filtros-da-lista";
 import type { ImpedimentoNaTela } from "@/interface/componentes/frases-da-remocao";
 import { TEXTOS_DA_TABELA } from "@/interface/componentes/frases-de-participantes";
 import {
@@ -135,7 +137,7 @@ export function TabelaDeParticipantes({
   areas: ReadonlyArray<{ id: string; nome: string }>;
   organizacaoId: string;
   euPessoaId: string;
-  /** Todas as etiquetas desta organização, inclusive as sem uso: são as opções da segunda régua (item 115). */
+  /** Todas as etiquetas desta organização, inclusive as sem uso: são as opções do filtro de etiqueta (itens 115 e 120). */
   etiquetas: readonly EtiquetaNaTela[];
 }) {
   const caminho = usePathname();
@@ -181,6 +183,9 @@ export function TabelaDeParticipantes({
   }
 
   const acoes = { areas, organizacaoId, responsabilidades, aoSair: focarFiltro };
+  const textoDaEtiqueta =
+    (etiqueta === null ? undefined : etiquetas.find((uma) => uma.id === etiqueta)?.nome) ??
+    TEXTOS_DA_TABELA.todasAsEtiquetas;
   // Com etiqueta escolhida, o vazio do papel ("Nenhum Gestor nesta organização") seria falso: há Gestor,
   // só não com esta etiqueta (item 115).
   const vazio =
@@ -190,80 +195,86 @@ export function TabelaDeParticipantes({
 
   return (
     <div className="flex flex-col gap-5.5">
-      {/* **As duas réguas num grupo só, com 8 px entre elas** (item 115). São um filtro de duas perguntas,
-          e o respiro de 22 px da página as leria como dois blocos soltos; sem respiro nenhum, as caixas se
-          tocariam. Não há precedente no código para duas réguas empilhadas. */}
-      <div className="flex flex-col gap-2">
-        <ToggleGroup
-          id={idDoFiltro}
-          type="single"
-          spacing={1}
-          value={endereco.filtro}
-          aria-label={TEXTOS_DA_TABELA.filtrar}
-          onValueChange={(escolhido) => {
-            // Escolha única não se desmarca: o Radix devolve `""` ao tocar na opção marcada.
-            const filtro = FILTROS.find((valor) => valor === escolhido);
-            if (filtro !== undefined) escrever(comFiltro(endereco, filtro));
-          }}
-          className={CAIXA_DO_FILTRO}
-        >
-          {FILTROS.map((filtro) => (
-            <OpcaoDoFiltro key={filtro} filtro={filtro} quantos={contagens[filtro]} />
-          ))}
-        </ToggleGroup>
-
-        {etiquetas.length > 0 && (
-          <ToggleGroup
-            type="single"
-            spacing={1}
-            value={etiqueta ?? "todas"}
-            aria-label={TEXTOS_DA_TABELA.filtrarPorEtiqueta}
-            onValueChange={(escolhido) => {
-              // Escolha única não se desmarca: o Radix devolve `""` ao tocar na opção marcada.
-              if (escolhido === "") return;
-              escrever(comEtiqueta(endereco, escolhido === "todas" ? null : escolhido));
-            }}
-            className={CAIXA_DO_FILTRO}
-          >
-            <ToggleGroupItem value="todas" className={OPCAO_DO_FILTRO}>
-              {TEXTOS_DA_TABELA.todasAsEtiquetas}
-              <span className={CONTAGEM_DO_FILTRO}>{contagensDaEtiqueta["todas"]}</span>
-            </ToggleGroupItem>
-            {etiquetas.map((opcao) => (
-              <ToggleGroupItem key={opcao.id} value={opcao.id} className={OPCAO_DO_FILTRO}>
-                {opcao.nome}
-                <span className={CONTAGEM_DO_FILTRO}>{contagensDaEtiqueta[opcao.id] ?? 0}</span>
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-        )}
-      </div>
+      <ToggleGroup
+        id={idDoFiltro}
+        type="single"
+        spacing={1}
+        value={endereco.filtro}
+        aria-label={TEXTOS_DA_TABELA.filtrar}
+        onValueChange={(escolhido) => {
+          // Escolha única não se desmarca: o Radix devolve `""` ao tocar na opção marcada.
+          const filtro = FILTROS.find((valor) => valor === escolhido);
+          if (filtro !== undefined) escrever(comFiltro(endereco, filtro));
+        }}
+        className={CAIXA_DO_FILTRO}
+      >
+        {FILTROS.map((filtro) => (
+          <OpcaoDoFiltro key={filtro} filtro={filtro} quantos={contagens[filtro]} />
+        ))}
+      </ToggleGroup>
 
       <div className="border-linha bg-superficie overflow-hidden rounded-lg border shadow-sm">
-        <div className="border-linha-suave flex flex-col gap-1.5 border-b px-4 py-3 md:flex-row md:items-center md:gap-3">
-          <label htmlFor={`${prefixo}-busca`} className="text-interface text-tinta font-medium whitespace-nowrap">
-            {TEXTOS_DA_TABELA.buscar}
-          </label>
-          <div className="relative md:w-72">
-            <Search
-              aria-hidden="true"
-              className="text-tinta-suave pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
-            />
-            <Input
-              id={`${prefixo}-busca`}
-              type="search"
-              inputMode="search"
-              autoComplete="off"
-              /* O teto da coluna e do schema, para um nome inteiro caber. */
-              maxLength={120}
-              placeholder={TEXTOS_DA_TABELA.exemploDaBusca}
-              value={busca}
-              onChange={(evento) => {
-                aoBuscar(evento.currentTarget.value);
-              }}
-              className="border-linha bg-background h-11 pl-9"
-            />
+        {/* A linha da busca: o nome e, quando a organização tem etiqueta, a etiqueta — os dois com o rótulo
+            acima (item 120, blocos 6 e 12). A etiqueta é seleção única com busca, a peça de T-03, e o estado
+            continua no endereço (`etiqueta=<id>`). */}
+        <div className="border-linha-suave flex flex-col gap-3 border-b px-4 py-3 md:flex-row md:items-end">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor={`${prefixo}-busca`} className={ROTULO_ACIMA}>
+              {TEXTOS_DA_TABELA.buscar}
+            </label>
+            <div className="relative md:w-72">
+              <Search
+                aria-hidden="true"
+                className="text-tinta-suave pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2"
+              />
+              <Input
+                id={`${prefixo}-busca`}
+                type="search"
+                inputMode="search"
+                autoComplete="off"
+                /* O teto da coluna e do schema, para um nome inteiro caber. */
+                maxLength={120}
+                placeholder={TEXTOS_DA_TABELA.exemploDaBusca}
+                value={busca}
+                onChange={(evento) => {
+                  aoBuscar(evento.currentTarget.value);
+                }}
+                className="border-linha bg-background h-11 pl-9"
+              />
+            </div>
           </div>
+          {etiquetas.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor={`${prefixo}-etiqueta`} className={ROTULO_ACIMA}>
+                {TEXTOS_DA_TABELA.filtrarPorEtiqueta}
+              </label>
+              <EscolhaComBusca
+                id={`${prefixo}-etiqueta`}
+                nome={TEXTOS_DA_TABELA.filtrarPorEtiqueta}
+                // O nome acessível contém o texto visível (WCAG 2.5.3), nas duas situações.
+                rotuloAcessivel={`${TEXTOS_DA_TABELA.filtrarPorEtiqueta}: ${textoDaEtiqueta}`}
+                textoDoGatilho={textoDaEtiqueta}
+                ligado={etiqueta !== null}
+                // *Todas* vem sempre primeiro e nunca some (spec §3.4); as etiquetas, em ordem alfabética.
+                fixa={{
+                  valor: "todas",
+                  rotulo: TEXTOS_DA_TABELA.todasAsEtiquetas,
+                  complemento: String(contagensDaEtiqueta["todas"] ?? 0),
+                }}
+                opcoes={etiquetas.map((opcao) => ({
+                  valor: opcao.id,
+                  rotulo: opcao.nome,
+                  complemento: String(contagensDaEtiqueta[opcao.id] ?? 0),
+                }))}
+                aoEscolher={(valor) => {
+                  escrever(comEtiqueta(endereco, valor === null || valor === "todas" ? null : valor));
+                }}
+                textoDaBusca={TEXTOS_DA_TABELA.buscarEtiqueta}
+                textoDoVazio={TEXTOS_DA_TABELA.semEtiquetaComEsseNome}
+                comLimpar={false}
+              />
+            </div>
+          )}
         </div>
 
         {estado === "vazio-do-filtro" && <VazioDaTabela titulo={vazio.titulo} corpo={vazio.corpo} />}

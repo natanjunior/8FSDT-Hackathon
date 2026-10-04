@@ -336,6 +336,7 @@ describe("o cartão da configuração — critérios 120.17 a 120.19", () => {
     expect(cartao).toContain("contagemDeParticipantes(uso[etiqueta.id] ?? 0)");
   });
 
-  // O arquivo só sai na Tarefa 10, quando `vinculos/page.tsx` deixar de importá-lo; lá o corpo é escrito.
-  it.todo("a gerência antiga saiu do repositório");
+  it("a gerência antiga saiu do repositório", () => {
+    expect(() => readFileSync(fileURLToPath(new URL("../../src/interface/componentes/gerencia-de-etiquetas.tsx", import.meta.url)), "utf8")).toThrow();
+  });
 });

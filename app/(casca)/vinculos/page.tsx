@@ -14,14 +14,12 @@ import {
 } from "@/aplicacao/organizacao";
 import { BotaoDeExportacao } from "@/interface/componentes/botao-de-exportacao";
 import { CabecalhoDaPagina } from "@/interface/componentes/cabecalho-da-pagina";
-import { usoPorEtiqueta } from "@/interface/componentes/etiquetas-de-participante";
 import type { ImpedimentoNaTela } from "@/interface/componentes/frases-da-remocao";
 import {
   SEM_PEDIDOS,
   palavraDeParticipantes,
   palavraDePedidos,
 } from "@/interface/componentes/frases-de-participantes";
-import { GerenciaDeEtiquetas } from "@/interface/componentes/gerencia-de-etiquetas";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
 import { TabelaDeParticipantes } from "@/interface/componentes/tabela-de-participantes";
 import { buttonVariants } from "@/interface/componentes/ui/button";
@@ -96,14 +94,6 @@ export default async function Participantes() {
             {/* Sempre: a tela já é de `vinculo.gerir`, e a lista nunca é vazia, porque quem gere está nela.
                 O arquivo leva e-mail e telefone (item 124). */}
             <BotaoDeExportacao endereco="/api/vinculos/exportacao" />
-            {/* Sem etiqueta não há o que gerir: a primeira nasce no detalhe de um participante (item 115). */}
-            {etiquetas.length > 0 && (
-              <GerenciaDeEtiquetas
-                etiquetas={etiquetas}
-                uso={usoPorEtiqueta(vinculosProjetados)}
-                organizacaoId={escopo.ctx.vinculo.organizacaoId}
-              />
-            )}
             <Link
               href="/vinculos/nova"
               className={cn(

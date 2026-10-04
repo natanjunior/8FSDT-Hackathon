@@ -246,8 +246,8 @@ participantes ganha a coluna Etiquetas, que mostra as duas primeiras em ordem al
 demais; no celular, a mesma regra vale numa linha abaixo do papel, e a lista não rola de lado. A coluna só
 aparece quando a organização tem alguma etiqueta.
 
-Abaixo do filtro por papel entra uma segunda régua, por etiqueta, com uma etiqueta por vez e o estado no
-endereço. As duas se combinam, e as contagens de cada uma são da lista inteira.
+Na linha da busca por nome entra o filtro por etiqueta, com uma etiqueta por vez, busca dentro e o estado
+no endereço. Ele se combina com o filtro por papel, e as contagens dos dois são da lista inteira.
 
 As etiquetas da organização ficam na configuração, num cartão próprio: cada uma com quantos participantes
 a têm, uma busca pelo nome e o botão de apagar, que confirma dizendo em quantas pessoas ela está. Uma
