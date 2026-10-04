@@ -115,6 +115,30 @@ function ehResposta(valor: unknown): valor is RespostaDoManipulador {
   return typeof valor === "object" && valor !== null && MARCA_DE_RESPOSTA in valor;
 }
 
+const MARCA_DE_ARQUIVO = Symbol("arquivo-do-manipulador");
+
+type ArquivoDoManipulador = {
+  readonly [MARCA_DE_ARQUIVO]: true;
+  readonly conteudo: string;
+  readonly nome: string;
+  readonly tipo: string;
+};
+
+/**
+ * **Para o handler que devolve um arquivo, e não JSON** (item 124). O corpo vai como veio, com
+ * `Content-Disposition: attachment` e `Cache-Control: no-store`, porque o arquivo leva dado da organização
+ * e contato de gente. **O erro continua `problem+json`**: só o sucesso muda de forma.
+ *
+ * `nome` tem de ser ASCII: vai entre aspas em `filename="…"`, sem a forma estendida da RFC 6266.
+ */
+export function arquivo(conteudo: string, opcoes: { nome: string; tipo: string }): ArquivoDoManipulador {
+  return { [MARCA_DE_ARQUIVO]: true, conteudo, nome: opcoes.nome, tipo: opcoes.tipo };
+}
+
+function ehArquivo(valor: unknown): valor is ArquivoDoManipulador {
+  return typeof valor === "object" && valor !== null && MARCA_DE_ARQUIVO in valor;
+}
+
 // ---------------------------------------------------------------------------
 // As duas entradas
 // ---------------------------------------------------------------------------
@@ -127,6 +151,8 @@ export type EntradaEscopada<C> = {
   repos: RepositoriosEscopados;
   /** A coluna que esta requisição inteira fala — resolvida uma vez, no ponto único (item 100). */
   lente: LenteDeRotulo;
+  /** A organização ativa, `{ id, nome }`: o par que o `catch` já guardava, agora também do handler. */
+  organizacao: { id: string; nome: string };
   corpo: C;
   parametros: Readonly<Record<string, string>>;
   requisicao: Request;
@@ -238,10 +264,11 @@ export function comContexto<C = undefined>(
       const { resolucao } = await abrirRequisicao();
 
       if (resolucao.ativo === null) throw new SemOrganizacaoAtiva();
-      organizacaoAtiva = {
+      const organizacao = {
         id: resolucao.ativo.organizacao.id,
         nome: resolucao.ativo.organizacao.nome,
       };
+      organizacaoAtiva = organizacao;
 
       await conferirAfirmacaoDeOrganizacao(resolucao.ativo.organizacao.id);
 
@@ -258,6 +285,7 @@ export function comContexto<C = undefined>(
         ctx,
         repos,
         lente: await lenteDaRequisicao(ctx, repos),
+        organizacao,
         corpo: await lerCorpo(requisicao, opcoes.corpo, opcoes.recusar, opcoes.corpoOpcional === true),
         parametros: await lerParametros(contextoDaRota),
         requisicao,
@@ -620,6 +648,17 @@ async function lerParametros(contexto: ContextoDaRota | undefined): Promise<Reco
 }
 
 function montarResposta(resultado: unknown): Response {
+  if (ehArquivo(resultado)) {
+    return new Response(resultado.conteudo, {
+      status: 200,
+      headers: {
+        "content-type": resultado.tipo,
+        "content-disposition": `attachment; filename="${resultado.nome}"`,
+        "cache-control": "no-store",
+      },
+    });
+  }
+
   const { corpo, status, cabecalhos } = ehResposta(resultado)
     ? resultado
     : { corpo: resultado, status: 200, cabecalhos: {} as Record<string, string> };

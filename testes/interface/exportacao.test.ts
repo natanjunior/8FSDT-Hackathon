@@ -248,3 +248,22 @@ describe("nenhuma dependência nova — critério 7", () => {
     }
   });
 });
+
+describe("as quatro rotas — critério 3", () => {
+  const RAIZ_DA_API = fileURLToPath(new URL("../../app/api/", import.meta.url));
+  const ROTAS = {
+    "ocorrencias/exportacao/route.ts": "ocorrencia.ler_todas",
+    "vinculos/exportacao/route.ts": "vinculo.gerir",
+    "areas/exportacao/route.ts": "organizacao.configurar",
+    "categorias/exportacao/route.ts": "organizacao.configurar",
+  } as const;
+
+  it.each(Object.entries(ROTAS))("%s exige %s, só GET, e não lê a URL", (rota, permissao) => {
+    const fonte = readFileSync(`${RAIZ_DA_API}${rota}`, "utf8");
+    expect(fonte.match(/exige: "([^"]+)"/gu)).toStrictEqual([`exige: "${permissao}"`]);
+    expect(fonte).toMatch(/^export const GET = comContexto\(/mu);
+    expect(fonte).not.toMatch(/^export const (POST|PUT|PATCH|DELETE)\b/mu);
+    // Sem filtro, sem ordem, sem página (critério 1): a rota nem olha a consulta.
+    expect(fonte).not.toMatch(/searchParams|requisicao\.url|lerFiltro|lerPaginacao|lerBooleanoDaUrl/u);
+  });
+});
