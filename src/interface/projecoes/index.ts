@@ -11,6 +11,13 @@ export {
 } from "./convite-pessoal";
 
 export {
+  projetarResumoDoEnvio,
+  projetarSituacaoDoEmail,
+  type ResumoDoEnvioProjetado,
+  type SituacaoDoEmailProjetada,
+} from "./envio-de-convite";
+
+export {
   projetarDashboard,
   type DashboardProjetado,
   type PontoDoMesProjetado,

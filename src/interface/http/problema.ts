@@ -67,6 +67,7 @@ const STATUS_POR_CODIGO: Readonly<Record<string, number>> = {
   ANEXO_NAO_RECONHECIDO: 422,
   ANEXO_ACIMA_DO_LIMITE: 422,
   CAMPO_NAO_SUPORTADO: 422,
+  LOTE_DE_ENVIO_INVALIDO: 422,
   // 429 · o único limite de chamadas do contrato (§10.3)
   LIMITE_DE_AUTORIZACOES_DE_UPLOAD: 429,
   // 500

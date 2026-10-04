@@ -110,4 +110,6 @@ export { atribuicaoDeEtiquetaSchema, type EntradaDeAtribuicaoDeEtiqueta } from "
 
 export { FORMATO_DO_TOKEN } from "./convite-pessoal";
 
+export { envioDeConvitesSchema, type EntradaDeEnvioDeConvites } from "./envio-de-convite";
+
 export { errosDoSchema, mensagensPorCampo } from "./violacoes";

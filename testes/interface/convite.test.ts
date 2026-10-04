@@ -21,7 +21,9 @@ import {
   rodapeDoModal,
 } from "@/interface/componentes/convite-pessoal";
 import { modulosDoQr } from "@/interface/componentes/qr";
-import { destinoDoConvite, linkDoConvite, linkDoConvitePessoal } from "@/interface/http";
+import { LoteDeEnvioInvalido } from "@/aplicacao/organizacao";
+import { destinoDoConvite, linkDoConvite, linkDoConvitePessoal, problemaDe } from "@/interface/http";
+import { envioDeConvitesSchema } from "@/interface/schemas";
 import { projetarConvitePessoal } from "@/interface/projecoes";
 
 /**
@@ -268,5 +270,34 @@ describe("o convite pessoal, nas telas (item 121)", () => {
     expect(detalhe).toContain('convite === "botao" ? (');
     expect(detalhe).toContain("<ConvidarParticipante");
     expect(detalhe).toContain("TEXTOS_DO_CONVITE_PESSOAL.semConviteEncarregado");
+  });
+});
+
+describe("o envio por e-mail (item 122)", () => {
+  const UUID = "4f6c1d6e-2b7a-4c1e-9f3a-1c2d3e4f5a6b";
+
+  it("a rota existe, exporta só POST, exige vinculo.gerir e lê o corpo pelo schema", () => {
+    const fonte = ler("app/api/convites-pessoais/envios/route.ts");
+    expect(fonte.match(/^export const (GET|POST|PUT|PATCH|DELETE) /gmu)).toStrictEqual(["export const POST "]);
+    expect(fonte).toContain('{ exige: "vinculo.gerir", corpo: envioDeConvitesSchema }');
+  });
+
+  it("a rota não está em lista fechada nenhuma: roda com sessão e organização", () => {
+    const lint = ler("eslint.config.mjs");
+    expect(lint).not.toContain("convites-pessoais/envios");
+  });
+
+  it("o schema confere só a forma: lista de UUID, sem campo a mais", () => {
+    expect(envioDeConvitesSchema.safeParse({ pessoaIds: "x" }).success).toBe(false);
+    expect(envioDeConvitesSchema.safeParse({ pessoaIds: ["nao-e-uuid"] }).success).toBe(false);
+    expect(envioDeConvitesSchema.safeParse({ pessoaIds: [UUID], extra: 1 }).success).toBe(false);
+    expect(envioDeConvitesSchema.safeParse({ pessoaIds: [] }).success).toBe(true);
+    expect(envioDeConvitesSchema.safeParse({ pessoaIds: Array.from({ length: 25 }, () => UUID) }).success).toBe(true);
+  });
+
+  it("o lote inválido é 422, com o código próprio", () => {
+    const { status, corpo } = problemaDe(new LoteDeEnvioInvalido("Envie até 20 por vez."), "/api/convites-pessoais/envios");
+    expect(status).toBe(422);
+    expect(corpo.codigo).toBe("LOTE_DE_ENVIO_INVALIDO");
   });
 });

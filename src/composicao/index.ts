@@ -4,6 +4,7 @@ import { randomBytes } from "node:crypto";
 
 import type { PortaDeCredenciais } from "@/aplicacao/credenciais";
 import type {
+  Carteiro,
   LeituraDeConvitesPessoais,
   RepositorioDeConvites,
   RepositorioDeConvitesPessoais,
@@ -11,6 +12,7 @@ import type {
 import {
   criarArmazenamentoDeAnexos,
   criarAutenticacao,
+  criarCarteiro,
   criarConsulta,
   criarCredenciais,
   criarEmissorDeCredencialDeUpload,
@@ -226,6 +228,14 @@ export function montarPortasDeAnexo(): PortasDeAnexo {
  */
 export function novoTokenDeConvite(): string {
   return randomBytes(32).toString("base64url");
+}
+
+/**
+ * O carteiro do convite por e-mail (item 122, ADR-0022). Não é escopado: o adaptador não conhece
+ * organização, e o que amarra o escopo é o registro do envio, na transação escopada.
+ */
+export function montarCarteiro(): Carteiro {
+  return criarCarteiro();
 }
 
 /** A porta das telas de credencial (T-01, T-11). */
