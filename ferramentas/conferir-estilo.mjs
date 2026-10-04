@@ -148,16 +148,16 @@ const PECAS = [
   },
   {
     id: "caixa-das-abas",
-    // Item 104, critério 9: sem caixa. Mede a raiz do primitivo, com a base dele, e não só a constante.
+    // Item 104, critério 9: sem caixa. Item 120, bloco 13: sem régua. Mede a raiz do primitivo, com a base dele.
     html: () =>
       renderToStaticMarkup(
         h(ToggleGroup, { type: "single", className: CAIXA_DO_FILTRO }, h(ToggleGroupItem, { value: "todas", className: OPCAO_DO_FILTRO }, "Todas")),
       ),
     seletor: "[data-slot=toggle-group]",
     esperado: {
-      "border-top-left-radius": "0px",
       "padding-top": "0px",
-      "border-bottom-width": "1px",
+      "padding-bottom": "0px",
+      "border-bottom-width": "0px",
       "background-color": "rgba(0, 0, 0, 0)",
     },
   },
