@@ -225,3 +225,46 @@ describe("a lista é por recurso (critério 11)", () => {
     }
   });
 });
+
+const FONTE_DA_PECA = readFileSync(fileURLToPath(new URL("../../src/interface/componentes/ui/multi-select.tsx", import.meta.url)), "utf8");
+const PACOTE = JSON.parse(readFileSync(fileURLToPath(new URL("../../package.json", import.meta.url)), "utf8")) as {
+  dependencies: Record<string, string>;
+};
+
+describe("a peça de seleção múltipla — critérios 120.9 e 120.10", () => {
+  it("é a do @designrevision, sobre Popover, Command e Badge, e não traz pacote novo", () => {
+    expect(FONTE_DA_PECA).toContain('from "@/interface/componentes/ui/popover"');
+    expect(FONTE_DA_PECA).toContain('from "@/interface/componentes/ui/command"');
+    expect(FONTE_DA_PECA).toContain('from "@/interface/componentes/ui/badge"');
+    const origens = [...FONTE_DA_PECA.matchAll(/from "([^"]+)"/gu)].map((achado) => achado[1] ?? "");
+    for (const origem of origens) {
+      expect(origem === "react" || origem === "lucide-react" || origem.startsWith("@/"), origem).toBe(true);
+    }
+    expect(Object.keys(PACOTE.dependencies)).toContain("lucide-react");
+    const registro = JSON.parse(readFileSync(fileURLToPath(new URL("../../components.json", import.meta.url)), "utf8")) as {
+      registries?: Record<string, string>;
+    };
+    expect(registro.registries?.["@designrevision"]).toBe("https://registry.designrevision.com/r/{name}.json");
+  });
+
+  it("a ficha tira por um botão de verdade, fora do gatilho, com 44 px de alvo e nome em pt-BR", () => {
+    // Nada de `role="button"` em `span`, e nada de `tabIndex={-1}`: o teclado alcança o X.
+    expect(FONTE_DA_PECA).not.toContain('role="button"');
+    expect(FONTE_DA_PECA).not.toContain("tabIndex={-1}");
+    expect(FONTE_DA_PECA).toContain("aria-label={rotuloDeTirar(labelFor(val))}");
+    // A área de toque cresce sem crescer o desenho: 20 px de botão e 12 px de aba para cada lado.
+    expect(FONTE_DA_PECA).toContain("after:absolute after:-inset-3");
+    // E a ficha não recorta essa área: a base do `Badge` tem `overflow-hidden` (`ui/badge.tsx:7`).
+    expect(FONTE_DA_PECA).toContain('<Badge variant="secondary" className="gap-1 overflow-visible pr-1">');
+    // O gatilho é o `combobox`, e as fichas não moram dentro dele.
+    const gatilho = /<PopoverTrigger asChild>[\s\S]*?<\/PopoverTrigger>/u.exec(FONTE_DA_PECA)?.[0] ?? "";
+    expect(gatilho).toContain('role="combobox"');
+    expect(gatilho).not.toContain("<Badge");
+  });
+
+  it("a busca é a que quem usa passa, e a de fábrica do cmdk desliga com ela", () => {
+    expect(FONTE_DA_PECA).toContain("<Command shouldFilter={!onSearch && !filtrar}>");
+    expect(FONTE_DA_PECA).not.toMatch(/"(?:Select…|Search…|No results\.|Loading…)"/u);
+    expect(FONTE_DA_PECA).not.toContain("Create &ldquo;");
+  });
+});
