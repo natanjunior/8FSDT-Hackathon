@@ -1,6 +1,7 @@
 "use client";
 
-import { Check, Copy, RefreshCw, Send, Share2 } from "lucide-react";
+import { Check, Copy, Mail, RefreshCw, Send, Share2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
@@ -11,7 +12,17 @@ import {
   rodapeDoModal,
   tituloDoModal,
 } from "@/interface/componentes/convite-pessoal";
-import { mensagemDoProblema } from "@/interface/componentes/retorno-de-acao";
+import {
+  TEXTOS_DO_ENVIO,
+  desfechoDoEnvioUnico,
+  fraseDoImpedimento,
+  linhaDoUltimoEnvio,
+  motivoDoEnvioUnico,
+  principalDoModal,
+  reciboDoEnvio,
+  vaiPara,
+} from "@/interface/componentes/envio-de-convite";
+import { avisarSucesso, mensagemDoProblema } from "@/interface/componentes/retorno-de-acao";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -35,7 +46,7 @@ import { Skeleton } from "@/interface/componentes/ui/skeleton";
 import { Textarea } from "@/interface/componentes/ui/textarea";
 import { useCopiar } from "@/interface/ganchos/use-copiar";
 import { useEnvioDoModal, type DesfechoDoEnvio } from "@/interface/ganchos/use-envio-do-modal";
-import type { ConviteDoGestorProjetado } from "@/interface/projecoes";
+import type { ConviteDoGestorProjetado, SituacaoDoEmailProjetada } from "@/interface/projecoes";
 
 const BOTAO = "text-interface min-h-11 rounded-sm px-4";
 
@@ -52,6 +63,11 @@ const BOTAO = "text-interface min-h-11 rounded-sm px-4";
  * pago uma vez (item 93). *Copiar* vira *Compartilhar* onde o aparelho tem a folha do sistema.
  *
  * `Dialog` do catálogo, e não o `Modal`: o `Modal` é da família de formulário, e aqui não há o que enviar.
+ *
+ * **O bloco de e-mail (item 122)** fica entre o link e os botões: o endereço que vai receber, o último
+ * envio, e o impedimento como texto. **Um botão principal por vez**: quando o e-mail pode sair, *Enviar
+ * convite por e-mail* é o principal e *Copiar* passa a secundário; com impedimento, o botão de e-mail não
+ * aparece e *Copiar* continua o principal. Nenhum botão fica desabilitado com motivo: só enquanto envia.
  */
 export function ConvidarParticipante({
   pessoaId,
@@ -59,6 +75,7 @@ export function ConvidarParticipante({
   organizacaoId,
   organizacao,
   papel,
+  situacaoDoEmail,
 }: {
   pessoaId: string;
   nome: string;
@@ -67,7 +84,10 @@ export function ConvidarParticipante({
   organizacao: string;
   /** O papel em palavra (`rotuloDoPapel`). */
   papel: string;
+  /** O que a página leu sobre o e-mail desta pessoa (item 122). */
+  situacaoDoEmail: SituacaoDoEmailProjetada;
 }) {
+  const [aberto, setAberto] = useState(false);
   const [convite, setConvite] = useState<ConviteDoGestorProjetado | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -88,8 +108,10 @@ export function ConvidarParticipante({
 
   return (
     <Dialog
-      onOpenChange={(aberto) => {
-        if (aberto) void garantir();
+      open={aberto}
+      onOpenChange={(proximo) => {
+        setAberto(proximo);
+        if (proximo) void garantir();
       }}
     >
       <DialogTrigger asChild>
@@ -116,6 +138,8 @@ export function ConvidarParticipante({
             pessoaId={pessoaId}
             organizacaoId={organizacaoId}
             aoRenovar={setConvite}
+            situacaoDoEmail={situacaoDoEmail}
+            fechar={() => setAberto(false)}
           />
         )}
       </DialogContent>
@@ -128,12 +152,17 @@ function CorpoDoConvite({
   pessoaId,
   organizacaoId,
   aoRenovar,
+  situacaoDoEmail,
+  fechar,
 }: {
   convite: ConviteDoGestorProjetado;
   pessoaId: string;
   organizacaoId: string;
   aoRenovar: (convite: ConviteDoGestorProjetado) => void;
+  situacaoDoEmail: SituacaoDoEmailProjetada;
+  fechar: () => void;
 }) {
+  const principal = principalDoModal(situacaoDoEmail);
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
@@ -150,10 +179,11 @@ function CorpoDoConvite({
         />
       </div>
 
-      {/* Item 122: o bloco do e-mail (endereço, último envio, botão) entra aqui, entre o link e os botões. */}
+      {/* Item 122: o bloco do e-mail, entre o link e os botões. */}
+      <BlocoDoEmail situacao={situacaoDoEmail} pessoaId={pessoaId} organizacaoId={organizacaoId} fechar={fechar} />
 
       <div className="flex flex-col gap-2.5 sm:flex-row">
-        <BotaoDeCopiar link={convite.link} />
+        <BotaoDeCopiar link={convite.link} principal={principal === "copiar"} />
         <GerarNovoLink pessoaId={pessoaId} organizacaoId={organizacaoId} aoRenovar={aoRenovar} />
       </div>
 
@@ -167,7 +197,7 @@ function CorpoDoConvite({
  * conteúdo do `Dialog` não é desenhado no servidor), então ler `navigator` aqui não diverge da hidratação.
  * Se a folha recusar com outra coisa que não o cancelamento, cai no copiar.
  */
-function BotaoDeCopiar({ link }: { link: string }) {
+function BotaoDeCopiar({ link, principal }: { link: string; principal: boolean }) {
   const { desfecho, copiar, copiaManual } = useCopiar(link);
   const podeCompartilhar = typeof navigator !== "undefined" && typeof navigator.share === "function";
 
@@ -183,7 +213,12 @@ function BotaoDeCopiar({ link }: { link: string }) {
 
   return (
     <div className="flex flex-col gap-2">
-      <Button type="button" variant="marca" className={`${BOTAO} font-semibold`} onClick={() => void agir()}>
+      <Button
+        type="button"
+        variant={principal ? "marca" : "outline"}
+        className={principal ? `${BOTAO} font-semibold` : `border-linha ${BOTAO}`}
+        onClick={() => void agir()}
+      >
         {desfecho === "copiado" ? (
           <Check aria-hidden="true" />
         ) : podeCompartilhar ? (
@@ -203,6 +238,92 @@ function BotaoDeCopiar({ link }: { link: string }) {
           </>
         )}
       </p>
+    </div>
+  );
+}
+
+/**
+ * **O bloco de e-mail do convite** (item 122). O endereço (ou, sem e-mail, a frase e o caminho para os
+ * Contatos), o último envio, o impedimento como texto, e o botão de enviar só quando nada impede.
+ *
+ * **Saiu:** o modal fecha, o recibo diz para onde, e a página relê a situação. **Falhou:** o modal fica
+ * aberto, com o motivo acima do botão, e o link continua ali para ir por outro canal.
+ */
+function BlocoDoEmail({
+  situacao,
+  pessoaId,
+  organizacaoId,
+  fechar,
+}: {
+  situacao: SituacaoDoEmailProjetada;
+  pessoaId: string;
+  organizacaoId: string;
+  fechar: () => void;
+}) {
+  const router = useRouter();
+  const [enviando, setEnviando] = useState(false);
+  const [falha, setFalha] = useState<string | null>(null);
+
+  async function enviar(email: string) {
+    if (enviando) return;
+    setEnviando(true);
+    setFalha(null);
+    let status = 0;
+    let corpo: unknown = null;
+    try {
+      const resposta = await fetch("/api/convites-pessoais/envios", {
+        method: "POST",
+        headers: cabecalhosDeEscrita(organizacaoId),
+        body: JSON.stringify({ pessoaIds: [pessoaId] }),
+      });
+      status = resposta.status;
+      corpo = await resposta.json().catch(() => null);
+    } catch {
+      status = 0;
+    }
+    setEnviando(false);
+    if (desfechoDoEnvioUnico({ status, corpo }) === "saiu") {
+      fechar();
+      avisarSucesso(reciboDoEnvio(email));
+      router.refresh();
+      return;
+    }
+    setFalha(motivoDoEnvioUnico(corpo));
+  }
+
+  const email = situacao.email;
+  return (
+    <div className="border-linha-suave flex flex-col gap-1.5 border-t pt-3">
+      {email === null ? (
+        <p className="text-interface text-tinta">
+          {fraseDoImpedimento("sem-email")}{" "}
+          <a href="#contatos" onClick={fechar} className="text-tinta-marca underline underline-offset-2">
+            {TEXTOS_DO_ENVIO.acrescentarEmail}
+          </a>
+        </p>
+      ) : (
+        <p className="text-interface text-tinta break-all">{vaiPara(email)}</p>
+      )}
+      {situacao.ultimoEnvioEm !== null && (
+        <p className="text-meta text-tinta-suave">{linhaDoUltimoEnvio(situacao.ultimoEnvioEm, new Date())}</p>
+      )}
+      {(situacao.impedimento === "limite-do-dia" || situacao.impedimento === "limite-do-participante") && (
+        <p className="text-interface text-tinta-suave">{fraseDoImpedimento(situacao.impedimento)}</p>
+      )}
+      {falha !== null && <ErroDoFormulario>{falha}</ErroDoFormulario>}
+      {principalDoModal(situacao) === "email" && email !== null && (
+        <Button
+          type="button"
+          variant="marca"
+          disabled={enviando}
+          onClick={() => void enviar(email)}
+          className={`${BOTAO} mt-1 w-fit font-semibold`}
+        >
+          <IndicadorDeEnvio ativo={enviando} />
+          <Mail aria-hidden="true" />
+          {TEXTOS_DO_ENVIO.enviarPorEmail}
+        </Button>
+      )}
     </div>
   );
 }

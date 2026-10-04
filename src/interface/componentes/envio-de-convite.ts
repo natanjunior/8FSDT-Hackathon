@@ -1,4 +1,5 @@
 import { LOTE_DE_ENVIO, type MotivoDeNaoEnvio } from "@/dominio/organizacao";
+import { dataCurta, dataEHora } from "@/interface/componentes/datas";
 
 /**
  * ============================================================================
@@ -66,4 +67,52 @@ export function tituloDosNaoEnviados(n: number): string {
 /** O que o diálogo de lote faz com a resposta: o resumo, ou a falha inteira (rede, servidor, tempo). */
 export function desfechoDoLote(status: number): "resumo" | "falha-inteira" {
   return status === 200 ? "resumo" : "falha-inteira";
+}
+
+/** O dia de Brasília de um instante, para comparar com o de agora. */
+function diaEmBrasilia(iso: string): string {
+  return dataCurta(iso);
+}
+
+/**
+ * `Último convite por e-mail: hoje às 10:00`, ou `… em 28/09 às 10:00`. O dia é o de Brasília: um envio às
+ * 23:30 visto às 00:10 do dia seguinte não é de hoje.
+ */
+export function linhaDoUltimoEnvio(iso: string, agora: Date): string {
+  const [data, hora] = dataEHora(iso).split(" · ");
+  const quando = diaEmBrasilia(iso) === diaEmBrasilia(agora.toISOString()) ? "hoje" : `em ${(data ?? "").slice(0, 5)}`;
+  return `Último convite por e-mail: ${quando} às ${hora ?? ""}`;
+}
+
+export function fraseDoImpedimento(impedimento: "sem-email" | "limite-do-dia" | "limite-do-participante"): string {
+  if (impedimento === "sem-email") return TEXTOS_DO_ENVIO.semEmail;
+  if (impedimento === "limite-do-dia") return TEXTOS_DO_ENVIO.limiteDoDia;
+  return TEXTOS_DO_ENVIO.limiteDoParticipante;
+}
+
+/** Um botão principal por vez: o e-mail quando pode sair; senão, o *Copiar* continua o principal. */
+export function principalDoModal(situacao: { impedimento: string | null }): "email" | "copiar" {
+  return situacao.impedimento === null ? "email" : "copiar";
+}
+
+/** O que o modal faz com a resposta de um envio de um: saiu, ou falhou (com o motivo, quando há). */
+export function desfechoDoEnvioUnico(resposta: { status: number; corpo: unknown }): "saiu" | "falhou" {
+  if (resposta.status !== 200) return "falhou";
+  const enviados = (resposta.corpo as { enviados?: unknown } | null)?.enviados;
+  return Array.isArray(enviados) && enviados.length === 1 ? "saiu" : "falhou";
+}
+
+/** A frase do motivo de um envio de um que não saiu; sem resumo, a de falha no envio. */
+export function motivoDoEnvioUnico(corpo: unknown): string {
+  const naoEnviados = (corpo as { naoEnviados?: Array<{ motivo?: MotivoDeNaoEnvio }> } | null)?.naoEnviados;
+  const motivo = Array.isArray(naoEnviados) ? naoEnviados[0]?.motivo : undefined;
+  return FRASE_DO_MOTIVO[motivo ?? "falha-no-envio"] ?? FRASE_DO_MOTIVO["falha-no-envio"];
+}
+
+export function vaiPara(email: string): string {
+  return `Vai para ${email}`;
+}
+
+export function reciboDoEnvio(email: string): string {
+  return `Convite enviado para ${email}`;
 }

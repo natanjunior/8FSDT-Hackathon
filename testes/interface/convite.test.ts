@@ -22,7 +22,11 @@ import {
 } from "@/interface/componentes/convite-pessoal";
 import {
   FRASE_DO_MOTIVO,
+  desfechoDoEnvioUnico,
   desfechoDoLote,
+  fraseDoImpedimento,
+  linhaDoUltimoEnvio,
+  principalDoModal,
   excessoDoLote,
   faixaDaSelecao,
   perguntaDoLote,
@@ -284,7 +288,7 @@ describe("o convite pessoal, nas telas (item 121)", () => {
 
   it("o detalhe monta o modal só quando o convite cabe", () => {
     const detalhe = ler("app/(casca)/vinculos/[pessoaId]/editar/page.tsx");
-    expect(detalhe).toContain('convite === "botao" ? (');
+    expect(detalhe).toContain('convite === "botao" && situacaoDoEmail !== null ? (');
     expect(detalhe).toContain("<ConvidarParticipante");
     expect(detalhe).toContain("TEXTOS_DO_CONVITE_PESSOAL.semConviteEncarregado");
   });
@@ -417,5 +421,55 @@ describe("a seleção e o envio em massa (item 122)", () => {
     expect(dialogo).toContain("excessoDoLote(n) === null && (");
     expect(dialogo).toContain("onEscapeKeyDown");
     expect(dialogo).toContain("if (enviando) return;");
+  });
+});
+
+describe("o bloco de e-mail no modal do convite (item 122)", () => {
+  it("a linha do último envio diz hoje no mesmo dia de Brasília, e a data em outro", () => {
+    const agora = new Date("2026-10-04T16:00:00.000Z");
+    expect(linhaDoUltimoEnvio("2026-10-04T13:00:00.000Z", agora)).toBe("Último convite por e-mail: hoje às 10:00");
+    expect(linhaDoUltimoEnvio("2026-09-28T13:00:00.000Z", agora)).toBe("Último convite por e-mail: em 28/09 às 10:00");
+  });
+
+  it("à meia-noite de Brasília, o envio das 23:30 não é de hoje às 00:10", () => {
+    expect(linhaDoUltimoEnvio("2026-10-04T02:30:00.000Z", new Date("2026-10-04T03:10:00.000Z"))).toBe(
+      "Último convite por e-mail: em 03/10 às 23:30",
+    );
+  });
+
+  it("as frases dos três impedimentos", () => {
+    expect(fraseDoImpedimento("sem-email")).toBe("Sem e-mail cadastrado.");
+    expect(fraseDoImpedimento("limite-do-dia")).toBe("Este endereço já recebeu convite hoje. O próximo pode sair amanhã.");
+    expect(fraseDoImpedimento("limite-do-participante")).toBe("Já recebeu os 10 convites por e-mail.");
+  });
+
+  it("um botão principal por vez", () => {
+    expect(principalDoModal({ impedimento: null })).toBe("email");
+    expect(principalDoModal({ impedimento: "limite-do-dia" })).toBe("copiar");
+    expect(principalDoModal({ impedimento: "sem-email" })).toBe("copiar");
+  });
+
+  it("o envio de um: saiu só com um enviado; o resto é falhou", () => {
+    expect(desfechoDoEnvioUnico({ status: 200, corpo: { enviados: [{}], naoEnviados: [] } })).toBe("saiu");
+    expect(desfechoDoEnvioUnico({ status: 200, corpo: { enviados: [], naoEnviados: [{}] } })).toBe("falhou");
+    expect(desfechoDoEnvioUnico({ status: 500, corpo: null })).toBe("falhou");
+    expect(desfechoDoEnvioUnico({ status: 0, corpo: null })).toBe("falhou");
+  });
+
+  it("o modal: o botão de e-mail só quando não há impedimento, sem disabled com motivo, e o link em todos os ramos", () => {
+    const modal = ler("src/interface/componentes/convidar-participante.tsx");
+    expect(modal).toContain('principalDoModal(situacao) === "email" && email !== null && (');
+    expect(modal).toContain('<BotaoDeCopiar link={convite.link} principal={principal === "copiar"} />');
+    // Os únicos `disabled` são os do carregamento.
+    const desabilitados = modal.match(/disabled=\{[^}]+\}/gu) ?? [];
+    expect(desabilitados.every((d) => /enviando/u.test(d))).toBe(true);
+    expect(modal).toContain('href="#contatos"');
+  });
+
+  it("o detalhe lê a situação do e-mail e a passa ao modal", () => {
+    const detalhe = ler("app/(casca)/vinculos/[pessoaId]/editar/page.tsx");
+    expect(detalhe).toContain("situacaoDoConvitePorEmail(escopo.repos, vinculo)");
+    expect(detalhe).toContain("situacaoDoEmail={situacaoDoEmail}");
+    expect(ler("src/interface/componentes/sub-formulario-de-contatos.tsx")).toContain('id="contatos"');
   });
 });

@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { Fragment } from "react";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
-import { listarAreas, listarEtiquetas, verVinculo } from "@/aplicacao/organizacao";
+import { listarAreas, listarEtiquetas, situacaoDoConvitePorEmail, verVinculo } from "@/aplicacao/organizacao";
 import { CabecalhoDaPagina } from "@/interface/componentes/cabecalho-da-pagina";
 import { CaminhoDaPagina } from "@/interface/componentes/caminho-da-pagina";
 import { CartaoDeEtiquetas } from "@/interface/componentes/cartao-de-etiquetas";
@@ -13,7 +13,7 @@ import { FormularioDeVinculo } from "@/interface/componentes/formulario-de-vincu
 import { fatoDeEdicao, rotuloDoPapel } from "@/interface/componentes/frases-de-participantes";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
 import { resolverEscopoParaTela } from "@/interface/http";
-import { projetarArea, projetarEtiqueta } from "@/interface/projecoes";
+import { projetarArea, projetarEtiqueta, projetarSituacaoDoEmail } from "@/interface/projecoes";
 
 /**
  * **T-08 · editar participante.**
@@ -56,14 +56,19 @@ export default async function EditarParticipante({
   // **O convite pessoal** (item 121): o botão só para Solicitante ou Gestor sem conta; nos outros dois
   // casos, uma frase com o porquê. Texto, e não botão desabilitado, que não recebe foco nem é lido.
   const convite = conviteNoDetalhe(vinculo);
+  // A situação do e-mail (item 122) depende do vínculo, então é uma leitura a mais depois dele, e só quando o
+  // convite cabe.
+  const situacaoDoEmail =
+    convite === "botao" ? projetarSituacaoDoEmail(await situacaoDoConvitePorEmail(escopo.repos, vinculo)) : null;
   const acaoDoConvite =
-    convite === "botao" ? (
+    convite === "botao" && situacaoDoEmail !== null ? (
       <ConvidarParticipante
         pessoaId={pessoaId}
         nome={vinculo.pessoa.nome}
         organizacaoId={escopo.ctx.vinculo.organizacaoId}
         organizacao={escopo.resolucao.ativo?.organizacao.nome ?? ""}
         papel={rotuloDoPapel(vinculo.papel)}
+        situacaoDoEmail={situacaoDoEmail}
       />
     ) : (
       <p className="text-interface text-tinta-suave">
