@@ -651,6 +651,61 @@ paths:
                 traceId: "01JB8Z6K9T2M4N7Q"
         "500": { $ref: "#/components/responses/ErroInterno" }
 
+  /convites-pessoais/envios:
+    post:
+      tags: [Vínculos]
+      operationId: enviarConvitesPorEmail
+      summary: Enviar o convite pessoal por e-mail, a um ou a até vinte participantes
+      description: |
+        Envia o link do convite pessoal de cada pessoa ao primeiro e-mail cadastrado dela, pela ordem dos
+        contatos. O modal do detalhe manda uma lista de um; a lista de participantes manda até 20.
+
+        **`200` com o resumo mesmo quando nenhum saiu**: a requisição deu certo, o que falhou foi cada
+        envio, e o resumo diz qual, com um de sete motivos. **Um envio por dia por endereço** na
+        organização e **dez por participante**, somando os convites já invalidados. Envio que o provedor
+        recusou não conta para limite nenhum.
+
+        **Não há fila**: o envio acontece dentro da requisição, um depois do outro, e por isso o lote tem
+        teto. A lista vazia, repetida ou acima de 20 é `422`.
+
+        *Permissão: `vinculo.gerir`.*
+      parameters:
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EnvioDeConvites" }
+            example: { pessoaIds: ["4f6c1d6e-2b7a-4c1e-9f3a-1c2d3e4f5a6b"] }
+      responses:
+        "200":
+          description: O resumo de quem recebeu e de quem não.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ResumoDoEnvio" }
+              example:
+                enviados:
+                  - { pessoaId: "4f6c1d6e-2b7a-4c1e-9f3a-1c2d3e4f5a6b", nome: "Maria Souza", email: "maria@exemplo.com" }
+                naoEnviados:
+                  - { pessoaId: "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", nome: "Caio Lima", motivo: "sem-email" }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "422":
+          description: A lista está vazia, repetida ou acima de 20.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example:
+                type: "https://resolveai.app/erros/lote-de-envio-invalido"
+                title: "Lote de envio inválido"
+                status: 422
+                detail: "Envie até 20 por vez."
+                codigo: "LOTE_DE_ENVIO_INVALIDO"
+                traceId: "01JB8Z6K9T2M4N7Q"
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
   /convites-pessoais/{token}:
     get:
       tags: [Entrada na organização]
@@ -4250,6 +4305,53 @@ components:
           type: string
           description: Decidida no servidor, para que a API e a página digam a mesma coisa.
           enum: [sem-sessao, pode-pedir, ja-participa, pedido-pendente]
+
+    EnvioDeConvites:
+      type: object
+      additionalProperties: false
+      description: |
+        Quem recebe o convite por e-mail. **Até 20**: o tamanho é regra do domínio, e a recusa é `422`, e não
+        um limite do schema.
+      required: [pessoaIds]
+      properties:
+        pessoaIds:
+          type: array
+          items: { type: string, format: uuid }
+
+    ResumoDoEnvio:
+      type: object
+      description: |
+        Quem recebeu e quem não, com o motivo. O e-mail sai aqui só para quem gere vínculos, que já vê os
+        contatos na lista. `nome` nulo é a pessoa que não participa desta organização.
+      required: [enviados, naoEnviados]
+      properties:
+        enviados:
+          type: array
+          items:
+            type: object
+            required: [pessoaId, nome, email]
+            properties:
+              pessoaId: { type: string, format: uuid }
+              nome: { type: string }
+              email: { type: string }
+        naoEnviados:
+          type: array
+          items:
+            type: object
+            required: [pessoaId, nome, motivo]
+            properties:
+              pessoaId: { type: string, format: uuid }
+              nome: { type: [string, "null"] }
+              motivo:
+                type: string
+                enum:
+                  - vinculo-revogado
+                  - sem-email
+                  - ja-tem-conta
+                  - encarregado
+                  - limite-do-dia
+                  - limite-do-participante
+                  - falha-no-envio
 
     ConviteDoGestor:
       type: object

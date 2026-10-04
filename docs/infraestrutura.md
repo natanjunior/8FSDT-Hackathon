@@ -6,7 +6,8 @@ description: "Onde cada peça roda, o que a imagem contém, a ordem da esteira d
 # Infraestrutura
 
 Um contêiner com a aplicação inteira, PostgreSQL e autenticação gerenciados, e um armazenamento de objetos
-para as imagens. Tudo dentro de franquias gratuitas permanentes, e a mesma imagem roda na máquina de quem
+para as imagens. Quase tudo dentro de franquias gratuitas permanentes: o e-mail de conta e o
+armazenamento de imagens custam centavos no crédito de estudante. A mesma imagem roda na máquina de quem
 desenvolve e em produção.
 
 ## Onde cada peça roda
@@ -16,6 +17,8 @@ desenvolve e em produção.
 | Aplicação | Azure Container Apps | serve a interface, a API e estas páginas, num contêiner só |
 | Banco | Supabase PostgreSQL | as ocorrências, a trilha e o cadastro |
 | Contas e sessões | Supabase Auth | autenticação, confirmação de e-mail e recuperação de senha |
+| E-mail de conta | Azure Communication Services | o servidor de envio do provedor de autenticação, para a confirmação e a recuperação de senha |
+| E-mail do convite | Brevo | o convite pessoal, por SMTP, dentro da requisição |
 | Imagens | Azure Blob Storage | um contêiner de objetos, alimentado direto pelo aparelho |
 | Imagem do contêiner | GitHub Container Registry | pública, consumida sem credencial |
 | Esteira | GitHub Actions | verificações, migrações, construção da imagem e implantação |
@@ -34,7 +37,7 @@ apontada para a tela de entrada.
 
 **A imagem não carrega segredo nem configuração.** Não há `ARG` no arquivo, os arquivos de ambiente são
 excluídos antes de qualquer cópia, e não existe variável embutida no pacote que o navegador baixa. As
-cinco variáveis de execução chegam do próprio Container App em tempo de execução:
+sete variáveis de execução chegam do próprio Container App em tempo de execução:
 
 | Variável | Para quê |
 |---|---|
@@ -42,6 +45,8 @@ cinco variáveis de execução chegam do próprio Container App em tempo de exec
 | `BANCO_URL` | a conexão do servidor com o PostgreSQL |
 | `SEGREDO_DE_SESSAO` | assinar o cookie da organização ativa |
 | `ARMAZENAMENTO_CONEXAO` | assinar as credenciais temporárias de upload |
+| `CORREIO_SMTP_URL` | o servidor de envio do convite, com a credencial |
+| `CORREIO_REMETENTE` | quem aparece como remetente do convite |
 
 Como a imagem é pública, nada disso pode estar nela. Um verificador confere antes da publicação, e
 [Testes](testes.md) descreve como.
@@ -114,6 +119,19 @@ esforço. O intervalo diário dá sete tentativas dentro de cada janela.
 O teto de armazenamento do banco na franquia comporta cerca de 55.000 ocorrências, quase trinta vezes o
 alvo declarado em [O produto](produto.md). O armazenamento de imagens não é restrição: na escala deste
 produto o limite prático é o custo, e ele é da ordem de um dólar por ano.
+
+## O e-mail
+
+O produto envia um e-mail só, o convite pessoal, e ele sai por SMTP. A recuperação de senha sai pelo
+provedor de autenticação, com outra credencial e outra cota, e os dois não se misturam.
+
+O envio acontece dentro da requisição, um depois do outro, até vinte por vez, porque não há fila. Quando
+o provedor recusa ou demora, nada é gravado, o limite de um por dia por endereço fica intacto, e a tela diz
+ao Gestor qual convite não saiu. O link para copiar continua no modal.
+
+No ambiente local, as mensagens ficam na caixa de teste que a pilha do provedor de autenticação sobe, e
+nada sai da máquina. A razão de cada escolha está na
+[ADR-0022](adr/0022-o-email-sai-por-smtp-com-o-nodemailer.md).
 
 ## O ambiente local
 

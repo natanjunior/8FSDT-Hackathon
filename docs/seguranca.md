@@ -114,6 +114,8 @@ O produto guarda foto, localização e contato de pessoas, e os controles são e
 | O que | O controle |
 |---|---|
 | Alcance | foto, localização e contato só são legíveis dentro da organização do vínculo. O contato é da pessoa, e não do vínculo: quando um convite pessoal funde a pessoa cadastrada na da conta, os contatos que o Gestor cadastrou passam para a pessoa da conta, e com eles para as outras organizações de que ela participa |
+| Envios de convite | o endereço de e-mail para onde cada convite saiu, quem enviou e quando. A linha fica depois de a pessoa ser removida, sem o elo com o convite, para o limite de um por dia continuar valendo |
+| Envio de e-mail | um por dia por endereço na organização, dez por participante, vinte por vez, e só quem gere participantes envia. O provedor é outro que o da recuperação de senha, e um envio em massa não a derruba |
 | Convite pessoal | o token do link fica em claro no banco, porque o Gestor recupera o link já gerado. Ele não concede acesso novo: liga uma conta a um vínculo que o Gestor já aprovou ao cadastrar. Gerar novo link invalida o anterior, o aceite o mata, revogar o vínculo o invalida, e só quem gere vínculos lê o token |
 | Leitura de ocorrência | o autor lê as próprias, quem tem permissão de ler todas lê as dos outros, e uma ocorrência compartilhada é lida, sem poder de ação, por quem a recebeu. Um Solicitante não alcança a ocorrência de um vizinho que não a compartilhou com ele |
 | Nomes de participantes | a busca de quem vai receber uma ocorrência devolve nome e papel, com mínimo de duas letras e teto de vinte, e não traz contato nem unidade. Ela limita, sem impedir, que um participante descubra os nomes dos outros |
@@ -125,7 +127,7 @@ O produto guarda foto, localização e contato de pessoas, e os controles são e
 ## Os segredos
 
 Nenhum segredo entra na imagem. Não há `ARG` no Dockerfile, os arquivos de ambiente são excluídos antes de
-qualquer cópia, e as cinco variáveis de execução chegam do próprio Container App em tempo de execução. A
+qualquer cópia, e as sete variáveis de execução chegam do próprio Container App em tempo de execução. A
 imagem publicada é pública, e não carrega configuração de ambiente nenhum.
 
 Isso é conferido por máquina antes de a imagem ir para o registro: um verificador lê o histórico de

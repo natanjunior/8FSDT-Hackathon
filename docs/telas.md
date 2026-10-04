@@ -292,6 +292,25 @@ O e-mail não vem preenchido no formulário: a página roda sem sessão, e conta
 organização. Qualquer e-mail é aceito, porque a prova é o link. Se a fusão com a conta em uso falhar, a
 mesma face mostra *Não foi possível concluir o convite. Tente de novo.* acima do botão.
 
+## O convite por e-mail
+
+Na lista de participantes, cada linha de participante tem uma caixa de seleção à esquerda do nome, e as
+linhas de pedido de entrada não têm. A caixa do cabeçalho marca e desmarca as linhas da página visível,
+com o estado intermediário quando parte delas está marcada. A seleção sobrevive a trocar de página, de
+filtro, de etiqueta e à busca, e some ao recarregar. Com ao menos uma marcada, aparece acima da tabela a
+faixa *3 selecionados · Limpar*, e no cabeçalho, à esquerda de *Cadastrar participante*, o botão
+*Convidar por e-mail (3)*.
+
+O botão abre um diálogo em três fases. A pergunta diz para quantos vai; acima de vinte, ela pede para
+desmarcar o excesso e oferece só *Voltar*. Enquanto envia, o diálogo não fecha. O resumo mostra os
+enviados, com nome e endereço, e os não enviados, com nome e o motivo, e *Fechar* limpa a seleção.
+
+No modal do convite, entre o link e os botões, o bloco de e-mail diz para onde vai, quando foi o último
+envio, e o impedimento como texto, quando há: sem e-mail, com o caminho para os Contatos; limite do dia,
+com quando o próximo pode sair; ou limite do participante. Quando nada impede, *Enviar convite por e-mail*
+é o botão principal e *Copiar* passa a secundário; com impedimento, o botão de e-mail não aparece e *Copiar*
+continua o principal.
+
 ## Celular primeiro, e o que muda na tela grande
 
 Toda tela é desenhada para funcionar completa no celular e na tela grande, para qualquer papel. O registro,

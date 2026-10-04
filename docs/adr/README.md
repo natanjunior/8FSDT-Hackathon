@@ -32,6 +32,7 @@ alternativas rejeitadas e as consequências, inclusive as ruins.
 | [0019](0019-o-qr-do-convite-entra-com-o-uqr.md) | O QR do convite entra com o uqr, desenhado no servidor | Aceita |
 | [0020](0020-o-navegador-guarda-so-a-casca.md) | O navegador guarda só a casca, e a saída a apaga | Aceita |
 | [0021](0021-o-convite-pessoal-e-a-segunda-operacao-sem-sessao.md) | O convite pessoal mostra o nome da pessoa sem sessão, pela segunda leitura que o lint fecha | Aceita |
+| [0022](0022-o-email-sai-por-smtp-com-o-nodemailer.md) | O convite sai por e-mail, por SMTP com o nodemailer, num provedor que não divide cota com a recuperação de senha | Aceita |
 
 A 0005 e a 0006 se leem melhor em par: a primeira decide como a dependência é invertida, e a segunda
 decide onde os arquivos ficam para que essa inversão vire caminho de arquivo que uma regra de lint sabe

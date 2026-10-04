@@ -5,7 +5,7 @@ description: "As convenções da superfície HTTP: de onde vem a organização, 
 
 # A API
 
-A superfície HTTP tem 61 operações, e todas elas estão navegáveis na
+A superfície HTTP tem 62 operações, e todas elas estão navegáveis na
 [referência executável](/documentacao/api/referencia), com os campos de entrada e de saída de cada uma.
 Esta página não repete essa lista: ela explica as convenções que valem para todas, e as decisões que a
 referência mostra sem justificar.
@@ -71,6 +71,20 @@ Quando a conta que aceita já tem uma pessoa própria, o aceite funde as duas nu
 conta nasce com o papel e a unidade do cadastro, o que estava pendurado na pessoa cadastrada passa para a
 da conta, e o vínculo antigo é apagado por último. O histórico de transições não é tocado. A conta que já
 participa da organização recebe `409 JA_VINCULADO`, e nada muda.
+
+## O convite por e-mail
+
+`POST /convites-pessoais/envios` envia o convite pessoal por e-mail, a um ou a até vinte participantes,
+com a lista de `pessoaIds` no corpo. O modal manda uma lista de um, e a regra de limite existe uma vez. A
+operação exige a permissão de gerir vínculos.
+
+A resposta é `200` com o resumo mesmo quando nenhum saiu: a requisição deu certo, o que falhou foi cada
+envio, e o resumo diz qual. Cada pessoa aparece em *enviados*, com o endereço, ou em *não enviados*, com um
+de sete motivos: não participa mais, sem e-mail, já tem conta, Encarregado, limite do dia, limite do
+participante, falha no envio.
+
+A lista vazia, repetida ou acima de vinte é `422 LOTE_DE_ENVIO_INVALIDO`. O teto existe porque não há fila:
+o envio acontece dentro da requisição, um depois do outro.
 
 ## A escrita é comando, e não campo
 

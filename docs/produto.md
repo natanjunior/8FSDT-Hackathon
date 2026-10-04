@@ -102,6 +102,7 @@ acabou, e sem este quadro o painel melhoraria quando os casos difíceis fossem d
 **Está entregue:** o ciclo de vida inteiro com trilha auditável, o registro com foto e localização, a
 conversa dentro da ocorrência, a avaliação, o painel de indicadores, o cadastro de categorias,
 áreas e pessoas, a entrada na organização por código, por link ou por QR, sempre com aprovação do Gestor,
+o convite pessoal de quem o Gestor cadastrou, por link ou por e-mail, um por vez ou em massa pela lista,
 o compartilhamento de uma ocorrência, só para leitura, com outra pessoa da organização, e várias
 organizações isoladas na mesma instalação.
 
@@ -109,7 +110,7 @@ organizações isoladas na mesma instalação.
 
 - acesso próprio do Encarregado, e com ele a leitura sem rede, o reporte de execução e a recusa de
   atribuição;
-- nenhum aviso que chegue sozinho: sem e-mail, sem mensagem, sem alarme de ocorrência parada;
+- nenhum aviso de ocorrência que chegue sozinho: sem mensagem e sem alarme de ocorrência parada;
 - filtros rápidos salvos;
 - aderir a uma ocorrência parecida em vez de abrir outra igual;
 - nota interna entre Gestores;
