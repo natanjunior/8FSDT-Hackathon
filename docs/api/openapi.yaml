@@ -1119,8 +1119,8 @@ paths:
       operationId: listarEtiquetasDeParticipante
       summary: As etiquetas de participante da organização
       description: |
-        Todas as etiquetas desta organização, em ordem alfabética e inclusive as que ninguém tem. É o que o
-        autocompletar sugere e o que a gerência lista.
+        Todas as etiquetas desta organização, em ordem alfabética e inclusive as que ninguém tem. É o que a
+        seleção múltipla do detalhe sugere e o que o cartão da configuração lista.
 
         *Capacidade: tipificar participantes. Permissão: `vinculo.gerir`.*
       responses:
@@ -1140,6 +1140,47 @@ paths:
                   - { id: "5b1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f", nome: "Eletricista" }
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "403": { $ref: "#/components/responses/SemPermissao" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+    post:
+      tags: [Vínculos]
+      operationId: criarEtiquetaDeParticipante
+      summary: Criar uma etiqueta de participante
+      description: |
+        Cria uma etiqueta sem dá-la a ninguém. Se já existe uma igual sem distinguir maiúscula, ela é
+        reaproveitada e vale a grafia da primeira vez. Acento conta.
+
+        `201` quando a etiqueta nasceu agora. `200` quando já existia, e então nada mudou.
+
+        *Capacidade: tipificar participantes. Permissão: `vinculo.gerir`.*
+      parameters:
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nome]
+              properties:
+                nome: { type: string, minLength: 1, maxLength: 30, description: "Aparado antes de contar." }
+            example: { nome: "Eletricista" }
+      responses:
+        "201":
+          description: A etiqueta nasceu.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AtribuicaoDeEtiqueta" }
+              example: { etiqueta: { id: "5b1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f", nome: "Eletricista" }, criada: true }
+        "200":
+          description: Já existia uma igual. Nada mudou.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AtribuicaoDeEtiqueta" }
+              example: { etiqueta: { id: "5b1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f", nome: "Eletricista" }, criada: false }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
   /etiquetas-de-participante/{etiquetaId}:

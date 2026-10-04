@@ -2364,6 +2364,23 @@ describe("as escritas de configuração não atravessam organizações", () => {
     expect(antes?.tipo_alterado_por_pessoa_id).toBe(idMoradora);
     expect(await lerPar()).toStrictEqual(antes);
   });
+
+  it("criar etiqueta em Aurora com o nome de uma de Recanto nasce em Aurora — item 120", async () => {
+    const emAurora = repositorioEscopadoDeEtiquetas(
+      escoparConsulta(consulta, idAurora),
+      escoparTransacao(criarTransacao(), idAurora),
+    );
+    const emRecanto = repositorioEscopadoDeEtiquetas(
+      escoparConsulta(consulta, idRecanto),
+      escoparTransacao(criarTransacao(), idRecanto),
+    );
+    const deRecanto = (await emRecanto.listar()).find((e) => e.nome === "Síndica do Recanto")!;
+    const criada = await emAurora.criar("Síndica do Recanto");
+    expect(criada.criada).toBe(true);
+    expect(criada.etiqueta.id).not.toBe(deRecanto.id);
+    // Desfaz: o `GET /etiquetas-de-participante` da suíte compara Aurora com só "Síndica da Aurora".
+    expect(await emAurora.apagar(criada.etiqueta.id)).toStrictEqual({ desfecho: "apagada" });
+  });
 });
 
 /**

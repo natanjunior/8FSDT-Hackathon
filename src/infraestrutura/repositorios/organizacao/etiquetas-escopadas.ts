@@ -29,6 +29,26 @@ export function repositorioEscopadoDeEtiquetas(
       );
     },
 
+    async criar(nome) {
+      // A mesma dupla do `atribuir`: `on conflict do nothing` sem alvo, e a procura pela MESMA expressão do
+      // índice. Dois ao mesmo tempo: um insere, o outro não insere e acha o que o primeiro gravou.
+      const criadas = await consulta<EtiquetaLida>(
+        `insert into etiquetas_participante (organizacao_id, nome) values ($1, $2)
+         on conflict do nothing
+         returning id, nome`,
+        [nome],
+      );
+      if (criadas[0] !== undefined) return { etiqueta: criadas[0], criada: true };
+
+      const [existente] = await consulta<EtiquetaLida>(
+        `select id, nome from etiquetas_participante
+          where organizacao_id = $1 and lower(nome collate "und-x-icu") = lower($2 collate "und-x-icu")`,
+        [nome],
+      );
+      if (existente === undefined) throw new Error("etiqueta nem criada nem encontrada — invariante violada");
+      return { etiqueta: existente, criada: false };
+    },
+
     atribuir({ pessoaId, nome, porPessoaId }) {
       return emTransacao<ResultadoDaAtribuicaoDeEtiqueta>(async (dentro) => {
         // **A trava vem antes de qualquer escrita, e é `for update`.** `revogar` faz `update` nesta mesma

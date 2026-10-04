@@ -64,7 +64,7 @@ function rotasDeEtiqueta(): string[] {
 }
 
 describe("só quem gere vínculos (critério 6)", () => {
-  it("as quatro rotas de etiqueta existem, e toda operação exige vinculo.gerir", () => {
+  it("as quatro rotas de etiqueta existem, e toda operação — cinco, desde o item 120 — exige vinculo.gerir", () => {
     const rotas = rotasDeEtiqueta();
     expect(rotas.sort()).toStrictEqual(
       [
@@ -81,6 +81,8 @@ describe("só quem gere vínculos (critério 6)", () => {
       expect(operacoes.length, rota).toBeGreaterThan(0);
       expect(exigencias.length, rota).toBe(operacoes.length);
     }
+    const lista = readFileSync(`${RAIZ_DA_API}etiquetas-de-participante/route.ts`, "utf8");
+    expect(lista.match(/^export const (GET|POST)\b/gmu)).toHaveLength(2);
   });
 });
 

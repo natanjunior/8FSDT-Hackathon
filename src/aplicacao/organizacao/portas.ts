@@ -704,12 +704,17 @@ export type ResultadoDoApagarEtiqueta = { desfecho: "apagada" } | { desfecho: "n
 /**
  * **A porta escopada das etiquetas dos participantes** — item 115.
  *
- * Quatro operações, todas sob `vinculo.gerir` na porta de entrada. **Desfecho, não exceção**, pela
+ * Cinco operações, todas sob `vinculo.gerir` na porta de entrada. **Desfecho, não exceção**, pela
  * doutrina das outras portas de organização: são traduções de garantias do banco — o índice único em
  * ICU, a chave composta, o `where organizacao_id = $1` do escopo.
  */
 export interface RepositorioEscopadoDeEtiquetas {
   listar(): Promise<readonly EtiquetaLida[]>;
+  /**
+   * Cria, ou reaproveita a que já existe pela regra do índice (apara, ignora maiúscula, acento conta), **sem
+   * atribuir a ninguém** — o cartão da configuração, item 120. `criada` diz qual dos dois.
+   */
+  criar(nome: string): Promise<{ etiqueta: EtiquetaLida; criada: boolean }>;
   atribuir(dados: { pessoaId: string; nome: string; porPessoaId: string }): Promise<ResultadoDaAtribuicaoDeEtiqueta>;
   tirar(dados: { pessoaId: string; etiquetaId: string }): Promise<ResultadoDaRetiradaDeEtiqueta>;
   apagar(etiquetaId: string): Promise<ResultadoDoApagarEtiqueta>;
