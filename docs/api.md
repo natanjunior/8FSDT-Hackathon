@@ -5,7 +5,7 @@ description: "As convenções da superfície HTTP: de onde vem a organização, 
 
 # A API
 
-A superfície HTTP tem 48 operações, e todas elas estão navegáveis na
+A superfície HTTP tem 56 operações, e todas elas estão navegáveis na
 [referência executável](/documentacao/api/referencia), com os campos de entrada e de saída de cada uma.
 Esta página não repete essa lista: ela explica as convenções que valem para todas, e as decisões que a
 referência mostra sem justificar.
@@ -120,7 +120,7 @@ o que pode fazer, sem reimplementar a máquina de estados.
 | Idioma | pt-BR em recurso e em campo, sem exceção. `status` é o único termo estrangeiro, porque é palavra do desafio |
 | Caixa | `snake_case` no banco, `camelCase` no JSON, e o mesmo vocábulo nos dois |
 | Valores de enumeração | idênticos aos do banco, em minúsculo e sem acento. O rótulo que a pessoa lê é um campo à parte, e nunca uma tradução do valor |
-| Datas | ISO 8601, sempre em UTC na saída. Converter é do cliente. A janela do painel é a exceção, e é interpretada no fuso de São Paulo, porque agregar mês a mês em UTC partiria o mês brasileiro em dois |
+| Datas | ISO 8601, sempre em UTC na saída. Converter é do cliente. A janela do painel é a exceção, e é interpretada no fuso de São Paulo, porque agregar mês a mês em UTC partiria o mês brasileiro em dois. O arquivo exportado em CSV é a segunda, e escreve data e hora de São Paulo em `dd/mm/aaaa hh:mm`, porque numa planilha não há cliente que converta |
 | Identificadores | UUID em texto |
 | Ordenação | a listagem de ocorrências abre pelo que mudou por último, e aceita ordenar por qualquer coluna da tabela. A ordem é feita sem índice próprio, porque o volume de uma organização cabe na memória |
 
@@ -147,6 +147,27 @@ sistema opera.
 
 Dentro do recorte das compartilhadas, a listagem diz também se quem pergunta já abriu cada uma desde que
 ela foi compartilhada. Quantas faltam abrir a listagem não devolve: o número é o do sino, na tela.
+
+## A exportação em CSV
+
+Quatro listas saem num arquivo, cada uma com a permissão da tela que a mostra:
+
+| Endereço | Permissão | O que o arquivo traz |
+|---|---|---|
+| `GET /ocorrencias/exportacao` | `ocorrencia.ler_todas` | todas as ocorrências da organização, de todos os estados |
+| `GET /vinculos/exportacao` | `vinculo.gerir` | os participantes ativos, sem os pedidos de entrada |
+| `GET /areas/exportacao` | `organizacao.configurar` | as áreas, ativas e inativas |
+| `GET /categorias/exportacao` | `organizacao.configurar` | as categorias, ativas e inativas |
+
+A exportação ignora filtro e página: o arquivo traz tudo o que a pessoa alcança naquela tela, com colunas
+fixas. Ele abre no Excel em pt-BR sem ajuste, porque começa pelo BOM UTF-8, separa por ponto e vírgula e
+termina cada registro com CRLF. A célula vai entre aspas quando tem separador, aspas ou quebra de linha, e
+a descrição de uma ocorrência continua numa célula só. Os valores saem em palavra, com `Sim` e `Não` no
+lugar de booleano, e o texto que começa com `=`, `+`, `-` ou `@` sai com um apóstrofo na frente, para a
+planilha não o executar como fórmula.
+
+O arquivo de participantes leva e-mail e telefone, e por isso sai só para quem gere vínculos. O sucesso
+vem como `text/csv` com `Content-Disposition: attachment`; o erro continua `application/problem+json`.
 
 ## Os recortes do painel
 

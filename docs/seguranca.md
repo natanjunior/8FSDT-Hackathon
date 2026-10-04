@@ -116,6 +116,8 @@ O produto guarda foto, localização e contato de pessoas, e os controles são e
 | Nomes de participantes | a busca de quem vai receber uma ocorrência devolve nome e papel, com mínimo de duas letras e teto de vinte, e não traz contato nem unidade. Ela limita, sem impedir, que um participante descubra os nomes dos outros |
 | Retenção | o histórico não expira, porque apagá-lo destruiria a exigência central do desafio |
 | Transporte | tudo por HTTPS, incluindo o envio direto da imagem ao armazenamento |
+| Arquivo exportado | o arquivo de participantes leva e-mail e telefone, e sai só para quem tem `vinculo.gerir`, a mesma permissão de quem já vê esses contatos na tela. O arquivo sai do prédio, e por isso a exportação fica com quem gere |
+| Fórmula na planilha | título e descrição são escritos por quem registra e abertos numa planilha por quem gere. No arquivo exportado, o texto que começa com `=`, `+`, `-` ou `@` sai com um apóstrofo na frente, e a planilha o mostra como texto em vez de executá-lo |
 
 ## Os segredos
 

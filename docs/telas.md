@@ -234,6 +234,11 @@ aparece marcado, e o rótulo do controle só muda depois de aplicar. Se a data d
 de fim, a tela troca as duas e diz que trocou, em vez de recusar o pedido. A API continua recusando a
 mesma consulta, porque para um programa a ordem errada é defeito de quem chamou.
 
+Ocorrências, Participantes, Áreas e Categorias exportam a lista pelo botão *Exportar CSV*. O arquivo traz
+tudo o que a pessoa alcança naquela tela, ignorando o filtro e a página que estão abertos, e abre no Excel
+com os acentos e as colunas no lugar. O de participantes leva o contato de cada um, e-mail e telefone. O
+botão só aparece para quem tem a permissão daquela lista, e some quando a lista está vazia.
+
 ## As etiquetas dos participantes
 
 Quem gere participantes pode dar a cada um etiquetas livres, como eletricista ou contratado. A lista de
