@@ -6,6 +6,7 @@ import {
   AURORA,
   ciclo,
   conteudoDaCasca,
+  ID_DO_CONTEUDO,
   abrirOSino,
   ENCARREGADA_DO_AURORA,
   entrar,
@@ -1122,14 +1123,14 @@ test("o título longo corta na tela grande e quebra no celular, sem empurrar as 
 
     expect(await transbordo(helena)).toStrictEqual(SEM_TRANSBORDO);
 
-    const conteudo = await helena.evaluate(() => {
+    const conteudo = await helena.evaluate((id) => {
       const medir = (elemento: Element | null) =>
         elemento === null ? null : { rola: elemento.scrollWidth, cabe: elemento.clientWidth };
       return {
-        principal: medir(document.querySelector("main")),
-        cabecalho: medir(document.querySelector("main header")),
+        principal: medir(document.querySelector(`main#${id}`)),
+        cabecalho: medir(document.querySelector(`main#${id} header`)),
       };
-    });
+    }, ID_DO_CONTEUDO);
     expect(conteudo.principal).not.toBeNull();
     expect(conteudo.cabecalho).not.toBeNull();
     expect(conteudo.principal?.rola ?? 0).toBeLessThanOrEqual(conteudo.principal?.cabe ?? 0);
@@ -1348,7 +1349,9 @@ test("o código da organização cabe no celular, nas três telas que o exibem (
     await helena.setViewportSize({ width: largura, height: 844 });
     await helena.goto("/configuracao");
     await assentar(helena);
-    const apoio = helena.getByText("É o código do cartaz do elevador.", { exact: false });
+    // Escopado pelo conteúdo da casca: o streaming deixa uma cópia escondida da frase num `div[hidden]` do
+    // `<body>` até a troca, e `getByText` não descarta o que está escondido (item 119).
+    const apoio = conteudoDaCasca(helena).getByText("É o código do cartaz do elevador.", { exact: false });
     const caixa = await apoio.boundingBox();
     expect
       .soft((caixa?.x ?? 9999) + (caixa?.width ?? 0), `apoio de /configuracao a ${largura} px`)
@@ -1379,7 +1382,7 @@ const MOTIVO_LONGO = "Parada — esperando material chegar";
 
 async function injetarPiorCaso(pagina: Page): Promise<{ linhas: number; comSelo: number }> {
   return pagina.evaluate(
-    ({ titulo, area, pessoa, motivo }) => {
+    ({ titulo, area, pessoa, motivo, id }) => {
       const trocarTexto = (elemento: Element | null | undefined, texto: string) => {
         if (!elemento) return;
         const no = Array.from(elemento.childNodes).find(
@@ -1418,7 +1421,7 @@ async function injetarPiorCaso(pagina: Page): Promise<{ linhas: number; comSelo:
         }
       }
 
-      for (const item of Array.from(document.querySelectorAll("main ul > li")).slice(0, 3)) {
+      for (const item of Array.from(document.querySelectorAll(`main#${id} ul > li`)).slice(0, 3)) {
         const link = item.querySelector("a");
         if (link) link.textContent = titulo;
         // A linha de meta é o último filho do item, e a ficha do local é o primeiro filho dela. Um seletor por
@@ -1428,7 +1431,7 @@ async function injetarPiorCaso(pagina: Page): Promise<{ linhas: number; comSelo:
 
       return { linhas: comSeloPrimeiro.length, comSelo };
     },
-    { titulo: TITULO_LONGO, area: AREA_LONGA, pessoa: PESSOA_LONGA, motivo: MOTIVO_LONGO },
+    { titulo: TITULO_LONGO, area: AREA_LONGA, pessoa: PESSOA_LONGA, motivo: MOTIVO_LONGO, id: ID_DO_CONTEUDO },
   );
 }
 
@@ -1490,7 +1493,7 @@ test("o pior caso não corta coluna nem rola o documento (critérios 102.4, 102.
 
   // 390: a linha do celular nomeia o tempo, e nenhum glifo sobrou (critérios 102.11 e 102.12).
   await helena.setViewportSize({ width: 390, height: 844 });
-  const primeira = helena.locator("main ul > li").first();
+  const primeira = conteudoDaCasca(helena).locator("ul > li").first();
   await expect(primeira).toContainText("registrada");
   await expect(primeira).not.toContainText("↻");
   expect(await alemDoCartao(helena)).toBe(0);
