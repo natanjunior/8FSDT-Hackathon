@@ -18,6 +18,7 @@ Atores são nomeados por função, e nunca por nome próprio.
 | Pessoa | O ser humano no sistema: nome e contato. Existe mesmo sem conseguir entrar | Usuário |
 | Usuário | A credencial de acesso de uma Pessoa. Uma Pessoa tem zero ou um | Pessoa |
 | Vínculo | A ligação entre uma Pessoa, um Papel e uma Organização. A mesma Pessoa pode ter vários, com papéis diferentes | Papel, que o vínculo carrega |
+| Participante | A Pessoa com vínculo ativo numa Organização, de qualquer papel, com conta ou sem | Pessoa, que existe sem vínculo; Encarregado, que é um dos papéis |
 | Papel | O que a Pessoa é dentro de uma Organização: Solicitante, Gestor ou Encarregado | Permissão, que é o que o papel autoriza |
 | Etiqueta | Rótulo livre que o Gestor dá a um participante: eletricista, contratado, prestador de serviço. Só quem gere participantes vê | Papel, que define permissão; Categoria, que tipifica a ocorrência |
 | Solicitante | Papel de quem registra e acompanha ocorrências | — |

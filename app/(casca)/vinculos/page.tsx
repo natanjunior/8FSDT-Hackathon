@@ -112,7 +112,7 @@ export default async function Participantes() {
               )}
             >
               <UserPlus aria-hidden="true" />
-              Cadastrar pessoa sem conta
+              Cadastrar participante
             </Link>
           </div>
         }

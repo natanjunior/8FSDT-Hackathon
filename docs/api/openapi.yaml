@@ -831,7 +831,7 @@ paths:
     post:
       tags: [Vínculos]
       operationId: criarVinculo
-      summary: Cadastrar Encarregado (ou pessoa sem conta)
+      summary: Cadastrar participante sem conta
       description: |
         Cria **Pessoa e Vínculo na mesma transação**. É o cadastro do Encarregado sem conta (D27) — o
         zelador que não usa celular existe como cadastro, recebe atribuições e aparece como responsável,
@@ -923,7 +923,7 @@ paths:
     patch:
       tags: [Vínculos]
       operationId: atualizarPessoaDoVinculo
-      summary: Corrigir os dados de uma pessoa sem conta
+      summary: Corrigir os dados de um participante sem conta
       description: |
         Atualiza nome, unidade e contatos da Pessoa **através do vínculo** — nunca por um
         endereço global de Pessoa.

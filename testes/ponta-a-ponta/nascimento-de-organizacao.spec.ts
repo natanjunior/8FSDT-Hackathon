@@ -552,7 +552,7 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   // Critérios 9a.1 e 9a.3. **A diferença que o item existe para criar:** o nome de quem tem conta vem da
   // conta, e a tela de T-08 nem oferece o campo — é a forma que o produto deu à recusa.
   // -------------------------------------------------------------------------
-  await a.getByRole("link", { name: "Cadastrar pessoa sem conta" }).click();
+  await a.getByRole("link", { name: "Cadastrar participante" }).click();
   await a.waitForURL(/\/vinculos\/nova$/u);
   await a.getByLabel("Nome").fill(ENCARREGADO);
   await a.getByRole("radio", { name: /^Encarregado/u }).check();
@@ -759,7 +759,7 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   // cadastro que fica não é o cadastro que volta — re-cadastrar cria outra linha, e os contatos são
   // redigitados. Confirmação existe para dizer o custo do clique.
   // -------------------------------------------------------------------------
-  await c.getByRole("link", { name: "Cadastrar pessoa sem conta" }).click();
+  await c.getByRole("link", { name: "Cadastrar participante" }).click();
   await c.waitForURL(/\/vinculos\/nova$/u);
   await c.getByLabel("Nome").fill(PESSOA_PARA_REMOVER);
   await c.getByRole("radio", { name: /^Encarregado/u }).check();

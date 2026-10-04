@@ -611,6 +611,28 @@ describe("o alcance do 44j — as peças da tabela e da ordem manual", () => {
     expect(achados).toStrictEqual([]);
   });
 
+  it("a tela de cadastro se chama Cadastrar participante, nos seis lugares, e a espera não pisca outro nome (critérios 120.5 e 120.28)", () => {
+    const pagina = ler("app/(casca)/vinculos/nova/page.tsx");
+    const espera = ler("app/(casca)/vinculos/nova/loading.tsx");
+    const lista = ler("app/(casca)/vinculos/page.tsx");
+    expect(pagina).toContain('export const metadata: Metadata = { title: "Cadastrar participante" };');
+    expect(pagina).toContain('<SemAcesso titulo="Cadastrar participante" permissao="vinculo.gerir" />');
+    expect(pagina).toContain('atual="Cadastrar participante"');
+    expect(pagina).toContain('titulo="Cadastrar participante"');
+    expect(lista).toMatch(/<UserPlus aria-hidden="true" \/>\s*Cadastrar participante\s*<\/Link>/u);
+    // **O `h1` da espera é idêntico ao título da página**: é ele que aparece na partida a frio.
+    const titulo = /titulo="([^"]+)"/u.exec(pagina)?.[1];
+    expect(espera).toContain(`<h1 className="text-titulo-pagina text-tinta">${titulo ?? "?"}</h1>`);
+    // A frase de apoio nomeia quem a tela cadastra: qualquer papel, desde que sem conta (critério 120.28).
+    expect(pagina).toContain(
+      'fato="Para quem participa da organização e ainda não usa o aplicativo, como o zelador, o eletricista terceirizado ou um morador sem conta."',
+    );
+    // E o nome antigo não sobra em lugar nenhum da tela, nem em comentário.
+    for (const fonte of [pagina, espera, lista, ler("src/interface/componentes/formulario-de-vinculo.tsx")]) {
+      expect(fonte.toLowerCase()).not.toContain("pessoa sem conta");
+    }
+  });
+
   it("na edição, o cartão Pessoa é Nome, Unidade e Papel, em três colunas a partir de md (item 68a)", () => {
     const fonte = ler("src/interface/componentes/formulario-de-vinculo.tsx");
     const inicio = fonte.indexOf('<div className="grid md:grid-cols-3">');

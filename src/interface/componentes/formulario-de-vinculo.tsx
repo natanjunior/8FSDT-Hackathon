@@ -47,7 +47,7 @@ import { useFormularioTocado, type ErrosDeCampo } from "@/interface/ganchos/use-
 
 /**
  * ============================================================================
- *  T-08 · cadastrar pessoa sem conta, e editar participante — item 44j
+ *  T-08 · cadastrar participante, e editar participante — item 44j
  * ============================================================================
  *
  * **Página própria, pela exceção do guia §7**, declarada em 16/09/2026: o sub-formulário de contatos é
