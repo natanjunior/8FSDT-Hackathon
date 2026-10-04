@@ -5,7 +5,10 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { criarTransacao } from "@/infraestrutura/clientes";
 import { escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
-import { repositorioEscopadoDeVinculos } from "@/infraestrutura/repositorios/organizacao";
+import {
+  repositorioEscopadoDeConvitesPessoais,
+  repositorioEscopadoDeVinculos,
+} from "@/infraestrutura/repositorios/organizacao";
 
 import { urlDoBancoDeTeste } from "./banco";
 import { aplicarEsquema } from "./esquema";
@@ -112,6 +115,13 @@ function vinculos(organizacaoId = idOrganizacao) {
   );
 }
 
+function convitesEscopados(organizacaoId = idOrganizacao) {
+  return repositorioEscopadoDeConvitesPessoais(
+    escoparConsulta(consulta, organizacaoId),
+    escoparTransacao(criarTransacao(), organizacaoId),
+  );
+}
+
 async function inserirConvite(pessoaId: string, porPessoaId = idGestora): Promise<string> {
   const token = tokenDeTeste();
   await consulta(
@@ -157,5 +167,42 @@ describe("a tabela e o vínculo (item 121)", () => {
     const pessoa = await cadastrarSemConta("Dois Vivos");
     await inserirConvite(pessoa);
     await expect(inserirConvite(pessoa)).rejects.toThrow(/convites_pessoais_vivo_uk/u);
+  });
+});
+
+describe("garantir e renovar, no banco (critério 1)", () => {
+  it("garantir duas vezes devolve o mesmo token", async () => {
+    const pessoa = await cadastrarSemConta("Garantida Duas Vezes");
+    const a = await convitesEscopados().garantir(pessoa, tokenDeTeste(), idGestora);
+    const b = await convitesEscopados().garantir(pessoa, tokenDeTeste(), idGestora);
+    expect(b.token).toBe(a.token);
+    expect(b.criadoPor.nome).toBe("Gestora do Convite");
+  });
+
+  it("duas garantias simultâneas, um convite", async () => {
+    const pessoa = await cadastrarSemConta("Garantida Em Paralelo");
+    const [a, b] = await Promise.all([
+      convitesEscopados().garantir(pessoa, tokenDeTeste(), idGestora),
+      convitesEscopados().garantir(pessoa, tokenDeTeste(), idGestora),
+    ]);
+    expect(a.token).toBe(b.token);
+    const [linha] = await consulta<{ n: number }>(
+      `select count(*)::int as n from convites_pessoais where pessoa_id = $1`,
+      [pessoa],
+    );
+    expect(linha?.n).toBe(1);
+  });
+
+  it("renovar troca o token e carimba o antigo", async () => {
+    const pessoa = await cadastrarSemConta("Renovada");
+    const antigo = await convitesEscopados().garantir(pessoa, tokenDeTeste(), idGestora);
+    const novo = await convitesEscopados().renovar(pessoa, tokenDeTeste(), idGestora);
+    expect(novo.token).not.toBe(antigo.token);
+    const [linha] = await consulta<{ invalidado_em: Date | null }>(
+      `select invalidado_em from convites_pessoais where token = $1`,
+      [antigo.token],
+    );
+    expect(linha?.invalidado_em).toBeInstanceOf(Date);
+    expect((await convitesEscopados().vivoDe(pessoa))?.token).toBe(novo.token);
   });
 });

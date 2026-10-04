@@ -48,10 +48,17 @@ export { destinoSeguro } from "./destino-seguro";
 export {
   destinoDoConvite,
   linkDoConvite,
+  linkDoConvitePessoal,
   linkDoQrDaArea,
   montarLinkDoConvite,
+  montarLinkDoConvitePessoal,
   montarLinkDoQrDaArea,
 } from "./link-do-convite";
+
+// O convite pessoal (item 121): o formato mora em `schemas` (o formulário de cliente precisa dele), e o
+// gerador na composição, que `app/` não pode importar.
+export { FORMATO_DO_TOKEN } from "@/interface/schemas";
+export { novoTokenDeConvite } from "@/composicao";
 
 export { recusarEvolucaoPrevista, recusarSemDestino } from "./recusa-de-campos";
 

@@ -1,5 +1,7 @@
 import type { ArmazenamentoDeAnexos, PortasDeAnexo } from "@/aplicacao/anexo";
 import type { PortasGlobais, RepositoriosEscopados } from "@/aplicacao/contexto";
+import { randomBytes } from "node:crypto";
+
 import type { PortaDeCredenciais } from "@/aplicacao/credenciais";
 import type { RepositorioDeConvites } from "@/aplicacao/organizacao";
 import {
@@ -23,6 +25,7 @@ import {
   repositorioEscopadoDaOrganizacao,
   repositorioEscopadoDeAreas,
   repositorioEscopadoDeCategorias,
+  repositorioEscopadoDeConvitesPessoais,
   repositorioEscopadoDeEtiquetas,
   repositorioEscopadoDePedidosDeEntrada,
   repositorioEscopadoDeVinculos,
@@ -94,6 +97,12 @@ export function montarPortasEscopadas(organizacaoId: string): RepositoriosEscopa
     // Recebe as **duas** formas de acesso: a consulta para a lista e as escritas de uma instrução, e a
     // transação escopada para atribuir, que trava o vínculo, cria ou acha a etiqueta e liga, num `COMMIT`.
     etiquetas: repositorioEscopadoDeEtiquetas(consulta, escoparTransacao(criarTransacao(), organizacaoId)),
+    // O convite pessoal do lado do Gestor (item 121): a consulta para ler e garantir, que é uma instrução
+    // só com `on conflict`, e a transação escopada para renovar, que carimba o vivo e insere outro.
+    convitesPessoais: repositorioEscopadoDeConvitesPessoais(
+      consulta,
+      escoparTransacao(criarTransacao(), organizacaoId),
+    ),
     // Recebem as **duas** formas de acesso desde o item 50: a consulta para a leitura e para as escritas de
     // uma instrução só, e a transação escopada para a reordenação, que trava a lista, confere o conjunto,
     // grava e relê num `COMMIT` só. As duas passam pelo mesmo `$1`.
@@ -173,6 +182,15 @@ export function montarPortasDeAnexo(): PortasDeAnexo {
     emissor: criarEmissorDeCredencialDeUpload(),
     livro: livroDeAutorizacoesDeUpload(criarTransacao()),
   };
+}
+
+/**
+ * O gerador do token do convite pessoal (item 121): 32 bytes aleatórios em base64url, 43 sinais. Mora na
+ * composição porque é o único lugar de fora da Infraestrutura que pode importar `node:crypto` sem levar o
+ * gerador para a Aplicação, que o recebe por parâmetro.
+ */
+export function novoTokenDeConvite(): string {
+  return randomBytes(32).toString("base64url");
 }
 
 /** A porta das telas de credencial (T-01, T-11). */

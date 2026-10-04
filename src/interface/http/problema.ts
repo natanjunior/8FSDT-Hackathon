@@ -53,6 +53,7 @@ const STATUS_POR_CODIGO: Readonly<Record<string, number>> = {
   LISTA_DESATUALIZADA: 409,
   ANEXO_JA_REIVINDICADO: 409,
   CONTATO_DUPLICADO: 409,
+  CONVITE_INDISPONIVEL: 409,
   // 415
   CORPO_NAO_SUPORTADO: 415,
   // 422 · requisição bem formada, valor inválido no domínio

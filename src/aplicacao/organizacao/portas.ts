@@ -720,6 +720,27 @@ export interface RepositorioEscopadoDeEtiquetas {
   apagar(etiquetaId: string): Promise<ResultadoDoApagarEtiqueta>;
 }
 
+/** O convite vivo de um vínculo, como o Gestor o vê (item 121). O token sai daqui: quem lê tem `vinculo.gerir`. */
+export type ConvitePessoalVivo = {
+  token: string;
+  criadoEm: string;
+  criadoPor: { pessoaId: string; nome: string };
+};
+
+/**
+ * **A porta escopada do convite pessoal** — o lado do Gestor (item 121). Três operações, todas sob
+ * `vinculo.gerir` na porta de entrada. **Não confere elegibilidade**: Solicitante ou Gestor, ativo e sem
+ * conta é regra da Aplicação.
+ */
+export interface RepositorioEscopadoDeConvitesPessoais {
+  /** O convite vivo do vínculo, ou `null`. */
+  vivoDe(pessoaId: string): Promise<ConvitePessoalVivo | null>;
+  /** Devolve o vivo, ou cria um. Idempotente sob concorrência (`on conflict … do nothing`). */
+  garantir(pessoaId: string, token: string, porPessoaId: string): Promise<ConvitePessoalVivo>;
+  /** Carimba o vivo e cria outro, num `COMMIT`. */
+  renovar(pessoaId: string, token: string, porPessoaId: string): Promise<ConvitePessoalVivo>;
+}
+
 /**
  * Os desfechos da aprovação. **Etiqueta, não exceção**, pela mesma razão do 7a: são desfechos de uma
  * escrita transacional, três deles são **traduções de garantias do banco**, e o vocabulário de recusa do

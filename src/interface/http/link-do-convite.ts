@@ -49,6 +49,19 @@ export function linkDoQrDaArea(origem: string, codigo: string, areaId: string): 
   return `${origem}/convite/${encodeURIComponent(codigo)}?area=${encodeURIComponent(areaId)}`;
 }
 
+/**
+ * **O link do convite pessoal** (item 121). Endereço longo de propósito: ele não vai para cartaz, vai para
+ * uma pessoa. É o lugar único onde o endereço se monta, e o modal e o e-mail do item 122 o usam.
+ */
+export function linkDoConvitePessoal(origem: string, token: string): string {
+  return `${origem}/convite-pessoal/${token}`;
+}
+
+/** O link pessoal, com a origem deste pedido: atrás do proxy do Azure, é o `x-forwarded-host`. */
+export async function montarLinkDoConvitePessoal(token: string): Promise<string> {
+  return linkDoConvitePessoal(origemDoPedido(await headers()), token);
+}
+
 /** O link do QR da área, com a origem deste pedido, na forma de `montarLinkDoConvite`. */
 export async function montarLinkDoQrDaArea(codigo: string, areaId: string): Promise<string> {
   return linkDoQrDaArea(origemDoPedido(await headers()), codigo, areaId);

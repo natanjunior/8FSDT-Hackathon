@@ -24,6 +24,7 @@ export {
   revogarVinculo,
   verVinculo,
 } from "./vinculos";
+export { garantirConvitePessoal, renovarConvitePessoal } from "./convite-pessoal";
 export { apagarEtiqueta, atribuirEtiqueta, criarEtiqueta, listarEtiquetas, tirarEtiqueta } from "./etiquetas";
 export {
   alterarConfiguracao,
@@ -52,6 +53,7 @@ export {
   CodigoPublicoEmUso,
   CodigoPublicoNaoEncontrado,
   ContatoDuplicado,
+  ConviteIndisponivel,
   EtiquetaNaoEncontrada,
   JaVinculado,
   ListaDesatualizada,
@@ -75,6 +77,7 @@ export type {
   ContagemDaLista,
   ContatoLido,
   ContatoParaEscrita,
+  ConvitePessoalVivo,
   CorrecaoDeArea,
   CorrecaoDeCategoria,
   CorrecaoDeOrganizacao,
@@ -104,6 +107,7 @@ export type {
   RepositorioEscopadoDaOrganizacao,
   RepositorioEscopadoDeAreas,
   RepositorioEscopadoDeCategorias,
+  RepositorioEscopadoDeConvitesPessoais,
   RepositorioEscopadoDeEtiquetas,
   RepositorioEscopadoDePedidosDeEntrada,
   RepositorioEscopadoDeVinculos,

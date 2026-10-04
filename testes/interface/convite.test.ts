@@ -184,3 +184,16 @@ describe("o convite mora na configuração — critérios 120.21 e 120.22", () =
     expect(pagina.indexOf("montarLinkDoConvite(")).toBeGreaterThan(pagina.indexOf("const geriVinculos"));
   });
 });
+
+describe("o convite pessoal, do lado do Gestor (item 121, critérios 1 e 9)", () => {
+  it("as duas rotas do Gestor existem, exportam só POST, e exigem vinculo.gerir", () => {
+    for (const rota of [
+      "app/api/vinculos/[pessoaId]/convite/route.ts",
+      "app/api/vinculos/[pessoaId]/convite/renovacao/route.ts",
+    ]) {
+      const fonte = ler(rota);
+      expect(fonte.match(/^export const (GET|POST|PUT|PATCH|DELETE) /gmu), rota).toStrictEqual(["export const POST "]);
+      expect(fonte, rota).toContain('comContexto({ exige: "vinculo.gerir" }');
+    }
+  });
+});

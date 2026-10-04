@@ -8,10 +8,14 @@ import {
   VinculoComHistorico,
   VinculoNaoEncontrado,
   cadastrarVinculo,
+  garantirConvitePessoal,
+  renovarConvitePessoal,
   corrigirVinculo,
   listarVinculos,
   removerVinculo,
   revogarVinculo,
+  type ConvitePessoalVivo,
+  type RepositorioEscopadoDeConvitesPessoais,
   type RepositorioEscopadoDeVinculos,
   type ResultadoDaCorrecao,
   type ResultadoDaRemocao,
@@ -19,6 +23,7 @@ import {
   type ResultadoDoCadastro,
   type VinculoLido,
 } from "@/aplicacao/organizacao";
+import type { Papel } from "@/dominio/organizacao";
 
 /**
  * ============================================================================
@@ -281,5 +286,93 @@ describe("revogarVinculo", () => {
     const { porta } = portaFalsa(undefined, undefined, undefined, { desfecho: "ultimo-gestor" });
 
     await expect(revogarVinculo(porta, "pessoa-1")).rejects.toBeInstanceOf(UltimoGestor);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// O convite pessoal (item 121): a elegibilidade é da Aplicação, e o resto é repasse.
+
+function vinculoLido(dados: { papel: Papel; temConta: boolean }): VinculoLido {
+  return { ...ENCARREGADO, papel: dados.papel, temConta: dados.temConta };
+}
+
+function vinculosQueDevolvem(vinculo: VinculoLido | null): RepositorioEscopadoDeVinculos {
+  return { ...portaFalsa().porta, porPessoa: () => Promise.resolve(vinculo) };
+}
+
+const VIVO: ConvitePessoalVivo = {
+  token: "T".repeat(43),
+  criadoEm: "2026-10-03T12:00:00.000Z",
+  criadoPor: { pessoaId: "gestora", nome: "Ana Lima" },
+};
+
+function convitesFalsos(): {
+  porta: RepositorioEscopadoDeConvitesPessoais;
+  recebido: { garantir?: unknown[]; renovar?: unknown[] };
+} {
+  const recebido: { garantir?: unknown[]; renovar?: unknown[] } = {};
+  return {
+    recebido,
+    porta: {
+      vivoDe: () => Promise.resolve(VIVO),
+      garantir(pessoaId, token, porPessoaId) {
+        recebido.garantir = [pessoaId, token, porPessoaId];
+        return Promise.resolve({ ...VIVO, token });
+      },
+      renovar(pessoaId, token, porPessoaId) {
+        recebido.renovar = [pessoaId, token, porPessoaId];
+        return Promise.resolve({ ...VIVO, token });
+      },
+    },
+  };
+}
+
+describe("garantir o convite pessoal (item 121)", () => {
+  it("devolve o convite do repositório para Solicitante sem conta", async () => {
+    const convites = convitesFalsos();
+    const vivo = await garantirConvitePessoal(
+      { vinculos: vinculosQueDevolvem(vinculoLido({ papel: "solicitante", temConta: false })), convitesPessoais: convites.porta },
+      "p1",
+      "gestora",
+      () => "T".repeat(43),
+    );
+    expect(vivo.token).toBe("T".repeat(43));
+    expect(convites.recebido.garantir).toStrictEqual(["p1", "T".repeat(43), "gestora"]);
+  });
+
+  it("o Gestor sem conta também recebe convite", async () => {
+    const convites = convitesFalsos();
+    await renovarConvitePessoal(
+      { vinculos: vinculosQueDevolvem(vinculoLido({ papel: "gestor", temConta: false })), convitesPessoais: convites.porta },
+      "p1",
+      "gestora",
+      () => "N".repeat(43),
+    );
+    expect(convites.recebido.renovar).toStrictEqual(["p1", "N".repeat(43), "gestora"]);
+  });
+
+  it.each([
+    ["encarregado", false, /Encarregados/u],
+    ["solicitante", true, /já usa o aplicativo/u],
+  ] as const)("recusa %s (com conta: %s)", async (papel, temConta, detalhe) => {
+    await expect(
+      garantirConvitePessoal(
+        { vinculos: vinculosQueDevolvem(vinculoLido({ papel, temConta })), convitesPessoais: convitesFalsos().porta },
+        "p1",
+        "gestora",
+        () => "x",
+      ),
+    ).rejects.toMatchObject({ codigo: "CONVITE_INDISPONIVEL", detalhe: expect.stringMatching(detalhe) as unknown });
+  });
+
+  it("vínculo que não existe aqui é 404, sem dizer onde existe", async () => {
+    await expect(
+      garantirConvitePessoal(
+        { vinculos: vinculosQueDevolvem(null), convitesPessoais: convitesFalsos().porta },
+        "p1",
+        "gestora",
+        () => "x",
+      ),
+    ).rejects.toBeInstanceOf(VinculoNaoEncontrado);
   });
 });

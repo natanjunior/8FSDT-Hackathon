@@ -33,6 +33,20 @@ export class CodigoPublicoNaoEncontrado extends ErroDeDominio {
   }
 }
 
+/**
+ * `409 CONVITE_INDISPONIVEL` — este participante não recebe convite pessoal (item 121). A tela esconde o
+ * botão; a API recusa o mesmo.
+ */
+export class ConviteIndisponivel extends ErroDeDominio {
+  constructor(motivo: "encarregado" | "ja-tem-conta") {
+    super(
+      "CONVITE_INDISPONIVEL",
+      "Convite indisponível",
+      motivo === "encarregado" ? "Encarregados não usam o aplicativo." : "Esta pessoa já usa o aplicativo.",
+    );
+  }
+}
+
 /** `409 JA_VINCULADO` — a Pessoa já tem vínculo ativo naquela organização. */
 export class JaVinculado extends ErroDeDominio {
   constructor() {
