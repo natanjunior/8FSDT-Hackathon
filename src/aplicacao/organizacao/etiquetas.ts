@@ -7,14 +7,28 @@ import type { EtiquetaLida, RepositorioEscopadoDeEtiquetas } from "./portas";
  * ============================================================================
  *
  * **A permissão não é conferida aqui.** `vinculo.gerir` é exigida na porta de entrada, por
- * `comContexto({ exige })`, nas quatro rotas — a mesma doutrina de `vinculos.ts`.
+ * `comContexto({ exige })`, em toda rota — a mesma doutrina de `vinculos.ts`.
  *
  * **Nenhum desfecho vem de leitura prévia**: os desfechos são do banco, e aqui só se traduzem.
  */
 
-/** A lista da organização, inclusive as sem uso: é o que o autocompletar e a gerência leem. */
+/**
+ * A lista da organização, inclusive as sem uso: é o que a seleção múltipla do detalhe sugere e o que o
+ * cartão da configuração lista.
+ */
 export function listarEtiquetas(etiquetas: RepositorioEscopadoDeEtiquetas): Promise<readonly EtiquetaLida[]> {
   return etiquetas.listar();
+}
+
+/**
+ * Cria sem atribuir, ou reaproveita (item 120). **Não há recusa de domínio**: a forma do nome é da rota,
+ * e a unicidade é do banco, que reaproveita em vez de recusar.
+ */
+export function criarEtiqueta(
+  etiquetas: RepositorioEscopadoDeEtiquetas,
+  nome: string,
+): Promise<{ etiqueta: EtiquetaLida; criada: boolean }> {
+  return etiquetas.criar(nome);
 }
 
 /**

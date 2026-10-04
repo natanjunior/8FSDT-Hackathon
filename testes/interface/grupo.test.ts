@@ -223,8 +223,15 @@ describe("o pé da moldura — critérios 70.5, 116.2 e 116.4", () => {
     const classe = /const CLASSE_DO_LINK_DO_PE =\s*"([^"]+)"/u.exec(fonte)?.[1] ?? "";
     expect(classe.split(" ")).toEqual(expect.arrayContaining(["underline", "text-tinta-marca", "min-h-11"]));
     expect(classe).not.toContain("hover:underline");
-    expect(fonte).toContain("bottom-[max(1rem,env(safe-area-inset-bottom))]");
-    // O fundo da página reserva o pé: 44 px de alvo, o respiro de baixo e 16 px de folga.
-    expect(fonte).toContain("pb-[calc(max(1rem,env(safe-area-inset-bottom))+3.75rem)]");
+    // **O pé está no fluxo** (item 120, bloco 15): nada de `absolute`, e o respiro da área segura continua,
+    // agora como `padding` de baixo do próprio pé.
+    expect(fonte).not.toMatch(/<footer className="absolute/u);
+    expect(fonte).toContain('<footer className="flex justify-center px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">');
+    // A reserva que existia para o pé absoluto não cobrir o último caminho sai com ele.
+    expect(fonte).not.toContain("+3.75rem)]");
+    // A página é coluna com altura mínima de tela; o corpo cresce e empurra o pé para o fim.
+    expect(fonte).toMatch(/const PAGINA =\s*"relative flex min-h-dvh w-full flex-col"/u);
+    expect(fonte).toContain("flex-1");
+    expect([...fonte.matchAll(/className=\{CORPO_DA_PAGINA\}/gu)]).toHaveLength(2);
   });
 });

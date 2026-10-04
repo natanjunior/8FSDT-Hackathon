@@ -859,6 +859,39 @@ test("as portas públicas: a página do grupo e a documentação, com e sem sess
 });
 
 /**
+ * **O pé termina a página** (critério 120.29). Numa janela mais baixa que o conteúdo, o pé vem depois do
+ * último controle e não por cima dele; e em toda janela ele é o fim do documento. **A medida é contra o
+ * controle mais baixo do corpo**, e não contra o corpo: o corpo tem `flex-1` e encosta no pé por
+ * construção, o que faria o caso passar sem olhar nada. A tela grande entra porque é onde a apresentação
+ * vira fileira; e a medida de transbordo põe as telas da moldura sob o critério 31.
+ */
+test("o pé da moldura termina a página, no celular e na tela grande", async ({ browser }) => {
+  for (const viewport of [{ width: 360, height: 560 }, { width: 1440, height: 900 }]) {
+    const onde = `a ${String(viewport.width)} × ${String(viewport.height)}`;
+    const contexto = await browser.newContext({ viewport });
+    const pagina = await contexto.newPage();
+    await pagina.goto("/entrar");
+    const medida = await pagina.evaluate(() => {
+      const pe = document.querySelector("main > footer");
+      const corpo = pe?.previousElementSibling;
+      const controles = corpo ? [...corpo.querySelectorAll("a, button, input")] : [];
+      if (!pe || controles.length === 0) return null;
+      return {
+        topoDoPe: pe.getBoundingClientRect().top + window.scrollY,
+        fimDoConteudo: Math.max(...controles.map((c) => c.getBoundingClientRect().bottom)) + window.scrollY,
+        fimDoPe: pe.getBoundingClientRect().bottom + window.scrollY,
+        fimDoDocumento: document.documentElement.scrollHeight,
+      };
+    });
+    expect(medida, onde).not.toBeNull();
+    expect(medida!.topoDoPe, `o pé não cobre o conteúdo ${onde}`).toBeGreaterThanOrEqual(medida!.fimDoConteudo - 0.5);
+    expect(medida!.fimDoPe, `o pé termina a página ${onde}`).toBeGreaterThanOrEqual(medida!.fimDoDocumento - 0.5);
+    expect.soft(await transbordo(pagina), `transbordo ${onde}`).toStrictEqual(SEM_TRANSBORDO);
+    await contexto.close();
+  }
+});
+
+/**
  * **O teclado no painel — item 94.**
  *
  * Três coisas que nenhum teste de unidade alcança, porque as três só existem no navegador: a ordem de

@@ -59,6 +59,22 @@ export function nomeParaCriar(todas: readonly EtiquetaNaTela[], texto: string): 
 }
 
 /**
+ * **Cada gesto da seleção múltipla é uma escrita só** (item 120). A peça devolve a lista inteira; aqui se
+ * acha o que mudou. O valor que entra é o `id` de uma etiqueta existente, ou o texto aparado de uma nova
+ * — a peça põe o texto do *Criar* na lista. A ordem não conta.
+ */
+export function diferencaDaEscolha(
+  antes: readonly string[],
+  depois: readonly string[],
+): { tipo: "entrou"; valor: string } | { tipo: "saiu"; valor: string } | null {
+  const entrou = depois.find((valor) => !antes.includes(valor));
+  if (entrou !== undefined) return { tipo: "entrou", valor: entrou };
+  const saiu = antes.find((valor) => !depois.includes(valor));
+  if (saiu !== undefined) return { tipo: "saiu", valor: saiu };
+  return null;
+}
+
+/**
  * **Quantas pessoas têm cada etiqueta, contado sobre os vínculos que a tela já tem** (critério 7). São os
  * ativos, e vínculo revogado não guarda etiqueta (o `revogar` as apaga), então o número é o do banco.
  * Etiqueta sem uso não aparece no mapa: ausente é zero.
@@ -81,4 +97,23 @@ export function textoDoApagar(quantas: number): string {
   if (quantas === 0) return "Não está em ninguém.";
   if (quantas === 1) return "Está em 1 pessoa e sai dela.";
   return `Está em ${String(quantas)} pessoas e sai de todas.`;
+}
+
+/** **A palavra, nunca só o número** (compromisso A-5): a contagem ao lado de cada etiqueta (item 120). */
+export function contagemDeParticipantes(quantos: number): string {
+  if (quantos === 0) return "Nenhum participante";
+  return quantos === 1 ? "1 participante" : `${String(quantos)} participantes`;
+}
+
+/** O recibo do modal *Nova etiqueta*: o banco reaproveita a grafia igual, e a frase diz que reaproveitou. */
+export function reciboDaCriacao(nome: string, criada: boolean): string {
+  return criada ? `${nome} criada` : `${nome} já existia`;
+}
+
+/** A busca do cartão da configuração é a do projeto, a mesma de sugerir: ignora acento (item 44l). */
+export function filtrarEtiquetas(
+  etiquetas: readonly EtiquetaNaTela[],
+  texto: string,
+): readonly EtiquetaNaTela[] {
+  return filtrarPeloNome(etiquetas, texto);
 }

@@ -213,10 +213,10 @@ export function ListaDeOrdemManual<T extends ItemDaLista>({
         </h2>
 
         <div className="border-linha-suave flex flex-col gap-1.5 border-b px-4 py-3">
-          <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-3">
+          <div className="flex flex-col gap-1.5">
             <label
               htmlFor={`${prefixo}-busca`}
-              className="text-interface text-tinta font-medium whitespace-nowrap"
+              className="text-interface text-tinta font-medium"
             >
               {TEXTOS_DA_TABELA.buscar}
             </label>

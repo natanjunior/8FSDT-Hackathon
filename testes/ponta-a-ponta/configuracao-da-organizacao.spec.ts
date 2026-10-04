@@ -202,7 +202,7 @@ async function organizacaoPropria(pagina: Page, sufixo: string): Promise<string>
   await pagina.waitForURL(/\/organizacao\/criar$/u);
   await pagina.getByLabel("Nome da organização").fill(organizacao);
   await pagina.getByRole("button", { name: "Criar uma organização" }).click();
-  await pagina.waitForURL(/\/convidar$/u);
+  await pagina.waitForURL(/\/configuracao\?aba=participantes$/u);
 
   await expect(pagina.getByRole("combobox", { name: /organização/iu })).toHaveText(organizacao);
   return organizacao;
@@ -312,7 +312,20 @@ test("a configuração da organização: nome repetido, desativar até a última
   // e é essa frase que o cartão precisa mostrar no primeiro passo.
   // -------------------------------------------------------------------------
   await page.goto("/configuracao");
+  // **As abas** (critérios 120.13 e 120.16): a primeira vem selecionada; a escolhida vai para o endereço e
+  // sobrevive ao recarregar.
+  await expect(page.getByRole("tab", { name: "Configurações de ocorrências" })).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("tab", { name: "Histórico" }).click();
+  await expect(page).toHaveURL(/\/configuracao\?aba=historico$/u);
+  await page.reload();
+  await expect(page.getByRole("tab", { name: "Histórico" })).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("tab", { name: "Configurações de ocorrências" }).click();
+  await expect(page).toHaveURL(/\/configuracao$/u);
+  // As mudanças moram na aba Histórico (item 120): ela abre antes de cada asserção de trilha, e a de
+  // ocorrências volta depois, para os passos seguintes acharem os cartões.
+  await page.getByRole("tab", { name: "Histórico" }).click();
   await expect(page.getByText("Nenhuma regra foi alterada desde a criação da organização.")).toBeVisible();
+  await page.getByRole("tab", { name: "Configurações de ocorrências" }).click();
 
   await page
     .getByRole("region", { name: "Regras do atendimento" })
@@ -325,7 +338,9 @@ test("a configuração da organização: nome repetido, desativar até a última
   await modalDasRegras.getByRole("switch", { name: "Exigir a solução ao resolver" }).click();
   await modalDasRegras.getByRole("button", { name: "Salvar" }).click();
   await expect(modalDasRegras).toBeHidden();
+  await page.getByRole("tab", { name: "Histórico" }).click();
   await expect(page.getByText("Exigir a solução ao resolver: de Não para Sim")).toBeVisible();
+  await page.getByRole("tab", { name: "Configurações de ocorrências" }).click();
 
   // **O mesmo `PATCH` direto ao servidor, com o mesmo valor: `200` e nenhuma linha a mais.** É o
   // critério 99.6 pelo lado que a tela não alcança — gravar o que já está lá não é mudança.
@@ -334,7 +349,9 @@ test("a configuração da organização: nome repetido, desativar até a última
   });
   expect(repetido.status()).toBe(200);
   await page.reload();
+  await page.getByRole("tab", { name: "Histórico" }).click();
   await expect(page.getByText("Exigir a solução ao resolver: de Não para Sim")).toHaveCount(1);
+  await page.getByRole("tab", { name: "Configurações de ocorrências" }).click();
 
   // -------------------------------------------------------------------------
   // 0c · Os dias para parada — item 101, critérios 4 e 5
@@ -361,7 +378,9 @@ test("a configuração da organização: nome repetido, desativar até a última
   await modalDasRegras.getByRole("button", { name: "Salvar" }).click();
   await expect(modalDasRegras).toBeHidden();
   await expect(page.getByText("15 dias", { exact: true })).toBeVisible();
+  await page.getByRole("tab", { name: "Histórico" }).click();
   await expect(page.getByText("Dias até contar como parada: de 7 dias para 15 dias")).toBeVisible();
+  await page.getByRole("tab", { name: "Configurações de ocorrências" }).click();
 
   // Volta ao padrão: os passos seguintes contam com a organização recém-fundada.
   const diasDevolvidos = await page.request.patch("/api/configuracao", {
@@ -403,9 +422,11 @@ test("a configuração da organização: nome repetido, desativar até a última
   await modalDosRotulos.getByLabel("Em análise").fill("o síndico está avaliando");
   await modalDosRotulos.getByRole("button", { name: "Salvar" }).click();
   await expect(modalDosRotulos).toBeHidden();
+  await page.getByRole("tab", { name: "Histórico" }).click();
   await expect(
     page.getByText("Texto de Em análise: do padrão para “o síndico está avaliando”"),
   ).toBeVisible();
+  await page.getByRole("tab", { name: "Configurações de ocorrências" }).click();
 
   // **O teto cabe no celular** — critério 5. A medida é com o teto de fato: quarenta caracteres LARGOS,
   // porque é o pior caso do cartão, e um texto curto mediria a tela e não o teto.
@@ -429,9 +450,11 @@ test("a configuração da organização: nome repetido, desativar até a última
   await page.getByRole("dialog").getByLabel("Em análise").fill("");
   await page.getByRole("dialog").getByRole("button", { name: "Salvar" }).click();
   await expect(page.getByRole("dialog")).toBeHidden();
+  await page.getByRole("tab", { name: "Histórico" }).click();
   await expect(
     page.getByText("Texto de Em análise: de “o síndico está avaliando” para o padrão"),
   ).toBeVisible();
+  await page.getByRole("tab", { name: "Configurações de ocorrências" }).click();
 
 
   // -------------------------------------------------------------------------

@@ -80,6 +80,7 @@ import {
   PARAMETROS_DE_FILTRO,
   primeirasOpcoes,
   rotuloDoGatilho,
+  valorDoGatilho,
   semFiltros,
   type OpcaoComBusca,
 } from "@/interface/componentes/filtros-da-lista";
@@ -1522,6 +1523,14 @@ describe("os puros da barra — o que Limpar filtros limpa, e o que ele mantém"
   /** Valor fora da lista — área desativada que veio por link — conta, e não inventa nome. */
   it("valor que não está na lista conta em vez de inventar nome", () => {
     expect(rotuloDoGatilho("Área", [], ["a-1"])).toBe("Área: 1 selecionado");
+  });
+
+  it("o gatilho com rótulo acima mostra só o valor: Qualquer, o nome, ou quantos (item 120)", () => {
+    const opcoes = [{ valor: "g", rotulo: "Garagem" }, { valor: "h", rotulo: "Hall" }];
+    expect(valorDoGatilho(opcoes, [], "Qualquer")).toBe("Qualquer");
+    expect(valorDoGatilho(opcoes, ["g"], "Qualquer")).toBe("Garagem");
+    expect(valorDoGatilho(opcoes, ["g", "h"], "Qualquer")).toBe("2 selecionados");
+    expect(valorDoGatilho([], ["x"], "Qualquer")).toBe("1 selecionado");
   });
 });
 

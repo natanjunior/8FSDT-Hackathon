@@ -11,7 +11,7 @@ import { resolverEscopoParaTela } from "@/interface/http";
 import { projetarArea } from "@/interface/projecoes";
 
 /**
- * **T-08 · cadastrar pessoa sem conta.**
+ * **T-08 · cadastrar participante.**
  *
  * A resolução do escopo é a de `app/(casca)/vinculos/page.tsx`, copiada e não importada:
  * `resolverOuMandarParaPorta` é função local lá, e o `destino` da volta muda por página. **O estado sem
@@ -22,23 +22,23 @@ import { projetarArea } from "@/interface/projecoes";
  */
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { title: "Cadastrar pessoa sem conta" };
+export const metadata: Metadata = { title: "Cadastrar participante" };
 
-export default async function CadastrarPessoaSemConta() {
+export default async function CadastrarParticipante() {
   const escopo = await resolverOuMandarParaPorta();
   if (escopo.situacao === "sem-organizacao") redirect("/organizacao");
   if (escopo.situacao === "sem-permissao") {
-    return <SemAcesso titulo="Cadastrar pessoa sem conta" permissao="vinculo.gerir" />;
+    return <SemAcesso titulo="Cadastrar participante" permissao="vinculo.gerir" />;
   }
 
   const areas = await listarAreas(escopo.repos.areas);
 
   return (
     <div className="flex flex-col gap-5.5">
-      <CaminhoDaPagina anterior={{ rotulo: "Participantes", href: "/vinculos" }} atual="Cadastrar pessoa sem conta" />
+      <CaminhoDaPagina anterior={{ rotulo: "Participantes", href: "/vinculos" }} atual="Cadastrar participante" />
       <CabecalhoDaPagina
-        titulo="Cadastrar pessoa sem conta"
-        fato="Para quem recebe atribuições e não usa o sistema, como o zelador ou o eletricista terceirizado."
+        titulo="Cadastrar participante"
+        fato="Para quem participa da organização e ainda não usa o aplicativo, como o zelador, o eletricista terceirizado ou um morador sem conta."
       />
       <FormularioDeVinculo
         modo={{ tipo: "cadastro" }}

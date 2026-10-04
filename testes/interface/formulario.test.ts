@@ -464,7 +464,9 @@ describe("o alcance do 44i — o cartão mostra, o modal edita", () => {
   it("T-15 edita o nome no modal, e as duas caixas e a frase do apagar saíram (critérios 44i.2 e 44i.4)", () => {
     const fonte = ler("app/(casca)/configuracao/page.tsx");
     expect(fonte).toMatch(/<EdicaoDeNome\s+alvo="organizacao"/u);
-    expect(fonte).not.toContain("searchParams");
+    // O único parâmetro que T-15 lê é a aba (item 120); a faixa de desfecho por `?renomeada` (44i) não volta.
+    expect(fonte).not.toMatch(/renomeada|FaixaDoDesfecho/u);
+    expect([...fonte.matchAll(/\(await searchParams\)\["(\w+)"\]/gu)].map((m) => m[1])).toStrictEqual(["aba"]);
     expect(fonte).not.toContain("Não há como apagar");
     expect(fonte).not.toContain("function Destino(");
   });
@@ -609,6 +611,48 @@ describe("o alcance do 44j — as peças da tabela e da ordem manual", () => {
       ),
     );
     expect(achados).toStrictEqual([]);
+  });
+
+  it("a tela de cadastro se chama Cadastrar participante, nos seis lugares, e a espera não pisca outro nome (critérios 120.5 e 120.28)", () => {
+    const pagina = ler("app/(casca)/vinculos/nova/page.tsx");
+    const espera = ler("app/(casca)/vinculos/nova/loading.tsx");
+    const lista = ler("app/(casca)/vinculos/page.tsx");
+    expect(pagina).toContain('export const metadata: Metadata = { title: "Cadastrar participante" };');
+    expect(pagina).toContain('<SemAcesso titulo="Cadastrar participante" permissao="vinculo.gerir" />');
+    expect(pagina).toContain('atual="Cadastrar participante"');
+    expect(pagina).toContain('titulo="Cadastrar participante"');
+    expect(lista).toMatch(/<UserPlus aria-hidden="true" \/>\s*Cadastrar participante\s*<\/Link>/u);
+    // **O `h1` da espera é idêntico ao título da página**: é ele que aparece na partida a frio.
+    const titulo = /titulo="([^"]+)"/u.exec(pagina)?.[1];
+    expect(espera).toContain(`<h1 className="text-titulo-pagina text-tinta">${titulo ?? "?"}</h1>`);
+    // A frase de apoio nomeia quem a tela cadastra: qualquer papel, desde que sem conta (critério 120.28).
+    expect(pagina).toContain(
+      'fato="Para quem participa da organização e ainda não usa o aplicativo, como o zelador, o eletricista terceirizado ou um morador sem conta."',
+    );
+    // E o nome antigo não sobra em lugar nenhum da tela, nem em comentário.
+    for (const fonte of [pagina, espera, lista, ler("src/interface/componentes/formulario-de-vinculo.tsx")]) {
+      expect(fonte.toLowerCase()).not.toContain("pessoa sem conta");
+    }
+  });
+
+  it("o cartão de etiquetas vem depois de Contatos e fora do formulário, e o Salvar continua no fim (critério 120.8)", () => {
+    const formulario = ler("src/interface/componentes/formulario-de-vinculo.tsx");
+    const contatos = formulario.indexOf("TEXTOS_DO_FORMULARIO.cartaoContatos");
+    const fechaForm = formulario.indexOf("</form>");
+    const fresta = formulario.indexOf("{depoisDosContatos}");
+    const rodape = formulario.indexOf("<RodapeDaPagina");
+    expect(contatos).toBeGreaterThan(-1);
+    // O formulário fecha depois de Contatos; a fresta vem depois dele; e o rodapé, por último.
+    expect(fechaForm).toBeGreaterThan(contatos);
+    expect(fresta).toBeGreaterThan(fechaForm);
+    expect(rodape).toBeGreaterThan(fresta);
+    // O botão de enviar mora fora do `<form>`, e se liga a ele pelo atributo `form`.
+    expect(formulario).toContain("<form id={idDoFormulario}");
+    expect(formulario).toContain("formulario={idDoFormulario}");
+    expect(ler("src/interface/componentes/modal.tsx")).toContain("form={formulario}");
+    const pagina = ler("app/(casca)/vinculos/[pessoaId]/editar/page.tsx");
+    expect(pagina.indexOf("<FormularioDeVinculo")).toBeLessThan(pagina.indexOf("<CartaoDeEtiquetas"));
+    expect(pagina).toContain("depoisDosContatos={");
   });
 
   it("na edição, o cartão Pessoa é Nome, Unidade e Papel, em três colunas a partir de md (item 68a)", () => {
@@ -1666,13 +1710,12 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     expect(foto).not.toMatch(/\brounded-md\b/u);
   });
 
-  it("o filtro rápido não é caixa: régua embaixo, e a marcada em cromo (critério 104.9)", async () => {
+  it("o filtro rápido não é caixa nem régua, e a marcada em cromo (critérios 104.9 e 120.27)", async () => {
     const { CAIXA_DO_FILTRO, OPCAO_DO_FILTRO, CONTAGEM_DO_FILTRO } = await import("@/interface/componentes/filtro-rapido");
     expect(CAIXA_DO_FILTRO).not.toMatch(/\bbg-muted\b|\brounded-md\b|\bp-\[3px\]/u);
-    expect(CAIXA_DO_FILTRO).toMatch(/\bborder-b\b/u);
-    // A raiz do `ToggleGroup` traz `rounded-md` na base (`ui/toggle-group.tsx:39`); sem anular, a régua
-    // de baixo curvaria nas pontas.
-    expect(CAIXA_DO_FILTRO).toMatch(/\brounded-none\b/u);
+    // **Sem régua embaixo** (item 120, bloco 13): a linha abaixo das abas saiu das quatro telas, e com ela
+    // o `rounded-none`, que só existia para a régua não curvar nas pontas.
+    expect(CAIXA_DO_FILTRO).not.toMatch(/\bborder-b\b|\bpb-1\b|\brounded-none\b/u);
     expect(OPCAO_DO_FILTRO).toContain("data-[state=on]:bg-secondary");
     expect(OPCAO_DO_FILTRO).not.toContain("data-[state=on]:shadow-sm");
     expect(OPCAO_DO_FILTRO).toContain("group/opcao");
@@ -2437,9 +2480,8 @@ describe("o alcance do 65 — as duas portas de entrada", () => {
     expect(fonte).toContain('<ExibicaoDeCodigo codigo={codigo} rotulo="Código da organização" />');
     expect(fonte).toContain("Selecione e copie:");
     expect(fonte).not.toContain("Selecione o código e copie.");
-    // O `select-all` existe uma vez por peça, e é o do texto que só aparece na falha: a de T-15 e, desde o
-    // item 116, a `CodigoComCopia` de `/convidar`.
-    expect([...fonte.matchAll(/select-all/gu)]).toHaveLength(2);
+    // O `select-all` existe uma vez na peça, e é o do texto que só aparece na falha.
+    expect([...fonte.matchAll(/select-all/gu)]).toHaveLength(1);
     expect(fonte).not.toContain("gruposDoCodigo");
   });
 
@@ -3071,5 +3113,36 @@ describe("uma falha, uma mensagem — critério 116.9", () => {
     }
     expect(ler("src/interface/componentes/formulario-de-cadastro.tsx")).toContain('avisarSucesso("Conta criada")');
     expect(ler("src/interface/componentes/formulario-de-nova-senha.tsx")).toContain('avisarSucesso("Senha alterada"');
+  });
+});
+
+describe("o rótulo acima do campo, e o ícone do seletor — critérios 120.25 e 120.26", () => {
+  it("T-03: cada menu e o título têm rótulo visível acima, e o gatilho mostra só o valor", () => {
+    const barra = ler("src/interface/componentes/barra-de-filtros.tsx");
+    expect(barra).toContain('className="border-linha flex flex-wrap items-end gap-2 border-b px-4 py-3"');
+    // O menu: rótulo em cima, valor no gatilho, e o nome acessível de sempre (o ponta a ponta acha por ele).
+    // O nome acessível contém o texto visível (WCAG 2.5.3): sem valor, *"Status: Qualquer"*.
+    expect(barra).toContain("aria-label={marcados.length === 0 ? `${nome}: Qualquer` : rotuloDoChip(nome, opcoes, marcados)}");
+    expect(barra).toContain('{valorDoGatilho(opcoes, marcados, "Qualquer")}');
+    // O título: `label` de verdade, sem `aria-label` que o esconda.
+    expect(barra).toMatch(/<label htmlFor=\{idDoTitulo\} className=\{ROTULO_ACIMA\}>\s*Título\s*<\/label>/u);
+    expect(barra).not.toContain('aria-label="Buscar pelo título"');
+  });
+
+  it("Categorias e Áreas: o rótulo da busca deixa de ficar ao lado", () => {
+    const lista = ler("src/interface/componentes/lista-de-ordem-manual.tsx");
+    expect(lista).not.toContain('<div className="flex flex-col gap-1.5 md:flex-row md:items-center md:gap-3">');
+  });
+
+  it("o Painel: Período escrito acima do seletor", () => {
+    const painel = ler("app/(casca)/dashboard/page.tsx");
+    expect(painel).toMatch(/<span aria-hidden="true" className=\{ROTULO_ACIMA\}>\s*Período\s*<\/span>\s*<SeletorDePeriodo/u);
+  });
+
+  it("o seletor de organização mostra o prédio, mudo, e o nome acessível não muda", () => {
+    const seletor = ler("src/interface/componentes/casca/seletor-de-organizacao.tsx");
+    expect(seletor).toContain('<Building2 aria-hidden="true" className="text-tinta-suave size-4 shrink-0" />');
+    expect(seletor).toContain('aria-label="Organização"');
+    expect(seletor.indexOf("<Building2")).toBeLessThan(seletor.indexOf("<SelectValue"));
   });
 });
