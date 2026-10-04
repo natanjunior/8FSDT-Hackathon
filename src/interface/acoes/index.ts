@@ -12,7 +12,8 @@ import {
   sair,
   type RecusaDeCredencial,
 } from "@/aplicacao/credenciais";
-import { montarCredenciais } from "@/composicao";
+import { ligarContaAoConvitePessoal } from "@/aplicacao/organizacao";
+import { montarCredenciais, montarPortaDeConvitesPessoais } from "@/composicao";
 
 import {
   armazenamentoDeCookies,
@@ -64,6 +65,8 @@ export type EstadoDoFormulario = {
    * navegador, e um `redirect()` aqui encerraria a ação antes de a tela saber que deu certo (item 44g).
    */
   readonly concluido?: true;
+  /** Para onde ir depois de criar a conta pelo convite pessoal (item 121). Sem convite, a tela segue para `destino` ou `/`. */
+  readonly destino?: string;
 };
 
 /** T-01 · Entrar. Ao final, navegação para o shell, que faz `GET /contexto` (inventário, T-01). */
@@ -100,6 +103,7 @@ export async function acaoDeCriarConta(
     nome: formulario.get("nome"),
     email: formulario.get("email"),
     senha: formulario.get("senha"),
+    convite: formulario.get("convite"),
   });
   if (!conferido.success) return { erros: mensagensPorCampo(conferido.error.issues) };
 
@@ -127,7 +131,24 @@ export async function acaoDeCriarConta(
   // janela de minutos para exatamente isso**. Quem a abre é o humano; nada aqui afirma que ela já foi
   // aberta.
   if ("precisaConfirmarEmail" in resultado && resultado.precisaConfirmarEmail) {
+    // Com o interruptor ligado, a ligação do convite pessoal não roda aqui: a pessoa confirma, entra, e
+    // aceita pela fusão, que é o caminho que sobra (item 121).
     return { aviso: "confirme-o-email" };
+  }
+
+  // **Item 121 · a conta nasce ligada à Pessoa cadastrada.** Antes de qualquer outra requisição desta
+  // sessão: é isso que impede `garantirParaUsuario` de criar outra Pessoa. Falhou (o convite foi renovado,
+  // ou já não vale), a conta segue, e a pessoa volta ao convite, que agora diz *não vale* ou aceita pela
+  // fusão.
+  const convite = conferido.data.convite;
+  if (convite !== undefined && "usuarioId" in resultado && resultado.usuarioId !== undefined) {
+    const ligacao = await ligarContaAoConvitePessoal(
+      { convitesPessoais: montarPortaDeConvitesPessoais() },
+      convite,
+      resultado.usuarioId,
+      conferido.data.nome,
+    );
+    return { concluido: true, destino: ligacao.desfecho === "ligada" ? "/" : `/convite-pessoal/${convite}` };
   }
 
   return { concluido: true };
@@ -242,11 +263,14 @@ export async function acaoDeRegistrarLeitura(ocorrenciaId: string): Promise<void
     return;
   }
 
-  // **O layout da raiz, e não `/ocorrencias`** (item 117): o sino mora no layout da casca, que não se
-  // renderiza de novo na navegação, e só o tipo `layout` o alcança. Numa função de servidor isso atualiza a
-  // tela atual e faz toda página visitada se refazer na volta. **O custo, dito:** uma segunda renderização
-  // de T-05 no servidor a cada abertura — o preço de o número cair na hora.
-  revalidatePath("/", "layout");
+  // **O layout da casca, e não `/ocorrencias`** (item 117): o sino mora nele, que não se renderiza de novo
+  // na navegação, e só o tipo `layout` o alcança. Numa função de servidor isso atualiza a tela atual e faz
+  // toda página visitada se refazer na volta. **O custo, dito:** uma segunda renderização de T-05 no
+  // servidor a cada abertura — o preço de o número cair na hora.
+  //
+  // **E não o da raiz** (item 123): `"/"` expira a etiqueta que toda página pré-renderizada carrega, e a
+  // documentação, que não aceita endereço fora da lista, passa a responder 404 até o processo reiniciar.
+  revalidatePath("/(casca)", "layout");
 }
 
 /**
@@ -268,5 +292,5 @@ export async function acaoDeMarcarComoNaoLida(ocorrenciaId: string): Promise<voi
     registrarFalha(erro, "/", "ACAO", novoTraceId());
     return;
   }
-  revalidatePath("/", "layout");
+  revalidatePath("/(casca)", "layout");
 }

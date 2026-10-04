@@ -17,11 +17,15 @@ import {
 import {
   CodigoPublicoNaoEncontrado,
   lerConvite,
+  lerConvitePessoal,
   lerRotulosDoSolicitante,
+  type ConvitePessoalLido,
+  type LeituraDeConvitesPessoais,
   type QuemAbreOConvite,
   type RepositorioDeConvites,
 } from "@/aplicacao/organizacao";
 import {
+  montarLeituraDeConvitesPessoais,
   montarPortaDeConvites,
   montarPortasEscopadas,
   montarPortasGlobais,
@@ -36,6 +40,7 @@ import {
   type ConviteProjetado,
   type LenteDeRotulo,
 } from "@/interface/projecoes";
+import { FORMATO_DO_TOKEN } from "@/interface/schemas";
 
 import {
   assinarOrganizacao,
@@ -77,8 +82,8 @@ import { novoTraceId } from "./traco";
  * `eslint.config.mjs`. Então um `route.ts` que não passe por aqui não tem função de consulta, não tem porta
  * e não tem cliente: não tem como falar com o banco.
  *
- * **`semOrganizacao` é a lista fechada da ADR-0003 virada mecanismo.** Exatamente cinco operações rodam
- * sem escopo (contrato §4.4), e o lint só permite importar `semOrganizacao` nos cinco `route.ts` daquela
+ * **`semOrganizacao` é a lista fechada da ADR-0003 virada mecanismo.** Exatamente seis operações rodam
+ * sem escopo (contrato §4.4), e o lint só permite importar `semOrganizacao` nos seis `route.ts` daquela
  * lista. Um quinto endpoint não é caso a resolver no código: é emenda à ADR.
  */
 
@@ -115,6 +120,30 @@ function ehResposta(valor: unknown): valor is RespostaDoManipulador {
   return typeof valor === "object" && valor !== null && MARCA_DE_RESPOSTA in valor;
 }
 
+const MARCA_DE_ARQUIVO = Symbol("arquivo-do-manipulador");
+
+type ArquivoDoManipulador = {
+  readonly [MARCA_DE_ARQUIVO]: true;
+  readonly conteudo: string;
+  readonly nome: string;
+  readonly tipo: string;
+};
+
+/**
+ * **Para o handler que devolve um arquivo, e não JSON** (item 124). O corpo vai como veio, com
+ * `Content-Disposition: attachment` e `Cache-Control: no-store`, porque o arquivo leva dado da organização
+ * e contato de gente. **O erro continua `problem+json`**: só o sucesso muda de forma.
+ *
+ * `nome` tem de ser ASCII: vai entre aspas em `filename="…"`, sem a forma estendida da RFC 6266.
+ */
+export function arquivo(conteudo: string, opcoes: { nome: string; tipo: string }): ArquivoDoManipulador {
+  return { [MARCA_DE_ARQUIVO]: true, conteudo, nome: opcoes.nome, tipo: opcoes.tipo };
+}
+
+function ehArquivo(valor: unknown): valor is ArquivoDoManipulador {
+  return typeof valor === "object" && valor !== null && MARCA_DE_ARQUIVO in valor;
+}
+
 // ---------------------------------------------------------------------------
 // As duas entradas
 // ---------------------------------------------------------------------------
@@ -127,6 +156,8 @@ export type EntradaEscopada<C> = {
   repos: RepositoriosEscopados;
   /** A coluna que esta requisição inteira fala — resolvida uma vez, no ponto único (item 100). */
   lente: LenteDeRotulo;
+  /** A organização ativa, `{ id, nome }`: o par que o `catch` já guardava, agora também do handler. */
+  organizacao: { id: string; nome: string };
   corpo: C;
   parametros: Readonly<Record<string, string>>;
   requisicao: Request;
@@ -138,7 +169,7 @@ export type EntradaSemOrganizacao<C> = {
   ctx: ContextoDaSessao;
   /** A resolução inteira — é ela que `GET /contexto` projeta, sem refazer consulta nenhuma. */
   resolucao: ResolucaoDeContexto;
-  /** O nome grita que **não** é escopado. Só as cinco operações da lista fechada o recebem. */
+  /** O nome grita que **não** é escopado. Só as seis operações da lista fechada o recebem. */
   portasGlobais: PortasGlobais;
   corpo: C;
   parametros: Readonly<Record<string, string>>;
@@ -238,10 +269,11 @@ export function comContexto<C = undefined>(
       const { resolucao } = await abrirRequisicao();
 
       if (resolucao.ativo === null) throw new SemOrganizacaoAtiva();
-      organizacaoAtiva = {
+      const organizacao = {
         id: resolucao.ativo.organizacao.id,
         nome: resolucao.ativo.organizacao.nome,
       };
+      organizacaoAtiva = organizacao;
 
       await conferirAfirmacaoDeOrganizacao(resolucao.ativo.organizacao.id);
 
@@ -258,6 +290,7 @@ export function comContexto<C = undefined>(
         ctx,
         repos,
         lente: await lenteDaRequisicao(ctx, repos),
+        organizacao,
         corpo: await lerCorpo(requisicao, opcoes.corpo, opcoes.recusar, opcoes.corpoOpcional === true),
         parametros: await lerParametros(contextoDaRota),
         requisicao,
@@ -271,7 +304,7 @@ export function comContexto<C = undefined>(
 }
 
 // ---------------------------------------------------------------------------
-// semOrganizacao — os cinco da lista fechada (contrato §4.4)
+// semOrganizacao — os seis da lista fechada (contrato §4.4)
 // ---------------------------------------------------------------------------
 
 export function semOrganizacao<C = undefined>(
@@ -367,27 +400,30 @@ const abrirRequisicao = cache(async function abrirRequisicao(): Promise<{
 });
 
 // ---------------------------------------------------------------------------
-// semSessao — a primeira operação sem sessão (item 86, ADR-0018)
+// semSessao — as duas leituras sem sessão (item 86, item 121, ADR-0021)
 // ---------------------------------------------------------------------------
 
 /**
- * O que `GET /convites/{codigo}` recebe.
+ * O que `GET /convites/{codigo}` e `GET /convites-pessoais/{token}` recebem.
  *
  * **`resolucao` é `null` sem sessão, e nunca lança `NaoAutenticado`.** Com sessão, é a mesma resolução
  * das outras portas, e é dela que sai `quem`, sem consulta nenhuma. **Não há portas globais nem
- * escopadas aqui**: quem roda sem sessão recebe o convite e mais nada.
+ * escopadas aqui**: quem roda sem sessão recebe as duas leituras de convite e mais nada.
  */
 export type EntradaSemSessao = {
   resolucao: ResolucaoDeContexto | null;
   quem: QuemAbreOConvite | null;
   convites: RepositorioDeConvites;
+  /** A leitura do convite pessoal (item 121). Leitura, e mais nada: o aceite tem sessão e mora nas globais. */
+  convitesPessoais: LeituraDeConvitesPessoais;
   parametros: Readonly<Record<string, string>>;
   requisicao: Request;
 };
 
 /**
- * **A quarta lista fechada** (`eslint.config.mjs`, `SEM_SESSAO`): só a rota e a página do convite a
- * importam. Um segundo endpoint sem sessão é ADR nova, e não uma linha de código.
+ * **A quarta lista fechada** (`eslint.config.mjs`, `SEM_SESSAO`): só as rotas e as páginas dos dois
+ * convites a importam. O segundo endpoint sem sessão custou a ADR-0021; um terceiro é ADR nova, e não uma
+ * linha de código.
  */
 export function semSessao(manipulador: Manipulador<EntradaSemSessao>): RotaDoNext {
   return async (requisicao, contextoDaRota) => {
@@ -398,6 +434,7 @@ export function semSessao(manipulador: Manipulador<EntradaSemSessao>): RotaDoNex
         resolucao,
         quem: quemAbre(resolucao),
         convites: montarPortaDeConvites(),
+        convitesPessoais: montarLeituraDeConvitesPessoais(),
         parametros: await lerParametros(contextoDaRota),
         requisicao,
       });
@@ -434,6 +471,25 @@ export async function resolverConviteParaTela(
   }
 }
 
+/**
+ * A **estrada direta** de `GET /convites-pessoais/{token}`, para `app/convite-pessoal/[token]/page.tsx`
+ * (item 121, ADR-0021). Token fora do formato dá o mesmo `null` de token inexistente: adulterado,
+ * inexistente e morto têm a mesma resposta.
+ */
+export async function resolverConvitePessoalParaTela(
+  tokenBruto: string,
+): Promise<{ resolucao: ResolucaoDeContexto | null; convite: ConvitePessoalLido | null }> {
+  const resolucao = await resolverSeHouverSessao();
+  const token = decodificar(tokenBruto);
+  if (!FORMATO_DO_TOKEN.test(token)) return { resolucao, convite: null };
+  const convite = await lerConvitePessoal(
+    { convitesPessoais: montarLeituraDeConvitesPessoais() },
+    quemAbre(resolucao),
+    token,
+  );
+  return { resolucao, convite };
+}
+
 /** `%` solto no endereço faz `decodeURIComponent` lançar; o cru serve, e o formato o recusa em seguida. */
 function decodificar(valor: string): string {
   try {
@@ -458,6 +514,7 @@ function quemAbre(resolucao: ResolucaoDeContexto | null): QuemAbreOConvite | nul
   return {
     pessoaId: resolucao.sessao.pessoaId,
     codigosComVinculoAtivo: resolucao.vinculos.map((v) => v.organizacao.codigoPublico),
+    organizacoesComVinculoAtivo: resolucao.vinculos.map((v) => v.organizacao.id),
   };
 }
 
@@ -620,6 +677,17 @@ async function lerParametros(contexto: ContextoDaRota | undefined): Promise<Reco
 }
 
 function montarResposta(resultado: unknown): Response {
+  if (ehArquivo(resultado)) {
+    return new Response(resultado.conteudo, {
+      status: 200,
+      headers: {
+        "content-type": resultado.tipo,
+        "content-disposition": `attachment; filename="${resultado.nome}"`,
+        "cache-control": "no-store",
+      },
+    });
+  }
+
   const { corpo, status, cabecalhos } = ehResposta(resultado)
     ? resultado
     : { corpo: resultado, status: 200, cabecalhos: {} as Record<string, string> };

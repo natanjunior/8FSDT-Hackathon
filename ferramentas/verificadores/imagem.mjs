@@ -42,7 +42,16 @@ import { relatar, RAIZ } from "./comum.mjs";
  * conferência A dispare, e quem sempre a faz disparar é o `COPY` do `.env`.
  */
 
-const NOMES = ["SUPABASE_URL", "SUPABASE_CHAVE_ANONIMA", "BANCO_URL", "SEGREDO_DE_SESSAO"];
+/** As sete do `.env.example`. A `ARMAZENAMENTO_CONEXAO` faltava desde o 13a; as duas do e-mail são do 122. */
+const NOMES = [
+  "SUPABASE_URL",
+  "SUPABASE_CHAVE_ANONIMA",
+  "BANCO_URL",
+  "SEGREDO_DE_SESSAO",
+  "ARMAZENAMENTO_CONEXAO",
+  "CORREIO_SMTP_URL",
+  "CORREIO_REMETENTE",
+];
 
 /** Prefixos das chaves do provedor. Valor vazado é pior que nome vazado. */
 const VALORES = ["sb_publishable_", "sb_secret_"];

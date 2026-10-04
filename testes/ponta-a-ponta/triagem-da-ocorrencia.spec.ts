@@ -1,10 +1,12 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { cobertura, cobre } from "./cobertura";
 
 import {
   AURORA,
   ciclo,
+  conteudoDaCasca,
+  ID_DO_CONTEUDO,
   abrirOSino,
   ENCARREGADA_DO_AURORA,
   entrar,
@@ -440,11 +442,12 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   //
   // **`exact` porque o chip e o cabeçalho que ordena dividem a palavra.** O nome do `name` casa por
   // pedaço, e desde o item 67 a mesma tela traz `Ordenar por Status` no cabeçalho da coluna — o chip sem
-  // valor marcado se chama `Status`, e sem `exact` a asserção pediria os dois. Os nomes acessíveis são
-  // distintos; quem estava solto era o predicado do teste.
-  await expect(marcos.getByRole("button", { name: "Status", exact: true })).toBeVisible();
-  await expect(marcos.getByRole("button", { name: "Categoria", exact: true })).toBeVisible();
-  await expect(marcos.getByRole("button", { name: "Prioridade", exact: true })).toBeVisible();
+  // valor marcado se chama `Status: Qualquer` desde o item 120 (o rótulo foi para cima, e o nome contém o
+  // texto visível), e sem `exact` a asserção pediria os dois. Os nomes acessíveis são distintos; quem estava
+  // solto era o predicado do teste.
+  await expect(marcos.getByRole("button", { name: "Status: Qualquer", exact: true })).toBeVisible();
+  await expect(marcos.getByRole("button", { name: "Categoria: Qualquer", exact: true })).toBeVisible();
+  await expect(marcos.getByRole("button", { name: "Prioridade: Qualquer", exact: true })).toBeVisible();
   await expect(marcos.getByRole("link", { name: /^Registrar (ocorrência|a primeira)$/u })).toBeVisible();
   cobre(test.info(), "4.2 · 10", {
     falta: "as três novas no topo da lista, com status Aberta e sem responsável",
@@ -519,7 +522,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // **O rótulo do chip é o sinal, e nunca um ponto colorido** (A-5): com um valor marcado ele passa a ser
   // o **nome do valor**.
   // -------------------------------------------------------------------------
-  await marcos.getByRole("button", { name: "Categoria", exact: true }).click();
+  await marcos.getByRole("button", { name: "Categoria: Qualquer", exact: true }).click();
   await marcos.getByRole("menuitemcheckbox", { name: categoriaDeA }).click();
   await marcos.waitForURL(/[?&]categoriaId=/u);
 
@@ -556,7 +559,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // O subtítulo do terceiro vazio traz o recorte em palavras, com os mesmos rótulos dos chips.
   await expect(marcos.getByText(categoriaDeA).first()).toBeVisible();
   // A barra fica em cima do vazio — sem ela, o vazio de filtro seria um beco.
-  await expect(marcos.getByRole("button", { name: "Status", exact: true })).toBeVisible();
+  await expect(marcos.getByRole("button", { name: "Status: Qualquer", exact: true })).toBeVisible();
   await expect(marcos.getByRole("link", { name: "Limpar filtros" }).first()).toBeVisible();
   cobre(test.info(), "4.2 · 15", {
     falta: "o vazio por Status → Resolvida; a asserção chega nele pelo recorte Minhas ocorrências",
@@ -1056,10 +1059,19 @@ test.fixme(
 /**
  * **A página assentada**, que é quando a medida vale. Os `loading.tsx` da casca são esqueletos mais
  * estreitos que o conteúdo, e medir neles daria zero falso; a fonte muda a largura do nome no seletor.
+ *
+ * **E há dois `<main>` na árvore, por desenho.** O layout da casca é assíncrono, e numa navegação dura a
+ * espera da raiz (`app/loading.tsx`, a moldura de conta com *"Acordando o servidor"*) chega antes dele, com
+ * um `<main>` próprio. Os dois convivem até a troca. Localizador de teste não pode supor um só: o
+ * `locator("main")` que estava aqui recusou no modo estrito e derrubou a medida de 360 px (item 119).
+ *
+ * Por isso o ajudante assenta **o conteúdo da página**, e não "o `<main>`": na casca, `conteudoDaCasca`;
+ * fora dela, quem chama diz qual é. **E não espera a espera sumir**: o que importa é o conteúdo visível e
+ * sem esqueleto, e o que mais estiver na árvore não é da conta da medida.
  */
-async function assentar(pagina: Page): Promise<void> {
-  await expect(pagina.locator("main")).toBeVisible();
-  await expect(pagina.locator("main .animate-pulse")).toHaveCount(0);
+async function assentar(pagina: Page, conteudo: Locator = conteudoDaCasca(pagina)): Promise<void> {
+  await expect(conteudo).toBeVisible();
+  await expect(conteudo.locator(".animate-pulse")).toHaveCount(0);
   await pagina.evaluate(async () => {
     await document.fonts.ready;
   });
@@ -1112,14 +1124,14 @@ test("o título longo corta na tela grande e quebra no celular, sem empurrar as 
 
     expect(await transbordo(helena)).toStrictEqual(SEM_TRANSBORDO);
 
-    const conteudo = await helena.evaluate(() => {
+    const conteudo = await helena.evaluate((id) => {
       const medir = (elemento: Element | null) =>
         elemento === null ? null : { rola: elemento.scrollWidth, cabe: elemento.clientWidth };
       return {
-        principal: medir(document.querySelector("main")),
-        cabecalho: medir(document.querySelector("main header")),
+        principal: medir(document.querySelector(`main#${id}`)),
+        cabecalho: medir(document.querySelector(`main#${id} header`)),
       };
-    });
+    }, ID_DO_CONTEUDO);
     expect(conteudo.principal).not.toBeNull();
     expect(conteudo.cabecalho).not.toBeNull();
     expect(conteudo.principal?.rola ?? 0).toBeLessThanOrEqual(conteudo.principal?.cabe ?? 0);
@@ -1150,7 +1162,7 @@ test("nenhuma tela da casca rola na horizontal em 360 e 390 px, com o sino (crit
   const contexto = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const helena = await contexto.newPage();
 
-  // **Helena é Gestor do Recanto**, o papel que alcança as doze telas, e o nome mais longo do mundo.
+  // **Helena é Gestor do Recanto**, o papel que alcança as telas da casca, e o nome mais longo do mundo.
   await entrar(helena, HELENA);
   await helena.waitForURL(/\/organizacao$/u);
   await helena.getByRole("button", { name: RECANTO }).click();
@@ -1171,8 +1183,9 @@ test("nenhuma tela da casca rola na horizontal em 360 e 390 px, com o sino (crit
   await assentar(helena);
   const edicao = await primeiroHref(helena, new RegExp(`^/vinculos/${UUID}/editar$`, "u"));
 
-  // As doze rotas de `app/(casca)`. `/ocorrencias/nova` mora em `app/(foco)`, sem a barra. `/convidar` chegou
-  // com o item 86, depois de a lista do 92 ser escrita (achado A-1 do 93).
+  // As onze rotas de `app/(casca)`. `/ocorrencias/nova` mora em `app/(foco)`, sem a barra. `/convidar` chegou
+  // com o item 86 e saiu com o 120, que o fez cartão da configuração; as duas abas novas entram com
+  // parâmetro.
   const rotas = [
     "/ocorrencias",
     ocorrencia,
@@ -1181,8 +1194,9 @@ test("nenhuma tela da casca rola na horizontal em 360 e 390 px, com o sino (crit
     "/vinculos",
     "/vinculos/nova",
     edicao,
-    "/convidar",
     "/configuracao",
+    "/configuracao?aba=participantes",
+    "/configuracao?aba=historico",
     "/configuracao/categorias",
     "/configuracao/areas",
     "/meus-dados",
@@ -1214,7 +1228,7 @@ test("nenhuma tela da casca rola na horizontal em 360 e 390 px, com o sino (crit
  * reaproveita, então a segunda corrida termina no mesmo estado. Os nomes levam o sufixo do teste para não
  * se confundirem com etiqueta de outro caso.
  */
-test("as etiquetas nascem no detalhe, aparecem na lista e cabem em 360 px (item 115)", async ({ browser }) => {
+test("as etiquetas nascem no detalhe pela seleção múltipla, aparecem na lista e cabem em 360 px (itens 115 e 120)", async ({ browser }) => {
   const contexto = await browser.newContext({ viewport: { width: 360, height: 800 } });
   const helena = await contexto.newPage();
 
@@ -1230,25 +1244,29 @@ test("as etiquetas nascem no detalhe, aparecem na lista e cabem em 360 px (item 
   await helena.goto(edicao);
   await assentar(helena);
 
+  const cartao = helena.getByRole("region", { name: "Etiquetas" });
   const NOMES = ["Azulejista 115", "Bombeiro 115", "Carpinteiro 115", "Datilógrafa 115"];
   for (const nome of NOMES) {
-    const cartao = helena.getByRole("region", { name: "Etiquetas" });
     if (await cartao.getByText(nome, { exact: true }).isVisible()) continue;
-    await helena.getByRole("button", { name: "Adicionar", exact: true }).click();
-    await helena.getByRole("combobox", { name: "Etiqueta" }).fill(nome);
+    await cartao.getByRole("combobox").click();
+    await helena.getByPlaceholder("Buscar ou criar").fill(nome);
     await helena.getByRole("option", { name: new RegExp(`^(Criar “)?${nome}”?$`, "u") }).click();
     await expect(helena.getByText(`${nome} adicionada`)).toBeVisible();
     await helena.keyboard.press("Escape");
   }
+  // A ficha tira pelo teclado: o X é botão de verdade, com nome (critério 120.9).
+  await expect(cartao.getByRole("button", { name: "Tirar Azulejista 115" })).toBeVisible();
 
   await helena.goto("/vinculos");
   await assentar(helena);
   await expect(helena.getByText("+2").first()).toBeVisible();
   expect(await transbordo(helena)).toStrictEqual(SEM_TRANSBORDO);
 
-  // O filtro: uma etiqueta por vez, no endereço.
-  await helena.getByRole("radio", { name: /Azulejista 115/u }).click();
+  // O filtro: uma etiqueta por vez, na linha da busca, e no endereço (critério 120.12).
+  await helena.getByRole("combobox", { name: "Etiqueta" }).click();
+  await helena.getByRole("option", { name: /^Azulejista 115/u }).click();
   await expect(helena).toHaveURL(/etiqueta=/u);
+  expect(await transbordo(helena)).toStrictEqual(SEM_TRANSBORDO);
 
   await contexto.close();
 });
@@ -1278,30 +1296,36 @@ test("o código da organização cabe no celular, nas três telas que o exibem (
   const helena = await contexto.newPage();
   const semSessao = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage();
 
-  // **Helena é Gestor do Recanto**: alcança `/configuracao` e `/convidar`, e o código sai do link do convite.
+  // **Helena é Gestor do Recanto**: alcança `/configuracao`, e o código sai das casas da Identidade.
   await entrar(helena, HELENA);
   await helena.waitForURL(/\/organizacao$/u);
   await helena.getByRole("button", { name: RECANTO }).click();
   await helena.waitForURL(/\/ocorrencias$/u);
-  await helena.goto("/convidar");
+  await helena.goto("/configuracao");
   await assentar(helena);
-  const link = (await helena.locator("code").first().innerText()).trim();
-  expect(link).toMatch(/\?e=[A-Z0-9]{8}$/u);
-  const codigo = link.slice(link.indexOf("?e=") + 3);
+  const codigo = (await helena.getByLabel("Código da organização").inputValue()).trim();
+  expect(codigo).toMatch(/^[A-Z0-9]{8}$/u);
 
   // As quatro do critério, e a de 768 px, onde a barra lateral aparece e passa a apertar a página (spec §3.2).
   const larguras = [320, 360, 390, 414, 768];
-  const telas: ReadonlyArray<{ pagina: Page; rota: string; casca: boolean }> = [
-    { pagina: helena, rota: "/configuracao", casca: true },
-    { pagina: helena, rota: "/convidar", casca: true },
-    { pagina: semSessao, rota: `/convite/${codigo}`, casca: false },
+  // **Na aba de participantes há duas exibições do código** (a Identidade, fixa, e o cartão do convite,
+  // item 120): dezesseis casas, todas medidas.
+  const telas: ReadonlyArray<{ pagina: Page; rota: string; casca: boolean; casas: number }> = [
+    { pagina: helena, rota: "/configuracao", casca: true, casas: 8 },
+    { pagina: helena, rota: "/configuracao?aba=participantes", casca: true, casas: 16 },
+    { pagina: semSessao, rota: `/convite/${codigo}`, casca: false, casas: 8 },
   ];
 
   for (const largura of larguras) {
-    for (const { pagina, rota, casca } of telas) {
+    for (const { pagina, rota, casca, casas: esperadas } of telas) {
       await pagina.setViewportSize({ width: largura, height: 844 });
       await pagina.goto(rota);
-      await assentar(pagina);
+      await assentar(
+        pagina,
+        casca
+          ? conteudoDaCasca(pagina)
+          : pagina.getByRole("main").filter({ has: pagina.locator('[data-slot="input-otp-slot"]') }),
+      );
       const onde = `${rota} a ${largura} px`;
 
       /**
@@ -1319,7 +1343,7 @@ test("o código da organização cabe no celular, nas três telas que o exibem (
       }
 
       const casas = await casasDoCodigo(pagina);
-      expect.soft(casas, `casas em ${onde}`).toHaveLength(8);
+      expect.soft(casas, `casas em ${onde}`).toHaveLength(esperadas);
       for (const [indice, casa] of casas.entries()) {
         expect.soft(casa, `casa ${indice + 1} em ${onde}`).toStrictEqual({
           dentro: true,
@@ -1333,7 +1357,9 @@ test("o código da organização cabe no celular, nas três telas que o exibem (
     await helena.setViewportSize({ width: largura, height: 844 });
     await helena.goto("/configuracao");
     await assentar(helena);
-    const apoio = helena.getByText("É o código do cartaz do elevador.", { exact: false });
+    // Escopado pelo conteúdo da casca: o streaming deixa uma cópia escondida da frase num `div[hidden]` do
+    // `<body>` até a troca, e `getByText` não descarta o que está escondido (item 119).
+    const apoio = conteudoDaCasca(helena).getByText("É o código do cartaz do elevador.", { exact: false });
     const caixa = await apoio.boundingBox();
     expect
       .soft((caixa?.x ?? 9999) + (caixa?.width ?? 0), `apoio de /configuracao a ${largura} px`)
@@ -1364,7 +1390,7 @@ const MOTIVO_LONGO = "Parada — esperando material chegar";
 
 async function injetarPiorCaso(pagina: Page): Promise<{ linhas: number; comSelo: number }> {
   return pagina.evaluate(
-    ({ titulo, area, pessoa, motivo }) => {
+    ({ titulo, area, pessoa, motivo, id }) => {
       const trocarTexto = (elemento: Element | null | undefined, texto: string) => {
         if (!elemento) return;
         const no = Array.from(elemento.childNodes).find(
@@ -1403,7 +1429,7 @@ async function injetarPiorCaso(pagina: Page): Promise<{ linhas: number; comSelo:
         }
       }
 
-      for (const item of Array.from(document.querySelectorAll("main ul > li")).slice(0, 3)) {
+      for (const item of Array.from(document.querySelectorAll(`main#${id} ul > li`)).slice(0, 3)) {
         const link = item.querySelector("a");
         if (link) link.textContent = titulo;
         // A linha de meta é o último filho do item, e a ficha do local é o primeiro filho dela. Um seletor por
@@ -1413,7 +1439,7 @@ async function injetarPiorCaso(pagina: Page): Promise<{ linhas: number; comSelo:
 
       return { linhas: comSeloPrimeiro.length, comSelo };
     },
-    { titulo: TITULO_LONGO, area: AREA_LONGA, pessoa: PESSOA_LONGA, motivo: MOTIVO_LONGO },
+    { titulo: TITULO_LONGO, area: AREA_LONGA, pessoa: PESSOA_LONGA, motivo: MOTIVO_LONGO, id: ID_DO_CONTEUDO },
   );
 }
 
@@ -1475,7 +1501,7 @@ test("o pior caso não corta coluna nem rola o documento (critérios 102.4, 102.
 
   // 390: a linha do celular nomeia o tempo, e nenhum glifo sobrou (critérios 102.11 e 102.12).
   await helena.setViewportSize({ width: 390, height: 844 });
-  const primeira = helena.locator("main ul > li").first();
+  const primeira = conteudoDaCasca(helena).locator("ul > li").first();
   await expect(primeira).toContainText("registrada");
   await expect(primeira).not.toContainText("↻");
   expect(await alemDoCartao(helena)).toBe(0);

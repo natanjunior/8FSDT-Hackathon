@@ -3,11 +3,13 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { ArmazenamentoDeAnexos } from "@/aplicacao/anexo";
 import { mesEmSaoPaulo } from "@/aplicacao/dashboard";
-import { registrarOcorrencia } from "@/aplicacao/ocorrencia";
+import { exportarOcorrencias, registrarOcorrencia } from "@/aplicacao/ocorrencia";
 import {
   ListaDesatualizada,
   criarArea,
   criarCategoria,
+  listarAreas,
+  listarCategorias,
   listarVinculos,
   reordenarAreas,
   reordenarCategorias,
@@ -22,6 +24,8 @@ import {
   repositorioEscopadoDaOrganizacao,
   repositorioEscopadoDeAreas,
   repositorioEscopadoDeCategorias,
+  repositorioEscopadoDeConvitesPessoais,
+  repositorioEscopadoDeEnviosDeConvite,
   repositorioEscopadoDeEtiquetas,
   repositorioEscopadoDePedidosDeEntrada,
   repositorioEscopadoDeVinculos,
@@ -834,6 +838,93 @@ describe("as consultas de configuração não atravessam organizações", () => 
         return [idDaOcorrenciaEmB];
       },
     },
+  });
+
+  /**
+   * **Os quatro arquivos do item 124** (critério 6). Cada entrada chama a mesma função de aplicação que o
+   * `route.ts` chama. A ocorrência tem consulta nova (`exportar()`); as três de cadastro reaproveitam a
+   * leitura da tela, com inativas, que é o recorte do arquivo.
+   *
+   * **As áreas e as categorias esperadas são lidas da tabela, direto e sem escopo**, num `beforeAll` deste
+   * bloco: outros testes do arquivo semeiam inativas nas mesmas organizações (`"Arquivada da Aurora"`),
+   * e com `incluirInativas` um literal dependeria da ordem dos blocos. A prova continua sendo *"exatamente
+   * o que é de A, e nada só de A em B"*.
+   */
+  describe("os arquivos exportados — item 124", () => {
+    const nomesNaTabela = { areas: { a: [] as string[], b: [] as string[] }, categorias: { a: [] as string[], b: [] as string[] } };
+
+    beforeAll(async () => {
+      for (const tabela of ["areas", "categorias"] as const) {
+        for (const [lado, organizacaoId] of [["a", idRecanto], ["b", idAurora]] as const) {
+          const linhas = await consulta<{ nome: string }>(`select nome from ${tabela} where organizacao_id = $1`, [
+            organizacaoId,
+          ]);
+          nomesNaTabela[tabela][lado] = linhas.map((linha) => linha.nome);
+        }
+      }
+    });
+
+    casosDeIsolamento(mundo, {
+      nome: "GET /ocorrencias/exportacao",
+      consultar: (organizacaoId) => exportarOcorrencias(portasDe(organizacaoId).ocorrencias),
+      chaveDaLinha: (ocorrencia) => ocorrencia.id,
+      esperadas: {
+        get emA() {
+          return [idDaOcorrenciaEmA];
+        },
+        get emB() {
+          return [idDaOcorrenciaEmB];
+        },
+      },
+    });
+
+    casosDeIsolamento(mundo, {
+      nome: "GET /vinculos/exportacao",
+      consultar: (organizacaoId) =>
+        listarVinculos(
+          repositorioEscopadoDeVinculos(
+            escoparConsulta(consulta, organizacaoId),
+            escoparTransacao(criarTransacao(), organizacaoId),
+          ),
+        ),
+      chaveDaLinha: (vinculo) => vinculo.pessoa.pessoaId,
+      esperadas: {
+        get emA() {
+          return [idSindica, idMoradora];
+        },
+        get emB() {
+          return [idSindica];
+        },
+      },
+    });
+
+    casosDeIsolamento(mundo, {
+      nome: "GET /areas/exportacao",
+      consultar: (organizacaoId) => listarAreas(areasEm(organizacaoId), { incluirInativas: true }),
+      chaveDaLinha: (area) => area.nome,
+      esperadas: {
+        get emA() {
+          return nomesNaTabela.areas.a;
+        },
+        get emB() {
+          return nomesNaTabela.areas.b;
+        },
+      },
+    });
+
+    casosDeIsolamento(mundo, {
+      nome: "GET /categorias/exportacao",
+      consultar: (organizacaoId) => listarCategorias(categoriasEm(organizacaoId), { incluirInativas: true }),
+      chaveDaLinha: (categoria) => categoria.nome,
+      esperadas: {
+        get emA() {
+          return nomesNaTabela.categorias.a;
+        },
+        get emB() {
+          return nomesNaTabela.categorias.b;
+        },
+      },
+    });
   });
 
   /**
@@ -2275,6 +2366,23 @@ describe("as escritas de configuração não atravessam organizações", () => {
     expect(antes?.tipo_alterado_por_pessoa_id).toBe(idMoradora);
     expect(await lerPar()).toStrictEqual(antes);
   });
+
+  it("criar etiqueta em Aurora com o nome de uma de Recanto nasce em Aurora — item 120", async () => {
+    const emAurora = repositorioEscopadoDeEtiquetas(
+      escoparConsulta(consulta, idAurora),
+      escoparTransacao(criarTransacao(), idAurora),
+    );
+    const emRecanto = repositorioEscopadoDeEtiquetas(
+      escoparConsulta(consulta, idRecanto),
+      escoparTransacao(criarTransacao(), idRecanto),
+    );
+    const deRecanto = (await emRecanto.listar()).find((e) => e.nome === "Síndica do Recanto")!;
+    const criada = await emAurora.criar("Síndica do Recanto");
+    expect(criada.criada).toBe(true);
+    expect(criada.etiqueta.id).not.toBe(deRecanto.id);
+    // Desfaz: o `GET /etiquetas-de-participante` da suíte compara Aurora com só "Síndica da Aurora".
+    expect(await emAurora.apagar(criada.etiqueta.id)).toStrictEqual({ desfecho: "apagada" });
+  });
 });
 
 /**
@@ -2725,5 +2833,78 @@ describe("o sino não atravessa organizações — item 117", () => {
     }
     // O número também: ele sai da mesma instrução, e um `$1` perdido no `count` o inflaria.
     expect(sino.naoLidas).toBe(sino.novidades.filter((n) => n.naoLida).length);
+  });
+});
+
+/**
+ * **O convite pessoal (item 121).** `vivoDe` é a consulta escopada nova: o Gestor de Recanto lê o convite
+ * de uma convidada de Recanto, e a mesma pessoa lida a partir de Aurora não existe, como o `404` da rota.
+ */
+describe("o convite pessoal (item 121)", () => {
+  const mundo = { a: () => idRecanto, b: () => idAurora };
+  const TOKEN_DO_RECANTO = "R".repeat(43);
+  let idConvidadaDoRecanto = "";
+
+  const convitesPessoaisEm = (organizacaoId: string) =>
+    repositorioEscopadoDeConvitesPessoais(
+      escoparConsulta(consulta, organizacaoId),
+      escoparTransacao(criarTransacao(), organizacaoId),
+    );
+
+  beforeAll(async () => {
+    idConvidadaDoRecanto = (
+      await consulta<{ id: string }>(`insert into pessoas (nome) values ('Convidada do Recanto') returning id`)
+    )[0]!.id;
+    await consulta(`insert into vinculos (pessoa_id, organizacao_id, papel) values ($1, $2, 'solicitante')`, [
+      idConvidadaDoRecanto,
+      idRecanto,
+    ]);
+    await consulta(
+      `insert into convites_pessoais (organizacao_id, pessoa_id, token, criado_por_pessoa_id) values ($1, $2, $3, $4)`,
+      [idRecanto, idConvidadaDoRecanto, TOKEN_DO_RECANTO, idSindica],
+    );
+  });
+
+  casosDeIsolamento(mundo, {
+    nome: "POST /vinculos/{pessoaId}/convite (o vivo)",
+    consultar: async (organizacaoId) => {
+      const vivo = await convitesPessoaisEm(organizacaoId).vivoDe(idConvidadaDoRecanto);
+      return vivo === null ? [] : [vivo];
+    },
+    chaveDaLinha: (convite) => convite.token,
+    esperadas: { emA: [TOKEN_DO_RECANTO], emB: [] },
+  });
+
+  /**
+   * **Os envios de convite (item 122).** `resumoDe` é a consulta escopada nova: em Recanto, o envio que a
+   * convidada recebeu aparece; lida a partir de Aurora, a mesma pessoa não tem envio nenhum.
+   */
+  describe("os envios de convite (item 122)", () => {
+    const EMAIL_DA_CONVIDADA = "convidada.recanto@example.com";
+    const INSTANTE_DO_ENVIO_DO_RECANTO = "2026-10-01T12:00:00.000Z";
+
+    const enviosEm = (organizacaoId: string) =>
+      repositorioEscopadoDeEnviosDeConvite(
+        escoparConsulta(consulta, organizacaoId),
+        escoparTransacao(criarTransacao(), organizacaoId),
+      );
+
+    beforeAll(async () => {
+      await consulta(
+        `insert into envios_de_convite (organizacao_id, convite_pessoal_id, email, enviado_por_pessoa_id, dia, enviado_em)
+         select $1, id, $2, $3, '2026-10-01', $4::timestamptz from convites_pessoais where token = $5`,
+        [idRecanto, EMAIL_DA_CONVIDADA, idSindica, INSTANTE_DO_ENVIO_DO_RECANTO, TOKEN_DO_RECANTO],
+      );
+    });
+
+    casosDeIsolamento(mundo, {
+      nome: "resumo dos envios de uma pessoa",
+      consultar: async (organizacaoId) => {
+        const resumo = await enviosEm(organizacaoId).resumoDe(idConvidadaDoRecanto, EMAIL_DA_CONVIDADA);
+        return resumo.ultimoEnvioEm === null ? [] : [resumo];
+      },
+      chaveDaLinha: (resumo) => resumo.ultimoEnvioEm ?? "",
+      esperadas: { emA: [INSTANTE_DO_ENVIO_DO_RECANTO], emB: [] },
+    });
   });
 });

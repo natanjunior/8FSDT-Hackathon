@@ -269,6 +269,15 @@ export function repositorioEscopadoDeVinculos(
           // ser escrita aqui. Só depois do `update` que revogou: nos outros dois desfechos nada se apaga.
           // Vão junto os `atribuido_por` destas linhas — a responsabilidade vale enquanto o vínculo dura.
           await dentro(`delete from vinculos_etiquetas where organizacao_id = $1 and pessoa_id = $2`, [pessoaId]);
+          // **Revogar mata o convite vivo** (item 121, spec §3.9). Calcular na leitura bastaria hoje;
+          // carimbar impede que a readmissão ressuscite um link que pode ter circulado.
+          await dentro(
+            `update convites_pessoais
+                set invalidado_em = now()
+              where organizacao_id = $1 and pessoa_id = $2
+                and invalidado_em is null and aceito_em is null`,
+            [pessoaId],
+          );
           return { desfecho: "revogado" };
         }
 
@@ -287,9 +296,9 @@ export function repositorioEscopadoDeVinculos(
       // **Uma consulta só, partindo de `vinculos`.** É a quinta leitura de T-08 — tela grande, trabalho de
       // escritório, uma vez por semana (inventário, T-08). O RNF6 cronometra T-04, não esta.
       //
-      // **Os doze `exists` do `tem_historico` cobrem doze das TREZE tabelas** que apontam para
-      // `vinculos (pessoa_id, organizacao_id)`, por dezessete colunas: `atribuicoes`, `categorias` e
-      // `organizacoes` com duas, `areas` com três, e as outras oito com uma. O `exists` de fora é o do
+      // **Os catorze `exists` do `tem_historico` cobrem catorze das QUINZE tabelas** que apontam para
+      // `vinculos (pessoa_id, organizacao_id)`, por dezenove colunas: `atribuicoes`, `categorias` e
+      // `organizacoes` com duas, `areas` com três, e as outras dez com uma. O `exists` de fora é o do
       // último Gestor. A lista não sai da prosa do contrato, que
       // nomeia quatro: sai do esquema, e `testes/integracao/vinculo.test.ts` tem um caso que quebra no dia
       // em que uma tabela nova entrar sem passar por aqui.
@@ -304,6 +313,12 @@ export function repositorioEscopadoDeVinculos(
       //
       // **`vinculos_etiquetas` tem duas pontas e só uma entra aqui** (item 115), pela razão de
       // `compartilhamentos`: quem atribuiu é rastro e a chave é `restrict`; quem recebeu apaga em cascata.
+      //
+      // **`convites_pessoais` tem duas pontas e só uma entra aqui** (item 121), pela razão de
+      // `vinculos_etiquetas`: quem gerou é rastro e a chave é `restrict`; o convite recebido apaga em cascata.
+      //
+      // **`envios_de_convite` entra pela ponta de quem enviou** (item 122); a outra chave dela aponta para
+      // `convites_pessoais`, e não para cá.
       //
       // **`organizacoes` passou a ter duas colunas em 16/09/2026** (item 46 · 47): quem corrige o nome da
       // organização deixa rastro em `atualizado_por_pessoa_id`, com FK `on delete restrict`. Sem esta
@@ -355,6 +370,10 @@ export function repositorioEscopadoDeVinculos(
                                and t.por_pessoa_id = v.pessoa_id)
                  or exists (select 1 from mudancas_de_configuracao t
                              where t.organizacao_id = $1 and t.autor_pessoa_id = v.pessoa_id)
+                 or exists (select 1 from convites_pessoais t
+                             where t.organizacao_id = $1 and t.criado_por_pessoa_id = v.pessoa_id)
+                 or exists (select 1 from envios_de_convite t
+                             where t.organizacao_id = $1 and t.enviado_por_pessoa_id = v.pessoa_id)
                  or exists (select 1 from vinculos_etiquetas t
                              where t.organizacao_id = $1 and t.atribuido_por_pessoa_id = v.pessoa_id)) as tem_historico
            from vinculos v

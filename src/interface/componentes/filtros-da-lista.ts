@@ -167,3 +167,21 @@ export function rotuloDoGatilho(
   const opcao = opcoes.find((uma) => uma.valor === marcados[0]);
   return opcao === undefined ? `${nome}: 1 selecionado` : `${nome}: ${opcao.rotulo}`;
 }
+
+/**
+ * **O gatilho com o rótulo acima mostra só o valor** (item 120, bloco 12): o nome da dimensão já está
+ * escrito em cima, e repeti-lo diria *Área* duas vezes. Valor fora da lista conta em vez de inventar nome,
+ * a mesma regra de `rotuloDoGatilho`. O nome acessível do gatilho continua o de `rotuloDoGatilho`.
+ */
+export function valorDoGatilho(
+  opcoes: readonly OpcaoComBusca[],
+  marcados: readonly string[],
+  vazio: string,
+): string {
+  if (marcados.length === 0) return vazio;
+  if (marcados.length > 1) return `${String(marcados.length)} selecionados`;
+  return opcoes.find((uma) => uma.valor === marcados[0])?.rotulo ?? "1 selecionado";
+}
+
+/** O rótulo visível acima de um campo de filtro (item 120): o papel do rótulo de campo do formulário. */
+export const ROTULO_ACIMA = "text-interface text-tinta font-medium";

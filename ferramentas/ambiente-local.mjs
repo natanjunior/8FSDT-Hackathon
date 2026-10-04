@@ -80,6 +80,9 @@ function desistir(titulo, ...linhas) {
 // ---------------------------------------------------------------------------
 
 const PORTA_DO_STORAGE = 10000;
+
+/** A porta SMTP da caixa de teste do Supabase (`[inbucket]`, `smtp_port`), aberta pelo item 122. */
+const PORTA_DO_SMTP = 54695;
 const PORTA_DA_APLICACAO = 3000;
 const SONDA = `http://127.0.0.1:${PORTA_DO_STORAGE}/devstoreaccount1?comp=list`;
 
@@ -311,6 +314,15 @@ const ARMAZENAMENTO =
   "AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;" +
   `BlobEndpoint=http://host.docker.internal:${PORTA_DO_STORAGE}/devstoreaccount1;`;
 
+/**
+ * As duas do e-mail (item 122), fixas no local: a caixa de teste da pilha do Supabase, sem autenticação.
+ * Não são segredo.
+ */
+const CORREIO = {
+  CORREIO_SMTP_URL: `smtp://host.docker.internal:${PORTA_DO_SMTP}`,
+  CORREIO_REMETENTE: "Resolve Aí <convite@resolveai.local>",
+};
+
 /** As quatro que derivam de fora. `SEGREDO_DE_SESSAO` fica fora: é sorteado por subida. */
 const esperadas = {
   SUPABASE_URL: paraODocker(exigir("API_URL")),
@@ -329,11 +341,12 @@ if (!existsSync(caminhoDoEnv)) {
     "",
     ...Object.entries(esperadas).map(([chave, valor]) => `${chave}=${valor}`),
     `SEGREDO_DE_SESSAO=${randomBytes(32).toString("base64url")}`,
+    ...Object.entries(CORREIO).map(([chave, valor]) => `${chave}=${valor}`),
     "",
   ].join("\n");
 
   writeFileSync(caminhoDoEnv, conteudo, "utf8");
-  console.log("   · cinco variáveis escritas; o segredo de sessão foi gerado agora.");
+  console.log("   · sete variáveis escritas; o segredo de sessão foi gerado agora.");
 } else {
   // -------------------------------------------------------------------------
   //  **Não sobrescreve — mas também não fica calado.**
@@ -360,7 +373,27 @@ if (!existsSync(caminhoDoEnv)) {
       .map((achado) => [achado[1], achado[2].trim()]),
   );
 
-  const divergentes = Object.entries(esperadas).filter(([chave, valor]) => doArquivo.get(chave) !== valor);
+  // **A exceção do item 122: o que falta do e-mail é ACRESCENTADO ao fim, e só isso.** Numa máquina que já
+  // tinha o arquivo, a aplicação subiria sem `CORREIO_*` e todo envio falharia. Acrescentar o que falta não
+  // sobrescreve nada do que é de quem trabalha aqui: uma chave que existe com outro valor não é tocada, e
+  // entra na lista de divergentes como as outras.
+  const doCorreioQueFalta = Object.entries(CORREIO).filter(([chave]) => !doArquivo.has(chave));
+  if (doCorreioQueFalta.length > 0) {
+    const atual = readFileSync(caminhoDoEnv, "utf8");
+    const acrescimo = [
+      ...(atual.endsWith("\n") ? [] : [""]),
+      "# Acrescentadas por npm run local (item 122).",
+      ...doCorreioQueFalta.map(([chave, valor]) => `${chave}=${valor}`),
+      "",
+    ].join("\n");
+    writeFileSync(caminhoDoEnv, atual + acrescimo, "utf8");
+    for (const [chave, valor] of doCorreioQueFalta) doArquivo.set(chave, valor);
+    console.log(`   · acrescentei ${doCorreioQueFalta.map(([chave]) => chave).join(" e ")}, que faltavam.`);
+  }
+
+  const divergentes = Object.entries({ ...esperadas, ...CORREIO }).filter(
+    ([chave, valor]) => doArquivo.get(chave) !== valor,
+  );
   const faltando = ["SEGREDO_DE_SESSAO"].filter((chave) => !doArquivo.has(chave));
 
   if (divergentes.length === 0 && faltando.length === 0) {

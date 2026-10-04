@@ -327,6 +327,36 @@ describe("a porta: tirar e apagar (critério 7)", () => {
   });
 });
 
+describe("a porta: criar sem pessoa (item 120, critério 19)", () => {
+  it("nome novo nasce, sem atribuir a ninguém", async () => {
+    const resultado = await etiquetas().criar("Porteiro 120");
+    expect(resultado).toMatchObject({ criada: true, etiqueta: { nome: "Porteiro 120" } });
+    expect(
+      await consulta(`select 1 from vinculos_etiquetas where etiqueta_id = $1`, [resultado.etiqueta.id]),
+    ).toHaveLength(0);
+  });
+
+  it("outra caixa reaproveita e vale a primeira grafia; acento conta", async () => {
+    const primeira = await etiquetas().criar("Síndico 120");
+    const outraCaixa = await etiquetas().criar("SÍNDICO 120");
+    const semAcento = await etiquetas().criar("Sindico 120");
+    expect(outraCaixa).toStrictEqual({ criada: false, etiqueta: primeira.etiqueta });
+    expect(semAcento.criada).toBe(true);
+  });
+
+  it("criar em uma organização não aparece na outra (isolamento)", async () => {
+    await etiquetas(idOutraOrganizacao).criar("Só da outra 120");
+    expect((await etiquetas().listar()).map((e) => e.nome)).not.toContain("Só da outra 120");
+    expect((await etiquetas(idOutraOrganizacao).listar()).map((e) => e.nome)).toContain("Só da outra 120");
+  });
+
+  it("dois ao mesmo tempo com a mesma grafia terminam com uma etiqueta", async () => {
+    const [r1, r2] = await Promise.all([etiquetas().criar("Vigilante 120"), etiquetas().criar("vigilante 120")]);
+    expect(r1.etiqueta.id).toBe(r2.etiqueta.id);
+    expect([r1.criada, r2.criada].filter(Boolean)).toHaveLength(1);
+  });
+});
+
 describe("a mesma leitura, e o vínculo revogado ou refeito (critérios 4 e 9)", () => {
   it("lista e detalhe trazem as mesmas etiquetas, em ordem alfabética", async () => {
     const pessoa = await novoParticipante("Leitura 1");

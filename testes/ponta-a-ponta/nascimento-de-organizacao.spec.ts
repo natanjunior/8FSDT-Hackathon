@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 
 import { ID_DO_SCRIPT_DO_TEMA } from "@/interface/componentes/tema";
 import {
@@ -165,17 +165,18 @@ async function entrar(pagina: Page, email: string, senha: string): Promise<void>
 /**
  * Funda a organização pela tela própria — a `/organizacao/criar` que o item 44o separou da face A.
  *
- * O destino é Convidar pessoas, desde o item 116 (critério 7).
+ * O destino é a aba de participantes da configuração, desde o item 120 (antes, Convidar pessoas, item 116).
  */
 async function criarOrganizacao(pagina: Page, nome: string): Promise<void> {
   await pagina.getByRole("link", { name: "Criar uma organização" }).click();
   await pagina.waitForURL(/\/organizacao\/criar$/u);
   await pagina.getByLabel("Nome da organização").fill(nome);
   await pagina.getByRole("button", { name: "Criar uma organização" }).click();
-  await pagina.waitForURL(/\/convidar$/u);
-  // **A criação entrega o código que a tela prometeu** (critério 116.7).
-  await expect(pagina.getByRole("heading", { name: "Convidar pessoas", level: 1 })).toBeVisible();
-  await expect(pagina.getByRole("button", { name: "Copiar o código" })).toBeVisible();
+  await pagina.waitForURL(/\/configuracao\?aba=participantes$/u);
+  // **A criação entrega o código que a tela prometeu** (critério 116.7), agora no cartão do convite.
+  await expect(pagina.getByRole("heading", { name: "Configuração da organização", level: 1 })).toBeVisible();
+  await expect(pagina.getByRole("tab", { name: "Configurações de participantes" })).toHaveAttribute("aria-selected", "true");
+  await expect(pagina.getByRole("region", { name: "Convidar pessoas" }).getByRole("button", { name: "Copiar", exact: true })).toBeVisible();
 }
 
 /**
@@ -552,7 +553,7 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   // Critérios 9a.1 e 9a.3. **A diferença que o item existe para criar:** o nome de quem tem conta vem da
   // conta, e a tela de T-08 nem oferece o campo — é a forma que o produto deu à recusa.
   // -------------------------------------------------------------------------
-  await a.getByRole("link", { name: "Cadastrar pessoa sem conta" }).click();
+  await a.getByRole("link", { name: "Cadastrar participante" }).click();
   await a.waitForURL(/\/vinculos\/nova$/u);
   await a.getByLabel("Nome").fill(ENCARREGADO);
   await a.getByRole("radio", { name: /^Encarregado/u }).check();
@@ -759,7 +760,7 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   // cadastro que fica não é o cadastro que volta — re-cadastrar cria outra linha, e os contatos são
   // redigitados. Confirmação existe para dizer o custo do clique.
   // -------------------------------------------------------------------------
-  await c.getByRole("link", { name: "Cadastrar pessoa sem conta" }).click();
+  await c.getByRole("link", { name: "Cadastrar participante" }).click();
   await c.waitForURL(/\/vinculos\/nova$/u);
   await c.getByLabel("Nome").fill(PESSOA_PARA_REMOVER);
   await c.getByRole("radio", { name: /^Encarregado/u }).check();
@@ -810,14 +811,14 @@ test("o convite por link: sem conta, criar conta e voltar, pedir, a outra organi
   const o = await contextoDeO.newPage();
   const ninguem = await (await browser.newContext()).newPage();
 
-  // 1 · G funda e abre "Convidar pessoas" pelo menu (critério 86.1, a metade visível).
+  // 1 · G funda e cai na aba de participantes, onde está o convite (critérios 86.1 e 120.22).
   await criarConta(g, NOME_G, EMAIL_G);
   await criarOrganizacao(g, ORG_CONVITE);
-  await g.getByRole("link", { name: "Convidar pessoas" }).click();
-  await g.waitForURL(/\/convidar$/u);
-  const link = (await g.locator("code").first().innerText()).trim();
-  expect(link).toMatch(/\/\?e=[A-Z0-9]{8}$/u);
-  const codigo = link.slice(link.indexOf("?e=") + 3);
+  await expect(g.getByRole("link", { name: "Convidar pessoas" })).toHaveCount(0);
+  const convite = g.getByRole("region", { name: "Convidar pessoas" });
+  const codigo = (await convite.getByLabel("Código da organização").inputValue()).trim();
+  expect(codigo).toMatch(/^[A-Z0-9]{8}$/u);
+  await expect(convite.getByRole("button", { name: "Copiar link" })).toBeVisible();
   await expect(g.getByRole("img", { name: `QR do link de convite para ${ORG_CONVITE}` })).toBeVisible();
 
   // 2 · Quem já participa abre o próprio link.
@@ -902,7 +903,7 @@ test("o convite por link: sem conta, criar conta e voltar, pedir, a outra organi
   await n.waitForURL(new RegExp(`/convite/${codigo}$`, "u"));
   await expect(n.getByRole("heading", { name: "Pedido enviado" })).toBeVisible();
 
-  // 9 · G vê os dois pedidos em Participantes, aprova N como Solicitante, e N é recusada em /convidar (86.1).
+  // 9 · G vê os dois pedidos em Participantes, aprova N como Solicitante, e N é recusada na configuração (86.1, 120.22).
   await g.goto("/vinculos");
   await responderOPedidoDe(g, NOME_N).click();
   // Os localizadores do passo 5 do teste de cima, escopados ao diálogo.
@@ -912,10 +913,207 @@ test("o convite por link: sem conta, criar conta e voltar, pedir, a outra organi
   await expect(g.getByRole("dialog")).toHaveCount(0);
   await expect(linhaDe(g, NOME_O)).toBeVisible();
 
-  await n.goto("/convidar");
+  await n.goto("/configuracao");
   await expect(n.getByText("Seu papel nesta organização não dá acesso a esta página.")).toBeVisible();
-  await expect(n.locator("code")).toHaveCount(0);
+  await expect(n.getByRole("region", { name: "Convidar pessoas" })).toHaveCount(0);
   await expect(n.getByRole("link", { name: "Convidar pessoas" })).toHaveCount(0);
+});
+
+/**
+ * ============================================================================
+ *  O convite pessoal (item 121)
+ * ============================================================================
+ *
+ * A Gestora cadastra uma pessoa sem conta, abre *Convidar* no detalhe dela e lê o link; uma janela nova,
+ * no celular, abre o link, vê o próprio nome no cadastro e cria a conta. Ela entra direto, sem fila, e a
+ * lista da Gestora a mostra uma vez só, agora com conta.
+ */
+test("o convite pessoal: o Gestor copia o link, e a pessoa cadastrada entra sem fila (item 121)", async ({
+  browser,
+}) => {
+  const NOME_G = "Gestora do Convite Pessoal";
+  const EMAIL_G = `gestora-pessoal.${MARCA}@example.com`;
+  const ORG = `Convite Pessoal ${MARCA}`;
+  const NOME_P = `Convidada ${MARCA}`;
+
+  const g = await (await browser.newContext()).newPage();
+  await criarConta(g, NOME_G, EMAIL_G);
+  await criarOrganizacao(g, ORG);
+
+  // 1 · A Gestora cadastra a pessoa sem conta, como Solicitante.
+  await g.goto("/vinculos");
+  await g.getByRole("link", { name: "Cadastrar participante" }).click();
+  await g.waitForURL(/\/vinculos\/nova$/u);
+  await g.getByLabel("Nome").fill(NOME_P);
+  await g.getByRole("radio", { name: /^Solicitante/u }).check();
+  await g.getByRole("button", { name: "Cadastrar" }).click();
+  await g.waitForURL(/\/vinculos$/u);
+  // "sem conta", e não "sem contato cadastrado", que a mesma linha também diz.
+  await expect(linhaDe(g, NOME_P)).toContainText(/sem conta(?!to)/u);
+
+  // 2 · No detalhe, Convidar abre o modal com o link inteiro, e ele cabe em 360 px.
+  await linhaDe(g, NOME_P).getByRole("link", { name: "Editar participante" }).click();
+  await g.waitForURL(/\/vinculos\/[0-9a-f-]+\/editar$/u);
+  await g.setViewportSize({ width: 360, height: 640 });
+  await g.getByRole("button", { name: "Convidar" }).click();
+  const modal = g.getByRole("dialog", { name: `Convidar ${NOME_P}` });
+  await expect(modal.getByRole("textbox")).toHaveValue(/\/convite-pessoal\/[A-Za-z0-9_-]{43}$/u);
+  const link = await modal.getByRole("textbox").inputValue();
+  expect(await transbordo(g)).toStrictEqual(SEM_TRANSBORDO);
+
+  // Abrir de novo devolve o mesmo link: a garantia é idempotente.
+  await g.keyboard.press("Escape");
+  await g.getByRole("button", { name: "Convidar" }).click();
+  await expect(g.getByRole("dialog", { name: `Convidar ${NOME_P}` }).getByRole("textbox")).toHaveValue(link);
+  await g.keyboard.press("Escape");
+
+  // 3 · Sem sessão, a pessoa abre o link, vê o próprio nome, e cria a conta com o nome já preenchido.
+  const c = await (await browser.newContext({ viewport: { width: 360, height: 640 } })).newPage();
+  await c.goto(link);
+  await expect(c.getByRole("heading", { name: NOME_P })).toBeVisible();
+  await expect(c.getByText(`${ORG} convida você para participar como Solicitante.`)).toBeVisible();
+  await expect(c.getByLabel("Seu nome")).toHaveValue(NOME_P);
+  await expect(c.getByLabel("E-mail")).toHaveValue("");
+  expect(await transbordo(c)).toStrictEqual(SEM_TRANSBORDO);
+  await c.getByLabel("E-mail").fill(`convidada-pessoal.${MARCA}@example.com`);
+  await c.getByLabel(/^Senha/u).fill(SENHA);
+  await c.getByRole("button", { name: "Criar conta" }).click();
+  await c.waitForURL(/\/ocorrencias/u);
+  await expect(c.getByText(ORG).first()).toBeVisible();
+
+  // 4 · O link morreu no aceite, e a lista da Gestora mostra a pessoa uma vez, agora com conta.
+  const ninguem = await (await browser.newContext()).newPage();
+  await ninguem.goto(link);
+  await expect(ninguem.getByRole("heading", { name: "Este convite não vale mais." })).toBeVisible();
+
+  await g.setViewportSize({ width: 1280, height: 720 });
+  await g.goto("/vinculos");
+  await expect(linhaDe(g, NOME_P)).toHaveCount(1);
+  await expect(linhaDe(g, NOME_P)).not.toContainText(/sem conta(?!to)/u);
+});
+
+/** A caixa de teste da pilha do Supabase, como `recuperacao-de-senha.spec.ts` a lê (item 122). */
+const CAIXA = "http://127.0.0.1:54694";
+
+interface MensagemDaCaixa {
+  readonly Subject: string;
+  readonly Text: string;
+}
+
+/** Espera a mensagem para o destinatário chegar, e devolve a única. */
+async function esperarNaCaixa(requisicao: APIRequestContext, destinatario: string): Promise<MensagemDaCaixa> {
+  const buscar = async () => {
+    const resposta = await requisicao.get(`${CAIXA}/api/v1/search?query=${encodeURIComponent(`to:${destinatario}`)}`);
+    expect(resposta.status()).toBe(200);
+    return ((await resposta.json()) as { messages: ReadonlyArray<{ ID: string }> }).messages;
+  };
+  await expect
+    .poll(async () => (await buscar()).length, {
+      timeout: 30_000,
+      message: `Nenhum e-mail para ${destinatario} na caixa local (${CAIXA}).`,
+    })
+    .toBeGreaterThan(0);
+  const mensagens = await buscar();
+  expect(mensagens).toHaveLength(1);
+  const resposta = await requisicao.get(`${CAIXA}/api/v1/message/${mensagens[0]?.ID ?? ""}`);
+  expect(resposta.status()).toBe(200);
+  return (await resposta.json()) as MensagemDaCaixa;
+}
+
+/** Cadastra uma pessoa sem conta, Solicitante, com um e-mail opcional como primeiro contato. */
+async function cadastrarSemConta(pagina: Page, nome: string, email?: string): Promise<void> {
+  await pagina.goto("/vinculos/nova");
+  await pagina.getByLabel("Nome").fill(nome);
+  await pagina.getByRole("radio", { name: /^Solicitante/u }).check();
+  if (email !== undefined) {
+    await pagina.getByRole("button", { name: "Adicionar contato" }).click();
+    await pagina.getByRole("radiogroup", { name: "Tipo do contato 1" }).getByRole("radio", { name: "E-mail" }).click();
+    await pagina.getByLabel("Número ou e-mail do contato 1").fill(email);
+  }
+  await pagina.getByRole("button", { name: "Cadastrar" }).click();
+  await pagina.waitForURL(/\/vinculos$/u);
+}
+
+/**
+ * ============================================================================
+ *  O convite por e-mail (item 122)
+ * ============================================================================
+ *
+ * Do detalhe e em massa pela lista, lendo a caixa de teste local: a mensagem sai, o limite do dia aparece
+ * no modal, o lote diz quem recebeu e quem não, e o link do e-mail abre a página do convite pessoal.
+ */
+test("o convite por e-mail: do detalhe, e em massa pela lista (item 122)", async ({ browser, request }) => {
+  const NOME_G = "Gestora do Convite por E-mail";
+  const EMAIL_G = `gestora-email.${MARCA}@example.com`;
+  const ORG = `Convite por E-mail ${MARCA}`;
+  const ANA = `Ana ${MARCA}`;
+  const EMAIL_ANA = `ana.${MARCA}@example.com`;
+  const BIA = `Bia ${MARCA}`;
+  const EMAIL_BIA = `bia.${MARCA}@example.com`;
+  const CAIO = `Caio ${MARCA}`;
+
+  // 1 · A Gestora cria conta e organização, e cadastra três pessoas sem conta.
+  const g = await (await browser.newContext()).newPage();
+  await criarConta(g, NOME_G, EMAIL_G);
+  await criarOrganizacao(g, ORG);
+  await cadastrarSemConta(g, ANA, EMAIL_ANA);
+  await cadastrarSemConta(g, BIA, EMAIL_BIA);
+  await cadastrarSemConta(g, CAIO);
+
+  // 2 · Do detalhe de Ana: o modal diz para onde vai, envia, e a caixa local recebe a mensagem.
+  await linhaDe(g, ANA).getByRole("link", { name: "Editar participante" }).click();
+  await g.waitForURL(/\/vinculos\/[0-9a-f-]+\/editar$/u);
+  await g.getByRole("button", { name: "Convidar" }).click();
+  const modal = g.getByRole("dialog", { name: `Convidar ${ANA}` });
+  await expect(modal.getByText(`Vai para ${EMAIL_ANA}`)).toBeVisible();
+  await modal.getByRole("button", { name: "Enviar convite por e-mail" }).click();
+  await expect(g.getByText(`Convite enviado para ${EMAIL_ANA}`)).toBeVisible();
+  const mensagemDeAna = await esperarNaCaixa(request, EMAIL_ANA);
+  expect(mensagemDeAna.Subject).toBe(`Convite para ${ORG}`);
+  expect(mensagemDeAna.Text).toMatch(/\/convite-pessoal\/[A-Za-z0-9_-]{43}/u);
+
+  // 3 · De novo o modal de Ana: o último envio e o limite do dia, e nenhum botão de enviar.
+  await g.getByRole("button", { name: "Convidar" }).click();
+  const deNovo = g.getByRole("dialog", { name: `Convidar ${ANA}` });
+  await expect(deNovo.getByText(/Último convite por e-mail: hoje às \d{2}:\d{2}/u)).toBeVisible();
+  await expect(deNovo.getByText("Este endereço já recebeu convite hoje. O próximo pode sair amanhã.")).toBeVisible();
+  await expect(deNovo.getByRole("button", { name: "Enviar convite por e-mail" })).toHaveCount(0);
+  await g.keyboard.press("Escape");
+
+  // 4 · Na lista: marca Bia e Caio, envia em massa, e o resumo diz quem recebeu e quem não.
+  await g.goto("/vinculos");
+  await g.getByRole("checkbox", { name: BIA }).click();
+  await g.getByRole("checkbox", { name: CAIO }).click();
+  await expect(g.getByRole("status").filter({ hasText: "2 selecionados" })).toBeVisible();
+  await g.getByRole("button", { name: "Convidar por e-mail (2)" }).click();
+  const lote = g.getByRole("alertdialog");
+  await expect(lote.getByRole("heading", { name: "Enviar convite por e-mail para 2 participantes?" })).toBeVisible();
+  await lote.getByRole("button", { name: "Enviar" }).click();
+  await expect(lote.getByRole("heading", { name: "Enviados (1)", exact: true })).toBeVisible();
+  await expect(lote.getByText(EMAIL_BIA)).toBeVisible();
+  await expect(lote.getByRole("heading", { name: "Não enviados (1)", exact: true })).toBeVisible();
+  await expect(lote.getByText(`${CAIO} · Sem e-mail cadastrado`)).toBeVisible();
+  await lote.getByRole("button", { name: "Fechar" }).click();
+  await expect(g.getByText("2 selecionados")).toHaveCount(0);
+
+  // 5 · O link do e-mail de Bia abre a página do convite pessoal com o nome dela.
+  const mensagemDeBia = await esperarNaCaixa(request, EMAIL_BIA);
+  const linkDeBia = /https?:\/\/\S+\/convite-pessoal\/[A-Za-z0-9_-]{43}/u.exec(mensagemDeBia.Text)?.[0];
+  expect(linkDeBia).toBeDefined();
+  const b = await (await browser.newContext()).newPage();
+  await b.goto(linkDeBia ?? "");
+  await expect(b.getByRole("heading", { name: BIA })).toBeVisible();
+
+  // 6 · A 360 px: a lista com a seleção e o diálogo cabem sem rolagem de lado.
+  await g.setViewportSize({ width: 360, height: 640 });
+  await g.goto("/vinculos");
+  await g.getByRole("checkbox", { name: CAIO }).click();
+  await expect(g.getByText("1 selecionado")).toBeVisible();
+  expect(await transbordo(g)).toStrictEqual(SEM_TRANSBORDO);
+  await g.getByRole("button", { name: "Convidar por e-mail (1)" }).click();
+  await expect(g.getByRole("alertdialog")).toBeVisible();
+  expect(await transbordo(g)).toStrictEqual(SEM_TRANSBORDO);
+  await g.getByRole("alertdialog").getByRole("button", { name: "Voltar" }).click();
 });
 
 /**

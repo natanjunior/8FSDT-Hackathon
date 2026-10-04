@@ -704,15 +704,135 @@ export type ResultadoDoApagarEtiqueta = { desfecho: "apagada" } | { desfecho: "n
 /**
  * **A porta escopada das etiquetas dos participantes** — item 115.
  *
- * Quatro operações, todas sob `vinculo.gerir` na porta de entrada. **Desfecho, não exceção**, pela
+ * Cinco operações, todas sob `vinculo.gerir` na porta de entrada. **Desfecho, não exceção**, pela
  * doutrina das outras portas de organização: são traduções de garantias do banco — o índice único em
  * ICU, a chave composta, o `where organizacao_id = $1` do escopo.
  */
 export interface RepositorioEscopadoDeEtiquetas {
   listar(): Promise<readonly EtiquetaLida[]>;
+  /**
+   * Cria, ou reaproveita a que já existe pela regra do índice (apara, ignora maiúscula, acento conta), **sem
+   * atribuir a ninguém** — o cartão da configuração, item 120. `criada` diz qual dos dois.
+   */
+  criar(nome: string): Promise<{ etiqueta: EtiquetaLida; criada: boolean }>;
   atribuir(dados: { pessoaId: string; nome: string; porPessoaId: string }): Promise<ResultadoDaAtribuicaoDeEtiqueta>;
   tirar(dados: { pessoaId: string; etiquetaId: string }): Promise<ResultadoDaRetiradaDeEtiqueta>;
   apagar(etiquetaId: string): Promise<ResultadoDoApagarEtiqueta>;
+}
+
+/** Uma mensagem de e-mail, já montada (item 122). Texto puro, e o HTML equivalente. */
+export type Mensagem = { para: string; assunto: string; texto: string; html: string };
+
+/**
+ * **A porta de saída do e-mail** (item 122). Resolve quando o provedor **aceitou**; rejeita quando ele
+ * recusou ou o tempo acabou. Aceito não é entregue: devolução e caixa de spam ficam fora.
+ */
+export interface Carteiro {
+  enviar(mensagem: Mensagem): Promise<void>;
+}
+
+/** O convite vivo de um vínculo, como o Gestor o vê (item 121). O token sai daqui: quem lê tem `vinculo.gerir`. */
+export type ConvitePessoalVivo = {
+  token: string;
+  criadoEm: string;
+  criadoPor: { pessoaId: string; nome: string };
+};
+
+/**
+ * **A porta escopada do convite pessoal** — o lado do Gestor (item 121). Três operações, todas sob
+ * `vinculo.gerir` na porta de entrada. **Não confere elegibilidade**: Solicitante ou Gestor, ativo e sem
+ * conta é regra da Aplicação.
+ */
+export interface RepositorioEscopadoDeConvitesPessoais {
+  /** O convite vivo do vínculo, ou `null`. */
+  vivoDe(pessoaId: string): Promise<ConvitePessoalVivo | null>;
+  /** Devolve o vivo, ou cria um. Idempotente sob concorrência (`on conflict … do nothing`). */
+  garantir(pessoaId: string, token: string, porPessoaId: string): Promise<ConvitePessoalVivo>;
+  /** Carimba o vivo e cria outro, num `COMMIT`. */
+  renovar(pessoaId: string, token: string, porPessoaId: string): Promise<ConvitePessoalVivo>;
+}
+
+/** O desfecho de um envio por e-mail, decidido dentro da transação daquela pessoa (item 122). */
+export type DesfechoDoRegistro =
+  | { desfecho: "enviado"; enviadoEm: string }
+  | { desfecho: "limite-do-dia" | "limite-do-participante" | "falha-no-envio" };
+
+/** O que o modal precisa saber dos envios de uma pessoa (item 122). */
+export type ResumoDosEnvios = {
+  /** O último envio a esta pessoa, por qualquer endereço, ou `null`. */
+  ultimoEnvioEm: string | null;
+  /** Quantos envios o vínculo já recebeu, somando convites invalidados. */
+  doParticipante: number;
+  /** Se `email` já recebeu convite hoje (dia de Brasília) nesta organização. */
+  enderecoJaRecebeuHoje: boolean;
+};
+
+/**
+ * **A porta escopada dos envios do convite por e-mail** (item 122). O repositório não conhece o provedor:
+ * quem entrega é a Aplicação, pela chamada de retorno `entregar`.
+ */
+export interface RepositorioEscopadoDeEnviosDeConvite {
+  /**
+   * **Uma transação por pessoa**: garante e trava o convite vivo, confere os dois limites, insere a linha,
+   * chama `entregar` e só confirma se ela resolver. Se `entregar` rejeitar, desfaz tudo e devolve
+   * `falha-no-envio`: envio que falhou não conta para limite nenhum.
+   */
+  registrarEnvio(entrada: {
+    pessoaId: string;
+    email: string;
+    porPessoaId: string;
+    token: string;
+    entregar: (vivo: ConvitePessoalVivo) => Promise<void>;
+  }): Promise<DesfechoDoRegistro>;
+  resumoDe(pessoaId: string, email: string | null): Promise<ResumoDosEnvios>;
+}
+
+/**
+ * O que a leitura sem sessão do convite pessoal pode saber (item 121, critério 8). **Nenhum contato**:
+ * contato só é legível dentro da organização do vínculo, e quem abre o link sem conta não está em
+ * organização nenhuma.
+ */
+export type ConvitePessoalPorToken = {
+  pessoaId: string;
+  organizacaoId: string;
+  nomeDaPessoa: string;
+  nomeDaOrganizacao: string;
+  papel: Papel;
+};
+
+/**
+ * **A porta que o `semSessao` recebe.** Leitura, e mais nada: quem roda sem sessão recebe a leitura e
+ * nenhuma escrita, nem no tipo nem no objeto.
+ */
+export interface LeituraDeConvitesPessoais {
+  /** Só convite vivo, de vínculo ativo, de Pessoa sem conta. Qualquer outro caso: `null`. */
+  vivoPorToken(token: string): Promise<ConvitePessoalPorToken | null>;
+}
+
+/** O desfecho da ligação da conta nova à Pessoa cadastrada (item 121, o caminho sem conta). */
+export type ResultadoDaLigacao = { desfecho: "ligada"; organizacaoId: string } | { desfecho: "nao-vale" };
+
+/** Os desfechos do aceite com conta (item 121). **Desfecho, não exceção**, como nas outras portas. */
+export type ResultadoDoAceite =
+  | { desfecho: "aceito"; organizacaoId: string }
+  | { desfecho: "nao-vale" }
+  | { desfecho: "ja-participa" };
+
+/**
+ * **A escrita do convite pessoal.** Vai para as portas globais, com sessão; o `semSessao` nunca a recebe.
+ * Estende a leitura porque o aceite e a página leem o mesmo convite.
+ */
+export interface RepositorioDeConvitesPessoais extends LeituraDeConvitesPessoais {
+  /**
+   * **A fusão** da Pessoa cadastrada na Pessoa da conta, numa transação. Erro do banco no meio não é
+   * traduzido: sobe, e a transação desfaz tudo.
+   */
+  aceitar(token: string, pessoaDaConta: string): Promise<ResultadoDoAceite>;
+  /**
+   * **O caminho sem conta**: carimba a conta recém-criada e o nome do formulário na Pessoa cadastrada, e
+   * o convite como aceito. Roda antes de qualquer requisição da sessão nova.
+   */
+  ligarConta(token: string, usuarioId: string, nome: string): Promise<ResultadoDaLigacao>;
 }
 
 /**

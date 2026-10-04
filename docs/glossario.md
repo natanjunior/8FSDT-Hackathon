@@ -18,6 +18,7 @@ Atores são nomeados por função, e nunca por nome próprio.
 | Pessoa | O ser humano no sistema: nome e contato. Existe mesmo sem conseguir entrar | Usuário |
 | Usuário | A credencial de acesso de uma Pessoa. Uma Pessoa tem zero ou um | Pessoa |
 | Vínculo | A ligação entre uma Pessoa, um Papel e uma Organização. A mesma Pessoa pode ter vários, com papéis diferentes | Papel, que o vínculo carrega |
+| Participante | A Pessoa com vínculo ativo numa Organização, de qualquer papel, com conta ou sem | Pessoa, que existe sem vínculo; Encarregado, que é um dos papéis |
 | Papel | O que a Pessoa é dentro de uma Organização: Solicitante, Gestor ou Encarregado | Permissão, que é o que o papel autoriza |
 | Etiqueta | Rótulo livre que o Gestor dá a um participante: eletricista, contratado, prestador de serviço. Só quem gere participantes vê | Papel, que define permissão; Categoria, que tipifica a ocorrência |
 | Solicitante | Papel de quem registra e acompanha ocorrências | — |
@@ -36,7 +37,8 @@ Atores são nomeados por função, e nunca por nome próprio.
 | Organização ativa | A Organização pela qual a sessão está enxergando agora. Quem tem vários vínculos tem uma de cada vez, e trocar é operação explícita | Vínculo, que é o conjunto de todas |
 | Mudança de configuração | Cada alteração de uma regra da Organização, com o valor anterior, o novo, quem mudou e quando. O banco não deixa alterá-la nem apagá-la | Trilha de auditoria, que é da ocorrência |
 | Código da Organização | Identificador público que permite pedir entrada. Vive em cartaz, mensagem ou etiqueta | Convite, que é o link com o código dentro |
-| Convite | O link que leva o Código da Organização pronto, e o QR do mesmo link. Quem o abre pede entrada com um toque, e o pedido passa pela aprovação do Gestor como qualquer outro | Código da Organização, que o convite carrega |
+| Convite | O link que leva o Código da Organização pronto, e o QR do mesmo link. Quem o abre pede entrada com um toque, e o pedido passa pela aprovação do Gestor como qualquer outro | Código da Organização, que o convite carrega; Convite pessoal, que dispensa a aprovação |
+| Convite pessoal | O link de uma pessoa que o Gestor cadastrou sem conta. Quem o abre liga a própria conta ao vínculo que o Gestor já aprovou, sem pedido de entrada | Convite, que leva à Organização e passa pela aprovação |
 | QR da área | O QR colado no próprio lugar. Leva quem participa ao registro com a Área já escolhida, e quem não participa ao pedido de entrada. Carrega o Código da Organização | Convite, que leva só à Organização |
 | Área | Uma subdivisão da Organização: bloco B, garagem, apartamento 302. Tem um tipo, comum ou privativa, e um QR próprio | Localização, que aponta para uma Área |
 | Localização | Onde dentro da Organização a ocorrência aconteceu: uma Área mais um complemento em texto | Geolocalização: não há mapa nem coordenada |

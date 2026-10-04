@@ -189,15 +189,19 @@ export function BotaoDeConfirmar({
   rotulo,
   rotuloEnviando,
   variante = "marca",
+  formulario,
 }: {
   enviando: boolean;
   rotulo: string;
   rotuloEnviando: string;
   variante?: "marca" | "destrutiva";
+  /** O `id` do `<form>` quando o botão mora fora dele — o rodapé da página de editar participante, desde o item 120. */
+  formulario?: string;
 }) {
   return (
     <Button
       type="submit"
+      form={formulario}
       variant={variante === "destrutiva" ? "destructive" : "marca"}
       disabled={enviando}
       className="text-interface min-h-11 rounded-sm px-4 font-semibold"

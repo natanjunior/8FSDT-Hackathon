@@ -16,7 +16,6 @@ import { CONTEUDO_DO_SHEET } from "@/interface/componentes/modal";
 import { Badge } from "@/interface/componentes/ui/badge";
 import { Button } from "@/interface/componentes/ui/button";
 import { Dialog, DialogTitle, DialogTrigger } from "@/interface/componentes/ui/dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/interface/componentes/ui/popover";
 import { SheetContent } from "@/interface/componentes/ui/sheet";
 import { cn } from "@/interface/componentes/utilitarios";
 import { useIsMobile } from "@/interface/ganchos/use-mobile";
@@ -47,6 +46,16 @@ export const CLASSE_DA_PILULA =
 export const CLASSE_DA_GAVETA = cn(CONTEUDO_DO_SHEET, "max-h-[85dvh]");
 
 /**
+ * **A gaveta lateral, na tela grande** (item 120, `respostas.md` P1). O sino mora no canto direito da barra
+ * (`barra-superior.tsx:38-41`), e a gaveta da direita abre do lado do botão que a chamou, com a altura
+ * inteira da janela para uma lista vertical. **A largura é a do catálogo** (`sheet.tsx:73-74`,
+ * `sm:max-w-sm`, 384 px), a mesma do `w-96` que a lista tinha no `Popover`. Sem teto e sem cantos de cima:
+ * esses são da gaveta de baixo. O tempo e a curva do guia §6 são os mesmos.
+ */
+export const CLASSE_DA_LATERAL =
+  "bg-superficie border-linha flex flex-col gap-0 overflow-hidden ease-(--curva-gaveta) data-[state=closed]:duration-(--tempo-gaveta) data-[state=open]:duration-(--tempo-gaveta)";
+
+/**
  * **O foco de abertura fica no próprio conteúdo**, e não no primeiro tabulável da lista, que é o botão de
  * ícone da primeira linha. A dica do Radix **abre no foco** e o provedor da casca tem `delayDuration` zero
  * (`ui/tooltip.tsx:8`), então com o foco no botão o primeiro `Esc` fechava a dica e a lista ficava aberta.
@@ -66,17 +75,18 @@ function focarOConteudo(evento: Event) {
  * **O número vem do banco, e a casca não espera por ele**: o layout desenha este componente com
  * `sino={null}` no `Suspense` e o número chega depois, como a contagem de pedidos. Nunca esqueleto.
  *
- * **A lista vem junto, e abre por cima da tela em que a pessoa está** (spec §3.11): `Popover` a partir de
- * `md`, **gaveta de baixo abaixo** — `SheetContent side="bottom"`, decisão do dono em 03/10/2026, no lugar
- * do `Dialog` de tela cheia.
+ * **A lista vem junto, e abre numa gaveta por cima da tela em que a pessoa está** (spec §3.11 do 117):
+ * da direita a partir de `md`, de baixo abaixo — item 120, que corrigiu o 118. O pedido do dono, em
+ * 03/10/2026, era gaveta em toda largura. **Vir junto com a casca** é o que a §3.11 do 117 defendia, contra
+ * uma tela `/avisos`; a gaveta continua vindo junto, e só o recipiente mudou.
  *
  * **Uma raiz só, e é a montagem do `modal.tsx`.** `Sheet` e `Dialog` são o mesmo primitivo do `radix-ui`
- * (`sheet.tsx:6`), então a raiz é um `Dialog` e só o conteúdo troca; a largura vem do `useIsMobile`, o
- * mesmo gancho da barra lateral, no mesmo limiar de 768 px. **Quem guarda a abertura é o `Sino`**, e não o
- * conteúdo: girar o aparelho com a lista aberta troca a peça e a lista continua aberta.
+ * (`sheet.tsx:6`), então a raiz é um `Dialog` e um conteúdo só; o `useIsMobile` decide apenas o lado e as classes,
+ * o mesmo gancho da barra lateral, no mesmo limiar de 768 px. **Quem guarda a abertura é o `Sino`**, e não o
+ * conteúdo: girar o aparelho com a lista aberta troca o lado e a lista continua aberta.
  *
  * **O `drawer` do shadcn fica fora**: seria dependência nova, na variante Base UI, para fazer o que a peça
- * do catálogo já faz. Fechar devolve o foco ao botão, e `Esc` fecha nas três formas — é o padrão dos
+ * do catálogo já faz. Fechar devolve o foco ao botão, e `Esc` fecha nas duas formas — é o padrão dos
  * primitivos, e nada aqui o desliga. **Abrir o sino não grava nada.**
  */
 export function Sino({ sino, acoes }: { sino: SinoNaTela | null; acoes: AcoesDoSino }) {
@@ -109,32 +119,25 @@ export function Sino({ sino, acoes }: { sino: SinoNaTela | null; acoes: AcoesDoS
   const lista =
     sino === null ? null : <ListaDoSino sino={sino} acoes={acoes} aoNavegar={() => setAberto(false)} />;
 
-  if (celular) {
-    return (
-      <Dialog open={aberto} onOpenChange={setAberto}>
-        <DialogTrigger asChild>{botao}</DialogTrigger>
-        <SheetContent side="bottom" className={CLASSE_DA_GAVETA} onOpenAutoFocus={focarOConteudo}>
-          {/* `pr-14` para o título não passar por baixo do X de 44 px que a folha do catálogo desenha. */}
-          <DialogTitle className="shrink-0 px-4 pt-4 pr-14 pb-2">Avisos</DialogTitle>
-          {/* Só o corpo rola: o título e o X ficam fora da rolagem, como nos nove modais da família. */}
-          <div className="min-h-0 flex-1 overflow-y-auto">{lista}</div>
-        </SheetContent>
-      </Dialog>
-    );
-  }
-
   return (
-    <Popover open={aberto} onOpenChange={setAberto}>
-      <PopoverTrigger asChild>{botao}</PopoverTrigger>
-      <PopoverContent align="end" className="w-96 p-0" onOpenAutoFocus={focarOConteudo}>
-        <div className="max-h-[min(70vh,560px)] overflow-y-auto">{lista}</div>
-      </PopoverContent>
-    </Popover>
+    <Dialog open={aberto} onOpenChange={setAberto}>
+      <DialogTrigger asChild>{botao}</DialogTrigger>
+      <SheetContent
+        side={celular ? "bottom" : "right"}
+        className={celular ? CLASSE_DA_GAVETA : CLASSE_DA_LATERAL}
+        onOpenAutoFocus={focarOConteudo}
+      >
+        {/* `pr-14` para o título não passar por baixo do X de 44 px que a folha do catálogo desenha. */}
+        <DialogTitle className="shrink-0 px-4 pt-4 pr-14 pb-2">Avisos</DialogTitle>
+        {/* Só o corpo rola: o título e o X ficam fora da rolagem, como nos nove modais da família. */}
+        <div className="min-h-0 flex-1 overflow-y-auto">{lista}</div>
+      </SheetContent>
+    </Dialog>
   );
 }
 
 /**
- * **O miolo da lista**, exportado porque o conteúdo do `Popover`/`Dialog` vive num portal fechado e não sai
+ * **O miolo da lista**, exportado porque o conteúdo da gaveta vive num portal fechado e não sai
  * na renderização do botão. Duas faixas com título, *Não lidas* primeiro; **a palavra é o sinal** (A-5), e
  * o título da faixa a diz uma vez, em vez de um selo por linha.
  */

@@ -17,7 +17,10 @@ export default function EsperandoODashboard() {
       <div aria-hidden className="flex flex-col gap-5">
         <div className="bg-secondary h-8 w-[38%] animate-pulse rounded-lg" />
         <div className="border-linha-suave border-b pb-4">
-          <div className="bg-secondary h-11 w-64 animate-pulse rounded-sm" />
+          <div className="flex flex-col gap-1.5">
+            <div className="bg-secondary h-[19px] w-16 animate-pulse rounded" />
+            <div className="bg-secondary h-11 w-64 animate-pulse rounded-sm" />
+          </div>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[minmax(13rem,0.9fr)_3fr]">

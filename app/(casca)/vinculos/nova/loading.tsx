@@ -1,12 +1,12 @@
 /**
- * O cold start de *Cadastrar pessoa sem conta* (RNF5). **O título é o mesmo da página e o do estado sem
+ * O cold start de *Cadastrar participante* (RNF5). **O título é o mesmo da página e o do estado sem
  * acesso**, e o esqueleto tem a forma dos dois cartões. O caminho do topo não entra no esqueleto: ele é
  * rastro, e rastro em esqueleto é ruído.
  */
 export default function EsperandoOCadastro() {
   return (
     <div className="flex flex-col gap-5.5">
-      <h1 className="text-titulo-pagina text-tinta">Cadastrar pessoa sem conta</h1>
+      <h1 className="text-titulo-pagina text-tinta">Cadastrar participante</h1>
 
       <div aria-hidden className="flex flex-col gap-5.5">
         {["pessoa", "contatos"].map((cartao) => (

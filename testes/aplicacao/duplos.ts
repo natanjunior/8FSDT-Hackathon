@@ -15,7 +15,10 @@ import type {
 import {
   CodigoPublicoEmUso,
   type NovaOrganizacao,
+  type Carteiro,
+  type Mensagem,
   type PedidoDaPessoa,
+  type RepositorioDeConvitesPessoais,
   type RepositorioDeOrganizacoes,
   type RepositorioDePedidosDeEntrada,
   type RepositorioGlobalDePedidosDeEntrada,
@@ -112,6 +115,40 @@ export function escritaDePedidosFalsa(): RepositorioDePedidosDeEntrada {
 }
 
 /**
+ * O duplo do carteiro (item 122): registra as mensagens que recebeu, e `falharCom` o faz rejeitar.
+ */
+export function carteiroFalso(): {
+  carteiro: Carteiro;
+  mensagens: Mensagem[];
+  falharCom: (erro: Error) => void;
+} {
+  const mensagens: Mensagem[] = [];
+  let falha: Error | null = null;
+  return {
+    mensagens,
+    falharCom: (erro) => {
+      falha = erro;
+    },
+    carteiro: {
+      enviar: (mensagem) => {
+        if (falha !== null) return Promise.reject(falha);
+        mensagens.push(mensagem);
+        return Promise.resolve();
+      },
+    },
+  };
+}
+
+/**
+ * O duplo do convite pessoal (item 121), pela razão de `escritaDePedidosFalsa`: `PortasGlobais` o exige,
+ * e `resolverContexto` nunca o exerce.
+ */
+export function convitesPessoaisFalsos(): RepositorioDeConvitesPessoais {
+  const naoExercida = () => Promise.reject(new Error("porta não exercida por este duplo"));
+  return { vivoPorToken: naoExercida, aceitar: naoExercida, ligarConta: naoExercida };
+}
+
+/**
  * Monta o grafo à mão, que é o que os testes podem fazer e a Aplicação não (ADR-0005).
  *
  * @param sessao o que o provedor de autenticação devolve. `null` é *não há sessão*.
@@ -197,6 +234,7 @@ export function montarDuplos(sessao: SessaoDoProvedor | null, semente: Semente =
       organizacoes: duploDeOrganizacoes().porta,
       pedidosDeEntrada: pedidosGlobaisFalsos(rastro, semente.pedidos),
       escritaDePedidosDeEntrada: escritaDePedidosFalsa(),
+      convitesPessoais: convitesPessoaisFalsos(),
     },
     rastro,
     pessoas: () => pessoas,

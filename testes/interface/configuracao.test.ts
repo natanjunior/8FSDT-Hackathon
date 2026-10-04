@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 import * as lucide from "lucide-react";
 import { describe, expect, it } from "vitest";
 
@@ -15,6 +18,7 @@ import {
 } from "@/interface/componentes/frases-da-configuracao";
 import { DESENHO_DO_ICONE } from "@/interface/componentes/icone-de-categoria";
 import { gruposDoCodigo } from "@/interface/componentes/grupos-do-codigo";
+import { ABAS_DA_CONFIGURACAO, consultaDaAba, lerAba } from "@/interface/componentes/aba-da-configuracao";
 import {
   FILTROS,
   cicloDaOrdem,
@@ -1045,5 +1049,80 @@ describe("o campo dos dias para parada — item 101", () => {
     expect(APOIO_DOS_DIAS).toBe("De 1 a 90. Pausadas não contam.");
     expect(DIAS_FORA_DA_FAIXA.endsWith(".")).toBe(true);
     for (const frase of [APOIO_DOS_DIAS, DIAS_FORA_DA_FAIXA]) expect(frase).not.toMatch(/_/u);
+  });
+});
+
+describe("a peça tabs — critério 120.14", () => {
+  const fonte = readFileSync(fileURLToPath(new URL("../../src/interface/componentes/ui/tabs.tsx", import.meta.url)), "utf8");
+
+  it("vem do radix-ui unificado, com a variante line, e sem pacote novo", () => {
+    expect(fonte).toContain('import { Tabs as TabsPrimitive } from "radix-ui"');
+    expect(fonte).toContain('line: "gap-1 bg-transparent"');
+    const origens = [...fonte.matchAll(/from "([^"]+)"/gu)].map((achado) => achado[1] ?? "");
+    expect(origens.sort()).toStrictEqual(
+      ["@/interface/componentes/utilitarios", "class-variance-authority", "radix-ui", "react"].sort(),
+    );
+  });
+});
+
+describe("as abas da configuração — critérios 120.13, 120.15 e 120.16", () => {
+  const TODAS = ["ocorrencias", "participantes", "historico"] as const;
+
+  it("são três, nesta ordem e com estes nomes", () => {
+    expect(ABAS_DA_CONFIGURACAO).toStrictEqual([
+      { valor: "ocorrencias", rotulo: "Configurações de ocorrências" },
+      { valor: "participantes", rotulo: "Configurações de participantes" },
+      { valor: "historico", rotulo: "Histórico" },
+    ]);
+  });
+
+  it("o endereço escolhe a aba, e o que não vale cai na primeira", () => {
+    expect(lerAba(undefined, TODAS)).toBe("ocorrencias");
+    expect(lerAba("historico", TODAS)).toBe("historico");
+    expect(lerAba("xyz", TODAS)).toBe("ocorrencias");
+    expect(lerAba(["participantes", "historico"], TODAS)).toBe("participantes");
+    // Quem não alcança a aba de participantes cai na primeira, e não numa aba vazia.
+    expect(lerAba("participantes", ["ocorrencias", "historico"])).toBe("ocorrencias");
+  });
+
+  it("a primeira não escreve parâmetro; as outras escrevem", () => {
+    expect(consultaDaAba("ocorrencias")).toBe("");
+    expect(consultaDaAba("participantes")).toBe("?aba=participantes");
+  });
+
+  const pagina = readFileSync(fileURLToPath(new URL("../../app/(casca)/configuracao/page.tsx", import.meta.url)), "utf8");
+
+  it("a Identidade fica fora das abas, acima delas, e cada cartão mora na sua", () => {
+    const identidade = pagina.indexOf('<Cartao tituloId="identidade">');
+    const abas = pagina.indexOf("<AbasDaConfiguracao");
+    expect(identidade).toBeGreaterThan(-1);
+    expect(abas).toBeGreaterThan(identidade);
+    const trecho = (de: string, ate: string) => pagina.slice(pagina.indexOf(de), pagina.indexOf(ate));
+    const ocorrencias = trecho("ocorrencias: (", "participantes:");
+    expect(ocorrencias).toContain('tituloId="regras"');
+    expect(ocorrencias).toContain('tituloId="rotulos"');
+    expect(ocorrencias).toContain('tituloId="listas"');
+    const historico = pagina.slice(pagina.indexOf("historico: ("));
+    expect(historico).toContain('tituloId="mudancas"');
+  });
+
+  it("o cartão de etiquetas só existe com vinculo.gerir, e a leitura dele também (critério 120.20)", () => {
+    const participantes = pagina.slice(pagina.indexOf("participantes: geriVinculos"), pagina.indexOf("historico: ("));
+    expect(participantes).toContain("<EtiquetasDaOrganizacao");
+    // As leituras do cartão só acontecem com a permissão: nada de etiqueta ou vínculo para quem não gere.
+    // E no MESMO `Promise.all` das outras leituras (spec §3.5.2): uma segunda volta ao banco pesaria no cold start.
+    expect(pagina).toMatch(/geriVinculos \? listarEtiquetas\(escopo\.repos\.etiquetas\) : Promise\.resolve\(\[\]\)/u);
+    expect(pagina).toMatch(/geriVinculos \? listarVinculos\(escopo\.repos\.vinculos\) : Promise\.resolve\(\[\]\)/u);
+    expect(pagina.match(/await Promise\.all\(/gu)).toHaveLength(1);
+  });
+
+  const componente = readFileSync(fileURLToPath(new URL("../../src/interface/componentes/abas-da-configuracao.tsx", import.meta.url)), "utf8");
+
+  it("as abas são line, quebram linha no celular, e trocar escreve o endereço sem entrada de histórico", () => {
+    expect(componente).toContain('<TabsList variant="line"');
+    expect(componente).toContain("flex-wrap");
+    expect(componente).toContain("group-data-[orientation=horizontal]/tabs:h-auto");
+    expect(componente).toContain("window.history.replaceState(");
+    expect(componente).not.toContain("router.push(");
   });
 });

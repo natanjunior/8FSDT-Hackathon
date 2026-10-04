@@ -21,3 +21,5 @@ export {
   criarCredenciais,
   type ArmazenamentoDeCookies,
 } from "./autenticacao";
+// Item 122: o quarto arquivo daqui a importar um SDK, o do e-mail (ADR-0022).
+export { criarCarteiro, type TransporteDeCorreio } from "./correio";

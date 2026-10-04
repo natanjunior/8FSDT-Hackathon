@@ -11,6 +11,9 @@
     "prefix": ""
   },
   "iconLibrary": "lucide",
+  "registries": {
+    "@designrevision": "https://registry.designrevision.com/r/{name}.json"
+  },
   "aliases": {
     "components": "@/interface/componentes",
     "ui": "@/interface/componentes/ui",

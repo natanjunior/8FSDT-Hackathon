@@ -58,3 +58,18 @@ export function dataEHora(iso: string): string {
   const p = partes(DATA_E_HORA, iso);
   return `${p.get("day") ?? ""}/${p.get("month") ?? ""}/${p.get("year") ?? ""} · ${p.get("hour") ?? ""}:${p.get("minute") ?? ""}`;
 }
+
+/**
+ * `dd/mm/aaaa hh:mm`, para o arquivo exportado (item 124). **Sem o `·` da tela**: com ele o Excel lê a
+ * célula como texto. As partes são as mesmas de `dataEHora`, unidas por espaço.
+ */
+export function dataEHoraDoArquivo(iso: string): string {
+  const p = partes(DATA_E_HORA, iso);
+  return `${p.get("day") ?? ""}/${p.get("month") ?? ""}/${p.get("year") ?? ""} ${p.get("hour") ?? ""}:${p.get("minute") ?? ""}`;
+}
+
+/** `aaaa-mm-dd` no fuso de São Paulo, para o nome do arquivo exportado (item 124). */
+export function diaDoArquivo(iso: string): string {
+  const p = partes(DATA, iso);
+  return `${p.get("year") ?? ""}-${p.get("month") ?? ""}-${p.get("day") ?? ""}`;
+}

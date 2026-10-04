@@ -1,5 +1,9 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
+import { ID_DO_CONTEUDO } from "@/interface/componentes/pular-para-o-conteudo";
+
+export { ID_DO_CONTEUDO };
+
 /**
  * ============================================================================
  *  O mundo de teste da semente — os localizadores num módulo só
@@ -235,26 +239,44 @@ export function botaoDoSino(pagina: Page): Locator {
 /**
  * Quantas não lidas o nome do botão diz agora. **Espera o número chegar**: na espera do `Suspense` o botão
  * está `aria-busy`, e o nome sem número ali não é zero.
+ *
+ * **`includeHidden`, desde o item 120**: a lista abre numa gaveta modal em toda largura, e o `Dialog` do
+ * Radix esconde o resto da página da árvore de acessibilidade enquanto está aberto. O número é lido do
+ * atributo do botão, que continua lá atrás; com o `Popover` de antes, o botão nunca saía da árvore.
  */
 export async function naoLidasNoSino(pagina: Page): Promise<number> {
-  await expect(botaoDoSino(pagina)).not.toHaveAttribute("aria-busy", "true");
-  const nome = (await botaoDoSino(pagina).getAttribute("aria-label")) ?? "Avisos";
+  // `visible`: com `includeHidden` entra também o botão que o CSS esconde, e o modo estrito recusaria.
+  const botao = pagina
+    .getByRole("button", { name: /^Avisos(,|$)/u, includeHidden: true })
+    .filter({ visible: true });
+  await expect(botao).not.toHaveAttribute("aria-busy", "true");
+  const nome = (await botao.getAttribute("aria-label")) ?? "Avisos";
   return Number(/,\s*(\d+)/u.exec(nome)?.[1] ?? "0");
 }
 
 /**
- * A lista aberta: o `Popover` na tela grande, a gaveta de baixo no celular (item 118).
+ * A lista aberta: a gaveta da direita na tela grande, a de baixo no celular (item 120; até ele, `Popover`
+ * na tela grande).
  *
- * **O papel continua `dialog` nas duas formas**, porque `SheetContent` é `Dialog.Content` do `radix-ui`
- * e o nome sai do `DialogTitle` *Avisos*. É por isso que um localizador só serve para as duas.
+ * **O papel é `dialog` nas duas formas**, porque `SheetContent` é `Dialog.Content` do `radix-ui` e o nome
+ * sai do `DialogTitle` *Avisos*. É por isso que um localizador só serve para as duas.
  *
  * **Idempotente.** Depois de *Marcar como lida*, a ação de servidor revalida a casca e o componente de
  * cliente **guarda o estado aberto**; clicar no botão de novo o fecharia.
  */
 export async function abrirOSino(pagina: Page): Promise<Locator> {
   const dialogo = pagina.getByRole("dialog", { name: "Avisos" });
-  const balao = pagina.locator("[data-slot=popover-content]");
-  if (!(await dialogo.isVisible()) && !(await balao.isVisible())) await botaoDoSino(pagina).click();
-  await expect(dialogo.or(balao)).toBeVisible();
-  return (await dialogo.isVisible()) ? dialogo : balao;
+  if (!(await dialogo.isVisible())) await botaoDoSino(pagina).click();
+  await expect(dialogo).toBeVisible();
+  return dialogo;
+}
+
+/**
+ * **O conteúdo da casca, pelo `id` que o salto do item 94 já usa.** Enquanto o layout da casca resolve, a
+ * espera da raiz (`app/loading.tsx`) põe um `<main>` próprio na árvore, e os dois convivem: é desenho, e
+ * está explicado no `assentar()` de `triagem-da-ocorrencia.spec.ts`. `locator("main")` sozinho recusa no
+ * modo estrito, ou escolhe o errado.
+ */
+export function conteudoDaCasca(pagina: Page): Locator {
+  return pagina.locator(`main#${ID_DO_CONTEUDO}`);
 }

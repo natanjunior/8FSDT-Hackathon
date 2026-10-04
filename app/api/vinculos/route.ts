@@ -21,7 +21,7 @@ export const GET = comContexto({ exige: "vinculo.gerir" }, async ({ repos }) => 
 }));
 
 /**
- * **`POST /vinculos` — cadastrar Encarregado (ou pessoa sem conta).**
+ * **`POST /vinculos` — cadastrar participante sem conta.**
  *
  * Cria **Pessoa e Vínculo na mesma transação** (D27). É o caminho de escrita da regra do vínculo primeiro:
  * entra-se pelo vínculo, nunca pela Pessoa.

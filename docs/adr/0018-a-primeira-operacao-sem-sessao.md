@@ -6,7 +6,8 @@ description: "O convite por link lê o nome e o código de uma organização sem
 # ADR-0018 — A primeira operação sem sessão
 
 **Status:** Aceita · 26/09/2026 · Substitui parcialmente a
-[ADR-0003](0003-isolamento-de-tenant-na-camada-de-aplicacao.md)
+[ADR-0003](0003-isolamento-de-tenant-na-camada-de-aplicacao.md) · Substituída pela
+[ADR-0021](0021-o-convite-pessoal-e-a-segunda-operacao-sem-sessao.md)
 
 ## Contexto
 

@@ -50,6 +50,7 @@ import {
 import { CAMADA_DO_TITULO, LINHA_CLICAVEL } from "@/interface/componentes/linha-clicavel";
 import { ModalDeDados } from "@/interface/componentes/modal-de-dados";
 import { ConteudoDoPainel, PeriodoEmVoo } from "@/interface/componentes/periodo-em-voo";
+import { ROTULO_ACIMA } from "@/interface/componentes/filtros-da-lista";
 import { SeletorDePeriodo } from "@/interface/componentes/seletor-de-periodo";
 import { SeloDeStatus } from "@/interface/componentes/selo-de-status";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
@@ -238,8 +239,14 @@ function Periodo({
   trocada: boolean;
 }) {
   return (
-    <div className="border-linha-suave flex flex-wrap items-center gap-3 border-b pb-4">
-      <SeletorDePeriodo periodo={periodo} atalhos={atalhos} consultaAtual={consultaAtual} />
+    <div className="border-linha-suave flex flex-wrap items-end gap-3 border-b pb-4">
+      <div className="flex flex-col gap-1.5">
+        {/* `aria-hidden`: o nome acessível do seletor já começa por *Período* (`nomeDaFaixa`). */}
+        <span aria-hidden="true" className={ROTULO_ACIMA}>
+          Período
+        </span>
+        <SeletorDePeriodo periodo={periodo} atalhos={atalhos} consultaAtual={consultaAtual} />
+      </div>
 
       {trocada ? (
         <p role="status" className="text-tinta-suave text-meta basis-full">

@@ -26,6 +26,7 @@ import {
 } from "@/aplicacao/organizacao";
 import { STATUS } from "@/dominio/ocorrencia";
 import { BarraDeFiltros, type OpcaoDeFiltro } from "@/interface/componentes/barra-de-filtros";
+import { BotaoDeExportacao } from "@/interface/componentes/botao-de-exportacao";
 import { CartaoDaLista } from "@/interface/componentes/cartao-da-lista";
 import { DerivaDaLista } from "@/interface/componentes/deriva-da-lista";
 import { EsqueletoDaLista } from "@/interface/componentes/esqueleto-da-lista";
@@ -240,7 +241,7 @@ export default async function Ocorrencias({
         <header className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-center md:justify-between">
           <h1 className="text-titulo-pagina text-tinta">Ocorrências</h1>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {/* **O controle é de todo vínculo desde o item 87** (critério 87.7). Quem não tem `ler_todas`
                 recebe *Minhas ocorrências* e *Compartilhadas comigo*: há duas opções, e há o que escolher,
                 então o critério 44c.9 — que existia porque um controle de uma opção só seria um alvo que
@@ -257,6 +258,16 @@ export default async function Ocorrencias({
                  número não esperam nada. */
               contagens={paginaPedida.then((pagina) => pagina.contagens)}
             />
+
+            {/* **A exportação é de quem lê todas** (item 124), e o arquivo ignora filtro e página. Some só no
+                vazio da organização, pelo mesmo `:has()` do botão ao lado: no vazio de filtro o arquivo
+                ainda traz tudo. `flex-wrap` no grupo, porque no celular ele passa a ter dois controles. */}
+            {podeLerTodas && (
+              <BotaoDeExportacao
+                endereco="/api/ocorrencias/exportacao"
+                className="group-has-[[data-vazio-tipo=organizacao]]/pagina:hidden"
+              />
+            )}
 
             {/* **No vazio ele fica invisível e guarda o lugar** (critério 102.7): o convite do centro é a
                 ação da tela, e duas ações em laranja dizem que nenhuma é a principal. `invisible`, e não
@@ -609,7 +620,7 @@ function Vazio({
   const texto = TEXTO_DO_VAZIO[tipo];
 
   return (
-    <Empty data-vazio="" className="md:p-10">
+    <Empty data-vazio="" data-vazio-tipo={tipo} className="md:p-10">
       <EmptyHeader>
         <EmptyTitle className="text-titulo-bloco text-tinta">{texto.titulo}</EmptyTitle>
         {texto.corpo !== null && (

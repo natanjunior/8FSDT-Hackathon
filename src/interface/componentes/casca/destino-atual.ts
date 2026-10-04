@@ -26,7 +26,6 @@ export const DESTINOS_DA_BARRA = [
   "/ocorrencias",
   "/configuracao",
   "/vinculos",
-  "/convidar",
   "/configuracao/categorias",
   "/configuracao/areas",
   "/dashboard",

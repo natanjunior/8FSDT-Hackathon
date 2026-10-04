@@ -651,6 +651,157 @@ paths:
                 traceId: "01JB8Z6K9T2M4N7Q"
         "500": { $ref: "#/components/responses/ErroInterno" }
 
+  /convites-pessoais/envios:
+    post:
+      tags: [Vínculos]
+      operationId: enviarConvitesPorEmail
+      summary: Enviar o convite pessoal por e-mail, a um ou a até vinte participantes
+      description: |
+        Envia o link do convite pessoal de cada pessoa ao primeiro e-mail cadastrado dela, pela ordem dos
+        contatos. O modal do detalhe manda uma lista de um; a lista de participantes manda até 20.
+
+        **`200` com o resumo mesmo quando nenhum saiu**: a requisição deu certo, o que falhou foi cada
+        envio, e o resumo diz qual, com um de sete motivos. **Um envio por dia por endereço** na
+        organização e **dez por participante**, somando os convites já invalidados. Envio que o provedor
+        recusou não conta para limite nenhum.
+
+        **Não há fila**: o envio acontece dentro da requisição, um depois do outro, e por isso o lote tem
+        teto. A lista vazia, repetida ou acima de 20 é `422`.
+
+        *Permissão: `vinculo.gerir`.*
+      parameters:
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EnvioDeConvites" }
+            example: { pessoaIds: ["4f6c1d6e-2b7a-4c1e-9f3a-1c2d3e4f5a6b"] }
+      responses:
+        "200":
+          description: O resumo de quem recebeu e de quem não.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ResumoDoEnvio" }
+              example:
+                enviados:
+                  - { pessoaId: "4f6c1d6e-2b7a-4c1e-9f3a-1c2d3e4f5a6b", nome: "Maria Souza", email: "maria@exemplo.com" }
+                naoEnviados:
+                  - { pessoaId: "9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d", nome: "Caio Lima", motivo: "sem-email" }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "422":
+          description: A lista está vazia, repetida ou acima de 20.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example:
+                type: "https://resolveai.app/erros/lote-de-envio-invalido"
+                title: "Lote de envio inválido"
+                status: 422
+                detail: "Envie até 20 por vez."
+                codigo: "LOTE_DE_ENVIO_INVALIDO"
+                traceId: "01JB8Z6K9T2M4N7Q"
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /convites-pessoais/{token}:
+    get:
+      tags: [Entrada na organização]
+      operationId: lerConvitePessoal
+      summary: Ler o convite pessoal de uma pessoa cadastrada
+      description: |
+        O que a página do convite pessoal mostra: o nome da pessoa que o Gestor cadastrou, o nome da
+        organização, o papel, e a situação de quem abre.
+
+        **É a segunda operação que não exige sessão** (ADR-0021). O token só alcança o vínculo que o Gestor
+        já aprovou ao cadastrar. Sem sessão, a resposta tem os dois nomes, o papel e `situacao: sem-sessao`,
+        e **nenhum contato**. Com sessão, a situação diz se a conta já participa da organização ou se pode
+        aceitar.
+
+        **`200` em todas as situações.** Token fora do formato, inexistente, renovado, aceito, de vínculo
+        revogado ou de pessoa que já ganhou conta voltam como `{ situacao: nao-vale }`, sem nome nenhum: um
+        `404` para o token morto diria, pelo status, que ele existiu.
+      security:
+        - {}
+        - sessaoSupabase: []
+        - bearerSupabase: []
+      parameters:
+        - $ref: "#/components/parameters/TokenDoConvitePessoal"
+      responses:
+        "200":
+          description: O convite pessoal, ou `nao-vale`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConvitePessoal" }
+              examples:
+                semSessao:
+                  value:
+                    situacao: "sem-sessao"
+                    pessoa: { nome: "Maria Souza" }
+                    organizacao: { nome: "Jardim das Acácias" }
+                    papel: "solicitante"
+                naoVale:
+                  value: { situacao: "nao-vale" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /convites-pessoais/{token}/aceite:
+    post:
+      tags: [Entrada na organização]
+      operationId: aceitarConvitePessoal
+      summary: Aceitar o convite pessoal com a conta da sessão
+      description: |
+        Liga a conta da sessão ao vínculo que o Gestor cadastrou, **sem pedido de entrada**: o convite não
+        cria vínculo, e o Gestor já aprovou aquela pessoa ao cadastrá-la.
+
+        **Roda sem organização ativa**, porque a conta pode não ter vínculo nenhum. Escreve pela chave da
+        sessão e pelo token apresentado (ADR-0021).
+
+        Quando a conta já tem uma pessoa própria, as duas pessoas se fundem numa transação: o vínculo da
+        conta nasce com o papel e a unidade do cadastro (ou volta a valer, se tinha sido revogado), as
+        atribuições, os compartilhamentos, as etiquetas, os convites e os contatos passam para a pessoa da
+        conta, e o vínculo cadastrado é apagado por último. A trilha de auditoria não é tocada. Qualquer
+        recusa do banco desfaz tudo. A organização do convite passa a ser a ativa da sessão.
+      parameters:
+        - $ref: "#/components/parameters/TokenDoConvitePessoal"
+      responses:
+        "200":
+          description: Aceito. A organização do convite é agora a ativa.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [organizacaoId]
+                properties:
+                  organizacaoId: { type: string, format: uuid }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404":
+          description: O convite não leva a lugar nenhum, e não diz por quê.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example:
+                type: "https://resolveai.app/erros/convite-pessoal-nao-vale"
+                title: "Convite não vale"
+                status: 404
+                detail: "Este convite não vale mais."
+                codigo: "CONVITE_PESSOAL_NAO_VALE"
+                traceId: "01JB8Z6K9T2M4N7Q"
+        "409":
+          description: A conta já participa desta organização. Nada muda, e o cadastro continua na lista para o Gestor revogar.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example:
+                type: "https://resolveai.app/erros/ja-vinculado"
+                title: "Você já está nesta organização"
+                status: 409
+                detail: "Você já tem vínculo ativo nesta organização."
+                codigo: "JA_VINCULADO"
+                traceId: "01JB8Z6K9T2M4N7Q"
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
   /pedidos-de-entrada/{pedidoId}/aprovar:
     post:
       tags: [Entrada na organização]
@@ -831,7 +982,7 @@ paths:
     post:
       tags: [Vínculos]
       operationId: criarVinculo
-      summary: Cadastrar Encarregado (ou pessoa sem conta)
+      summary: Cadastrar participante sem conta
       description: |
         Cria **Pessoa e Vínculo na mesma transação**. É o cadastro do Encarregado sem conta (D27) — o
         zelador que não usa celular existe como cadastro, recebe atribuições e aparece como responsável,
@@ -887,11 +1038,43 @@ paths:
         "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
+  /vinculos/exportacao:
+    get:
+      tags: [Vínculos]
+      operationId: exportarVinculos
+      summary: Os participantes da organização, num arquivo CSV
+      description: |
+        Os participantes ativos da organização, sem os pedidos de entrada. Sem parâmetro: não há filtro nem
+        página.
+        O arquivo abre no Excel em pt-BR: BOM UTF-8, ponto e vírgula, CRLF, valores em palavra, e texto que
+        começa com `=`, `+`, `-` ou `@` sai com um apóstrofo na frente.
+        
+        O arquivo leva e-mail e telefone de cada participante, e por isso a guarda é a mesma do
+        `GET /vinculos`.
+
+        *Permissão: `vinculo.gerir`.*
+      parameters:
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "200":
+          description: O arquivo. Colunas `Nome`, `Papel`, `Área`, `Tem conta`, `E-mail`, `Telefone`, `Etiquetas`, `Participa desde`, `Atualizado em`.
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              example: 'attachment; filename="participantes-edificio-aurora-2026-10-03.csv"'
+          content:
+            text/csv:
+              schema: { type: string }
+              example: "\uFEFFNome;Papel;Área;Tem conta;E-mail;Telefone;Etiquetas;Participa desde;Atualizado em\r\n"
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
   /vinculos/{pessoaId}:
     patch:
       tags: [Vínculos]
       operationId: atualizarPessoaDoVinculo
-      summary: Corrigir os dados de uma pessoa sem conta
+      summary: Corrigir os dados de um participante sem conta
       description: |
         Atualiza nome, unidade e contatos da Pessoa **através do vínculo** — nunca por um
         endereço global de Pessoa.
@@ -1042,7 +1225,7 @@ paths:
         pessoa recebeu sobrevive à revogação e volta a valer na readmissão.
 
         **As etiquetas saem.** Ao contrário do compartilhamento, o vínculo readmitido volta sem nenhuma
-        etiqueta.
+        etiqueta. **O convite pessoal vivo deixa de valer**, e a readmissão não o ressuscita.
 
         **Não revoga o último Gestor**, pela mesma razão e com a mesma resposta do `DELETE`.
 
@@ -1087,8 +1270,8 @@ paths:
       operationId: listarEtiquetasDeParticipante
       summary: As etiquetas de participante da organização
       description: |
-        Todas as etiquetas desta organização, em ordem alfabética e inclusive as que ninguém tem. É o que o
-        autocompletar sugere e o que a gerência lista.
+        Todas as etiquetas desta organização, em ordem alfabética e inclusive as que ninguém tem. É o que a
+        seleção múltipla do detalhe sugere e o que o cartão da configuração lista.
 
         *Capacidade: tipificar participantes. Permissão: `vinculo.gerir`.*
       responses:
@@ -1108,6 +1291,47 @@ paths:
                   - { id: "5b1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f", nome: "Eletricista" }
         "401": { $ref: "#/components/responses/NaoAutenticado" }
         "403": { $ref: "#/components/responses/SemPermissao" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+    post:
+      tags: [Vínculos]
+      operationId: criarEtiquetaDeParticipante
+      summary: Criar uma etiqueta de participante
+      description: |
+        Cria uma etiqueta sem dá-la a ninguém. Se já existe uma igual sem distinguir maiúscula, ela é
+        reaproveitada e vale a grafia da primeira vez. Acento conta.
+
+        `201` quando a etiqueta nasceu agora. `200` quando já existia, e então nada mudou.
+
+        *Capacidade: tipificar participantes. Permissão: `vinculo.gerir`.*
+      parameters:
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nome]
+              properties:
+                nome: { type: string, minLength: 1, maxLength: 30, description: "Aparado antes de contar." }
+            example: { nome: "Eletricista" }
+      responses:
+        "201":
+          description: A etiqueta nasceu.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AtribuicaoDeEtiqueta" }
+              example: { etiqueta: { id: "5b1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f", nome: "Eletricista" }, criada: true }
+        "200":
+          description: Já existia uma igual. Nada mudou.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AtribuicaoDeEtiqueta" }
+              example: { etiqueta: { id: "5b1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f", nome: "Eletricista" }, criada: false }
+        "400": { $ref: "#/components/responses/FormatoInvalido" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
   /etiquetas-de-participante/{etiquetaId}:
@@ -1134,6 +1358,105 @@ paths:
               schema: { $ref: "#/components/schemas/Problema" }
               example: { type: "https://resolveai.app/erros/etiqueta-nao-encontrada", title: "Etiqueta não encontrada", status: 404, codigo: "ETIQUETA_NAO_ENCONTRADA", traceId: "01JB8Z6K9T2M4N7Q" }
         "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /vinculos/{pessoaId}/convite:
+    post:
+      tags: [Vínculos]
+      operationId: garantirConvitePessoal
+      summary: Obter o link do convite pessoal, criando se não houver
+      description: |
+        O link pessoal de um participante **cadastrado sem conta**, Solicitante ou Gestor. Quem o abrir liga
+        a própria conta ao vínculo que já existe, sem pedido de entrada.
+
+        `POST` porque pode criar, e **idempotente**: abrir o modal de novo devolve o mesmo link, e duas
+        chamadas simultâneas não criam dois convites. O token vai só dentro do link, e só para quem gere
+        vínculos. Ele fica guardado em claro porque o Gestor recupera o link já gerado, e porque não concede
+        acesso novo: liga uma conta a um vínculo que o Gestor já aprovou.
+
+        *Permissão: `vinculo.gerir`.*
+      parameters:
+        - $ref: "#/components/parameters/PessoaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "200":
+          description: O convite vivo.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConviteDoGestor" }
+              example:
+                link: "https://resolveai.app/convite-pessoal/q8Zr0m3VbW1sXk7nYp2aT5uC9dE4fG6hJ0kL3mN8oP1"
+                criadoEm: "2026-10-02T15:00:00.000Z"
+                criadoPor: { nome: "Ana Lima" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404":
+          description: Não há vínculo ativo com esta Pessoa nesta organização.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example: { type: "https://resolveai.app/erros/vinculo-nao-encontrado", title: "Vínculo não encontrado", status: 404, codigo: "VINCULO_NAO_ENCONTRADO", traceId: "01JB8Z6K9T2M4N7Q" }
+        "409":
+          description: |
+            `CONVITE_INDISPONIVEL`: a pessoa é Encarregado ou já tem conta, e não recebe convite pessoal. Ou
+            `ORGANIZACAO_DIVERGENTE`, pelo cabeçalho de afirmação.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example:
+                type: "https://resolveai.app/erros/convite-indisponivel"
+                title: "Convite indisponível"
+                status: 409
+                detail: "Encarregados não usam o aplicativo."
+                codigo: "CONVITE_INDISPONIVEL"
+                traceId: "01JB8Z6K9T2M4N7Q"
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /vinculos/{pessoaId}/convite/renovacao:
+    post:
+      tags: [Vínculos]
+      operationId: renovarConvitePessoal
+      summary: Gerar um novo link do convite pessoal, invalidando o anterior
+      description: |
+        Invalida o link vivo e cria outro, numa transação. **O link anterior deixa de funcionar, inclusive
+        onde já foi enviado.** O convite antigo não é apagado: fica invalidado, com o instante.
+
+        *Permissão: `vinculo.gerir`.*
+      parameters:
+        - $ref: "#/components/parameters/PessoaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "201":
+          description: O convite novo.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConviteDoGestor" }
+              example:
+                link: "https://resolveai.app/convite-pessoal/q8Zr0m3VbW1sXk7nYp2aT5uC9dE4fG6hJ0kL3mN8oP1"
+                criadoEm: "2026-10-02T15:00:00.000Z"
+                criadoPor: { nome: "Ana Lima" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404":
+          description: Não há vínculo ativo com esta Pessoa nesta organização.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example: { type: "https://resolveai.app/erros/vinculo-nao-encontrado", title: "Vínculo não encontrado", status: 404, codigo: "VINCULO_NAO_ENCONTRADO", traceId: "01JB8Z6K9T2M4N7Q" }
+        "409":
+          description: |
+            `CONVITE_INDISPONIVEL`: a pessoa é Encarregado ou já tem conta, e não recebe convite pessoal. Ou
+            `ORGANIZACAO_DIVERGENTE`, pelo cabeçalho de afirmação.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example:
+                type: "https://resolveai.app/erros/convite-indisponivel"
+                title: "Convite indisponível"
+                status: 409
+                detail: "Encarregados não usam o aplicativo."
+                codigo: "CONVITE_INDISPONIVEL"
+                traceId: "01JB8Z6K9T2M4N7Q"
         "500": { $ref: "#/components/responses/ErroInterno" }
 
   /vinculos/{pessoaId}/etiquetas:
@@ -1382,6 +1705,36 @@ paths:
         "409": { $ref: "#/components/responses/ListaDesatualizada" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
+  /categorias/exportacao:
+    get:
+      tags: [Configuração]
+      operationId: exportarCategorias
+      summary: As categorias da organização, num arquivo CSV
+      description: |
+        Todas as categorias, ativas e inativas, na ordem da lista. Sem parâmetro: não há filtro nem página.
+        O arquivo abre no Excel em pt-BR: BOM UTF-8, ponto e vírgula, CRLF, valores em palavra, e texto que
+        começa com `=`, `+`, `-` ou `@` sai com um apóstrofo na frente.
+        
+        A permissão é a da tela, e não a do `GET /categorias`, que o formulário de registro consome.
+
+        *Permissão: `organizacao.configurar`.*
+      parameters:
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "200":
+          description: O arquivo. Colunas `Ordem`, `Nome`, `Ativa`.
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              example: 'attachment; filename="categorias-edificio-aurora-2026-10-03.csv"'
+          content:
+            text/csv:
+              schema: { type: string }
+              example: "\uFEFFOrdem;Nome;Ativa\r\n1;Vazamentos;Sim\r\n"
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
   /areas:
     get:
       tags: [Configuração]
@@ -1559,6 +1912,36 @@ paths:
         "409": { $ref: "#/components/responses/ListaDesatualizada" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
+  /areas/exportacao:
+    get:
+      tags: [Configuração]
+      operationId: exportarAreas
+      summary: As áreas da organização, num arquivo CSV
+      description: |
+        Todas as áreas, ativas e inativas, na ordem da lista. Sem parâmetro: não há filtro nem página.
+        O arquivo abre no Excel em pt-BR: BOM UTF-8, ponto e vírgula, CRLF, valores em palavra, e texto que
+        começa com `=`, `+`, `-` ou `@` sai com um apóstrofo na frente.
+        
+        A permissão é a da tela, e não a do `GET /areas`, que o formulário de registro consome.
+
+        *Permissão: `organizacao.configurar`.*
+      parameters:
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "200":
+          description: O arquivo. Colunas `Ordem`, `Nome`, `Tipo`, `Ativa`.
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              example: 'attachment; filename="areas-edificio-aurora-2026-10-03.csv"'
+          content:
+            text/csv:
+              schema: { type: string }
+              example: "\uFEFFOrdem;Nome;Tipo;Ativa\r\n1;Garagem;Área comum;Sim\r\n"
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
   /anexos/autorizacoes:
     post:
       tags: [Anexo]
@@ -2034,6 +2417,39 @@ paths:
         "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
         "500": { $ref: "#/components/responses/ErroInterno" }
 
+  /ocorrencias/exportacao:
+    get:
+      tags: [Ocorrências — leitura]
+      operationId: exportarOcorrencias
+      summary: Todas as ocorrências da organização, num arquivo CSV
+      description: |
+        Todas as ocorrências da organização, de todos os estados, da atualizada por último para a mais antiga.
+        Sem parâmetro: não há filtro nem página, e o filtro da tela não chega ao arquivo.
+        O arquivo abre no Excel em pt-BR: BOM UTF-8, ponto e vírgula, CRLF, valores em palavra, e texto que
+        começa com `=`, `+`, `-` ou `@` sai com um apóstrofo na frente.
+        
+        As dezesseis colunas: `ID`, `Título`, `Descrição`, `Status`, `Prioridade`, `Categoria`, `Área`,
+        `Tipo da área`, `Solicitante`, `Responsável`, `Motivo da pausa`, `Solução aplicada`, `Nota da avaliação`,
+        `Anexos`, `Registrada em` e `Atualizada em`. Data e hora em `dd/mm/aaaa hh:mm`, no fuso de São Paulo.
+
+        *Permissão: `ocorrencia.ler_todas`.*
+      parameters:
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "200":
+          description: O arquivo. Colunas listadas na descrição.
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              example: 'attachment; filename="ocorrencias-edificio-aurora-2026-10-03.csv"'
+          content:
+            text/csv:
+              schema: { type: string }
+              example: "\uFEFFID;Título;Descrição;Status;Prioridade;Categoria;Área;Tipo da área;Solicitante;Responsável;Motivo da pausa;Solução aplicada;Nota da avaliação;Anexos;Registrada em;Atualizada em\r\n"
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
   /ocorrencias/{ocorrenciaId}:
     get:
       tags: [Ocorrências — leitura]
@@ -3206,6 +3622,12 @@ components:
         precisam guardar cookies (`curl -c/-b`) depois de chamar `PUT /contexto/organizacao`.
 
   parameters:
+    TokenDoConvitePessoal:
+      name: token
+      in: path
+      required: true
+      description: 32 bytes aleatórios em base64url. Fora do formato, o convite não vale.
+      schema: { type: string, pattern: "^[A-Za-z0-9_-]{43}$" }
     OrganizacaoAfirmada:
       name: X-Organizacao-Id
       in: header
@@ -3883,6 +4305,97 @@ components:
           type: string
           description: Decidida no servidor, para que a API e a página digam a mesma coisa.
           enum: [sem-sessao, pode-pedir, ja-participa, pedido-pendente]
+
+    EnvioDeConvites:
+      type: object
+      additionalProperties: false
+      description: |
+        Quem recebe o convite por e-mail. **Até 20**: o tamanho é regra do domínio, e a recusa é `422`, e não
+        um limite do schema.
+      required: [pessoaIds]
+      properties:
+        pessoaIds:
+          type: array
+          items: { type: string, format: uuid }
+
+    ResumoDoEnvio:
+      type: object
+      description: |
+        Quem recebeu e quem não, com o motivo. O e-mail sai aqui só para quem gere vínculos, que já vê os
+        contatos na lista. `nome` nulo é a pessoa que não participa desta organização.
+      required: [enviados, naoEnviados]
+      properties:
+        enviados:
+          type: array
+          items:
+            type: object
+            required: [pessoaId, nome, email]
+            properties:
+              pessoaId: { type: string, format: uuid }
+              nome: { type: string }
+              email: { type: string }
+        naoEnviados:
+          type: array
+          items:
+            type: object
+            required: [pessoaId, nome, motivo]
+            properties:
+              pessoaId: { type: string, format: uuid }
+              nome: { type: [string, "null"] }
+              motivo:
+                type: string
+                enum:
+                  - vinculo-revogado
+                  - sem-email
+                  - ja-tem-conta
+                  - encarregado
+                  - limite-do-dia
+                  - limite-do-participante
+                  - falha-no-envio
+
+    ConviteDoGestor:
+      type: object
+      description: |
+        O convite pessoal como o Gestor o vê. **O token só sai dentro do link**, e só para quem gere vínculos.
+      required: [link, criadoEm, criadoPor]
+      properties:
+        link: { type: string, format: uri }
+        criadoEm: { type: string, format: date-time }
+        criadoPor:
+          type: object
+          required: [nome]
+          properties:
+            nome: { type: string }
+
+    ConvitePessoal:
+      description: |
+        O convite pessoal lido pelo token. **Nenhum contato**, porque este corpo é entregue a quem não tem
+        sessão. `nao-vale` vem sozinho, sem nome nenhum.
+      oneOf:
+        - type: object
+          required: [situacao]
+          additionalProperties: false
+          properties:
+            situacao: { type: string, enum: [nao-vale] }
+        - type: object
+          required: [situacao, pessoa, organizacao, papel]
+          additionalProperties: false
+          properties:
+            situacao:
+              type: string
+              description: Decidida no servidor, para que a API e a página digam a mesma coisa.
+              enum: [sem-sessao, pode-aceitar, ja-participa]
+            pessoa:
+              type: object
+              required: [nome]
+              properties:
+                nome: { type: string }
+            organizacao:
+              type: object
+              required: [nome]
+              properties:
+                nome: { type: string }
+            papel: { $ref: "#/components/schemas/PapelVinculo" }
 
     PedidoDeEntrada:
       type: object

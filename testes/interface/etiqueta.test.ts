@@ -6,9 +6,13 @@ import { parse } from "yaml";
 
 import {
   chaveDoNome,
+  contagemDeParticipantes,
   cortarParaALinha,
+  diferencaDaEscolha,
+  filtrarEtiquetas,
   nomeDoRestante,
   nomeParaCriar,
+  reciboDaCriacao,
   sugestoes,
   textoDoApagar,
   tituloDoApagar,
@@ -63,7 +67,7 @@ function rotasDeEtiqueta(): string[] {
 }
 
 describe("só quem gere vínculos (critério 6)", () => {
-  it("as quatro rotas de etiqueta existem, e toda operação exige vinculo.gerir", () => {
+  it("as quatro rotas de etiqueta existem, e toda operação — cinco, desde o item 120 — exige vinculo.gerir", () => {
     const rotas = rotasDeEtiqueta();
     expect(rotas.sort()).toStrictEqual(
       [
@@ -80,6 +84,8 @@ describe("só quem gere vínculos (critério 6)", () => {
       expect(operacoes.length, rota).toBeGreaterThan(0);
       expect(exigencias.length, rota).toBe(operacoes.length);
     }
+    const lista = readFileSync(`${RAIZ_DA_API}etiquetas-de-participante/route.ts`, "utf8");
+    expect(lista.match(/^export const (GET|POST)\b/gmu)).toHaveLength(2);
   });
 });
 
@@ -223,5 +229,114 @@ describe("a lista é por recurso (critério 11)", () => {
       const fonte = readFileSync(`${pasta}${arquivo}`, "utf8");
       expect(fonte, arquivo).not.toMatch(/etiquetas_participante|vinculos_etiquetas/u);
     }
+  });
+});
+
+const FONTE_DA_PECA = readFileSync(fileURLToPath(new URL("../../src/interface/componentes/ui/multi-select.tsx", import.meta.url)), "utf8");
+const PACOTE = JSON.parse(readFileSync(fileURLToPath(new URL("../../package.json", import.meta.url)), "utf8")) as {
+  dependencies: Record<string, string>;
+};
+
+describe("a peça de seleção múltipla — critérios 120.9 e 120.10", () => {
+  it("é a do @designrevision, sobre Popover, Command e Badge, e não traz pacote novo", () => {
+    expect(FONTE_DA_PECA).toContain('from "@/interface/componentes/ui/popover"');
+    expect(FONTE_DA_PECA).toContain('from "@/interface/componentes/ui/command"');
+    expect(FONTE_DA_PECA).toContain('from "@/interface/componentes/ui/badge"');
+    const origens = [...FONTE_DA_PECA.matchAll(/from "([^"]+)"/gu)].map((achado) => achado[1] ?? "");
+    for (const origem of origens) {
+      expect(origem === "react" || origem === "lucide-react" || origem.startsWith("@/"), origem).toBe(true);
+    }
+    expect(Object.keys(PACOTE.dependencies)).toContain("lucide-react");
+    const registro = JSON.parse(readFileSync(fileURLToPath(new URL("../../components.json", import.meta.url)), "utf8")) as {
+      registries?: Record<string, string>;
+    };
+    expect(registro.registries?.["@designrevision"]).toBe("https://registry.designrevision.com/r/{name}.json");
+  });
+
+  it("a ficha tira por um botão de verdade, fora do gatilho, com 44 px de alvo e nome em pt-BR", () => {
+    // Nada de `role="button"` em `span`, e nada de `tabIndex={-1}`: o teclado alcança o X.
+    expect(FONTE_DA_PECA).not.toContain('role="button"');
+    expect(FONTE_DA_PECA).not.toContain("tabIndex={-1}");
+    expect(FONTE_DA_PECA).toContain("aria-label={rotuloDeTirar(labelFor(val))}");
+    // A área de toque cresce sem crescer o desenho: 20 px de botão e 12 px de aba para cada lado.
+    expect(FONTE_DA_PECA).toContain("after:absolute after:-inset-3");
+    // E a ficha não recorta essa área: a base do `Badge` tem `overflow-hidden` (`ui/badge.tsx:7`).
+    expect(FONTE_DA_PECA).toContain('<Badge variant="secondary" className="gap-1 overflow-visible pr-1">');
+    // O gatilho é o `combobox`, e as fichas não moram dentro dele.
+    const gatilho = /<PopoverTrigger asChild>[\s\S]*?<\/PopoverTrigger>/u.exec(FONTE_DA_PECA)?.[0] ?? "";
+    expect(gatilho).toContain('role="combobox"');
+    expect(gatilho).not.toContain("<Badge");
+  });
+
+  it("a busca é a que quem usa passa, e a de fábrica do cmdk desliga com ela", () => {
+    expect(FONTE_DA_PECA).toContain("<Command shouldFilter={!onSearch && !filtrar}>");
+    expect(FONTE_DA_PECA).not.toMatch(/"(?:Select…|Search…|No results\.|Loading…)"/u);
+    expect(FONTE_DA_PECA).not.toContain("Create &ldquo;");
+  });
+});
+
+describe("cada gesto da seleção múltipla é uma escrita (critério 120.9)", () => {
+  it("entrou um id, ou um nome novo vindo do criar", () => {
+    expect(diferencaDaEscolha(["1"], ["1", "2"])).toStrictEqual({ tipo: "entrou", valor: "2" });
+    expect(diferencaDaEscolha([], ["Encanador"])).toStrictEqual({ tipo: "entrou", valor: "Encanador" });
+  });
+
+  it("saiu um", () => {
+    expect(diferencaDaEscolha(["1", "2"], ["2"])).toStrictEqual({ tipo: "saiu", valor: "1" });
+  });
+
+  it("nada mudou é null, e a ordem não conta como mudança", () => {
+    expect(diferencaDaEscolha(["1", "2"], ["2", "1"])).toBeNull();
+  });
+});
+
+describe("o cartão do detalhe — critérios 120.8 e 120.9", () => {
+  const cartao = readFileSync(fileURLToPath(new URL("../../src/interface/componentes/cartao-de-etiquetas.tsx", import.meta.url)), "utf8");
+
+  it("tem o molde de Pessoa e Contatos, e grava na hora", () => {
+    expect(cartao).toContain('<Cartao tituloId="bloco-etiquetas">');
+    expect(cartao).toContain('<CabecaDoCartao id="bloco-etiquetas" titulo="Etiquetas" apoio="Cada mudança vale na hora." />');
+    expect(cartao).not.toContain("FaixaDoCartao");
+    expect(cartao).toContain('<div className="p-[15px] md:p-[18px]">');
+  });
+
+  it("adiciona pela seleção múltipla, e a gaveta antiga some do arquivo", () => {
+    expect(cartao).toContain("<MultiSelect");
+    expect(cartao).toContain("creatable");
+    expect(cartao).toContain("filtrar={");
+    expect(cartao).toContain("podeCriar={");
+    expect(cartao).not.toMatch(/ui\/sheet|<Sheet|PainelDeEtiquetar/u);
+  });
+});
+
+describe("o cartão da configuração — critérios 120.17 a 120.19", () => {
+  it("a contagem carrega a palavra, nunca só o número", () => {
+    expect(contagemDeParticipantes(0)).toBe("Nenhum participante");
+    expect(contagemDeParticipantes(1)).toBe("1 participante");
+    expect(contagemDeParticipantes(6)).toBe("6 participantes");
+  });
+
+  it("a busca é a do projeto: ignora acento e caixa, e esconde o que não casa", () => {
+    expect(filtrarEtiquetas(TODAS, "eletrica").map((e) => e.nome)).toStrictEqual(["Elétrica"]);
+    expect(filtrarEtiquetas(TODAS, "ELE").map((e) => e.nome)).toStrictEqual(["Eletricista", "Elétrica"]);
+    expect(filtrarEtiquetas(TODAS, "  ")).toHaveLength(4);
+  });
+
+  it("o recibo diz se nasceu ou se já existia", () => {
+    expect(reciboDaCriacao("Eletricista", true)).toBe("Eletricista criada");
+    expect(reciboDaCriacao("Eletricista", false)).toBe("Eletricista já existia");
+  });
+
+  const cartao = readFileSync(fileURLToPath(new URL("../../src/interface/componentes/etiquetas-da-organizacao.tsx", import.meta.url)), "utf8");
+
+  it("só apagar e buscar: sem editar e sem ordem; e a confirmação usa o mesmo número da linha", () => {
+    expect(cartao).not.toMatch(/Pencil|ControlesDeOrdem|aoMover|arrast/u);
+    expect(cartao).toContain("<ApagarEtiqueta");
+    expect(cartao).toContain("quantas={uso[etiqueta.id] ?? 0}");
+    expect(cartao).toContain("contagemDeParticipantes(uso[etiqueta.id] ?? 0)");
+  });
+
+  it("a gerência antiga saiu do repositório", () => {
+    expect(() => readFileSync(fileURLToPath(new URL("../../src/interface/componentes/gerencia-de-etiquetas.tsx", import.meta.url)), "utf8")).toThrow();
   });
 });

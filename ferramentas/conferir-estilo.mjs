@@ -26,6 +26,7 @@ import { sidebarMenuButtonVariants } from "@/interface/componentes/ui/sidebar";
 import { CLASSE_DA_DICA } from "@/interface/componentes/ui/tooltip";
 import { Input } from "@/interface/componentes/ui/input";
 import { Textarea } from "@/interface/componentes/ui/textarea";
+import { Checkbox } from "@/interface/componentes/ui/checkbox";
 import { EmptyTitle } from "@/interface/componentes/ui/empty";
 import { ToggleGroup, ToggleGroupItem } from "@/interface/componentes/ui/toggle-group";
 import { Avatar, AvatarFallback } from "@/interface/componentes/ui/avatar";
@@ -34,7 +35,9 @@ import { SeloDeStatus } from "@/interface/componentes/selo-de-status";
 import { ROTULO_DE_COLUNA, CELULA } from "@/interface/componentes/pecas-da-tabela";
 import { CAIXA_DO_FILTRO, OPCAO_DO_FILTRO, CONTAGEM_DO_FILTRO } from "@/interface/componentes/filtro-rapido";
 import { SeloDeNaoVista } from "@/interface/componentes/selo-de-nao-vista";
-import { CLASSE_DA_PILULA } from "@/interface/componentes/casca/sino";
+import { CLASSE_DA_LATERAL, CLASSE_DA_PILULA } from "@/interface/componentes/casca/sino";
+import { Tabs, TabsList, TabsTrigger } from "@/interface/componentes/ui/tabs";
+import { CLASSE_DA_ABA } from "@/interface/componentes/aba-da-configuracao";
 
 // O `postcss` não é dependência declarada do projeto; é do `@tailwindcss/postcss`, e é por ele que se
 // alcança, para não depender de como o `npm` achatou a árvore.
@@ -105,6 +108,18 @@ const PECAS = [
     esperado: { "font-size": "14.5px", "border-top-left-radius": "6px" },
   },
   {
+    id: "caixa-de-selecao",
+    // Item 122: a peça nova da seleção de linhas. Medida marcada, que é o estado que veste a marca.
+    html: () => renderToStaticMarkup(h(Checkbox, { checked: true, "aria-label": "Marcar" })),
+    seletor: "[data-slot=checkbox]",
+    esperado: {
+      width: "16px",
+      "border-top-left-radius": "4px",
+      "background-color": "token(--accent)",
+      "border-top-color": "token(--accent)",
+    },
+  },
+  {
     id: "botao-sem-papel",
     // Item 104, critério 1: a chamada que não passa papel herda o da base, e a base é `interface`.
     html: () => renderToStaticMarkup(h(Button, { variant: "outline" }, "Carregar mais")),
@@ -148,16 +163,16 @@ const PECAS = [
   },
   {
     id: "caixa-das-abas",
-    // Item 104, critério 9: sem caixa. Mede a raiz do primitivo, com a base dele, e não só a constante.
+    // Item 104, critério 9: sem caixa. Item 120, bloco 13: sem régua. Mede a raiz do primitivo, com a base dele.
     html: () =>
       renderToStaticMarkup(
         h(ToggleGroup, { type: "single", className: CAIXA_DO_FILTRO }, h(ToggleGroupItem, { value: "todas", className: OPCAO_DO_FILTRO }, "Todas")),
       ),
     seletor: "[data-slot=toggle-group]",
     esperado: {
-      "border-top-left-radius": "0px",
       "padding-top": "0px",
-      "border-bottom-width": "1px",
+      "padding-bottom": "0px",
+      "border-bottom-width": "0px",
       "background-color": "rgba(0, 0, 0, 0)",
     },
   },
@@ -251,6 +266,28 @@ const PECAS = [
   { id: "corpo", html: () => `<p class="text-corpo">A bomba faz um ruído.</p>`, esperado: { "line-height": "22px" } },
   { id: "interface", html: () => `<span class="text-interface">Onde</span>`, esperado: { "line-height": "19px" } },
   { id: "meta", html: () => `<span class="text-meta">Limpeza</span>`, esperado: { "line-height": "17px" } },
+  {
+    id: "aba-da-configuracao",
+    // Item 120: a aba marcada em tinta, com 44 px de alvo. A régua de baixo é o `after` da variante line.
+    html: () =>
+      renderToStaticMarkup(
+        h(Tabs, { defaultValue: "a" }, h(TabsList, { variant: "line" }, h(TabsTrigger, { value: "a", className: CLASSE_DA_ABA }, "Histórico"))),
+      ),
+    seletor: "[data-slot=tabs-trigger]",
+    esperado: {
+      "min-height": "44px",
+      color: "token(--ink)",
+    },
+  },
+  {
+    id: "gaveta-lateral-do-sino",
+    // Item 120: a lateral do sino sobre a superfície, sem cantos de cima.
+    html: () => `<div class="${CLASSE_DA_LATERAL}">Avisos</div>`,
+    esperado: {
+      "background-color": "token(--surface)",
+      "border-top-left-radius": "0px",
+    },
+  },
 ];
 
 /** A peça sabidamente errada: o raio de 8 px que o item tirou do botão. Tem de ser recusada. */

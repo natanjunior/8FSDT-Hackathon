@@ -1,5 +1,6 @@
 "use client";
 
+import { Building2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -81,6 +82,8 @@ export function SeletorDeOrganizacao({
         // controle.
         className={cn("min-h-11 max-w-[14rem] shadow-none", emVoo && "[&>svg:last-child]:hidden")}
       >
+        {/* O prédio do grupo *Organização* do menu (item 120, bloco 11), mudo: o nome acessível é o de sempre. */}
+        <Building2 aria-hidden="true" className="text-tinta-suave size-4 shrink-0" />
         <SelectValue />
         <IndicadorDeEnvio ativo={emVoo} />
       </SelectTrigger>

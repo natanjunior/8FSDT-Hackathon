@@ -4,6 +4,20 @@ export { projetarContexto, type ContextoProjetado } from "./contexto";
 export { projetarConvite, type ConviteProjetado } from "./convite";
 
 export {
+  projetarConviteDoGestor,
+  projetarConvitePessoal,
+  type ConviteDoGestorProjetado,
+  type ConvitePessoalProjetado,
+} from "./convite-pessoal";
+
+export {
+  projetarResumoDoEnvio,
+  projetarSituacaoDoEmail,
+  type ResumoDoEnvioProjetado,
+  type SituacaoDoEmailProjetada,
+} from "./envio-de-convite";
+
+export {
   projetarDashboard,
   type DashboardProjetado,
   type PontoDoMesProjetado,

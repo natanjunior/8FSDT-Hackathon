@@ -1,7 +1,7 @@
 /**
  * Superfície pública de `interface/http`.
  *
- * `semOrganizacao` é exportado daqui, mas **o lint só permite importá-lo nos cinco `route.ts` da lista
+ * `semOrganizacao` é exportado daqui, mas **o lint só permite importá-lo nos seis `route.ts` da lista
  * fechada da §4.4 do contrato** — ver `eslint.config.mjs`. É a lista enumerável da ADR-0003 virada
  * mecanismo, em vez de comentário.
  *
@@ -17,10 +17,12 @@ export { armazenamentoDeAnexos } from "./armazenamento-de-anexos";
 
 export {
   armazenamentoDeCookies,
+  arquivo,
   comContexto,
   lerCorpoOpcional,
   registrarFalha,
   resolverConviteParaTela,
+  resolverConvitePessoalParaTela,
   resolverEscopoParaTela,
   resolverParaTela,
   resposta,
@@ -47,10 +49,17 @@ export { destinoSeguro } from "./destino-seguro";
 export {
   destinoDoConvite,
   linkDoConvite,
+  linkDoConvitePessoal,
   linkDoQrDaArea,
   montarLinkDoConvite,
+  montarLinkDoConvitePessoal,
   montarLinkDoQrDaArea,
 } from "./link-do-convite";
+
+// O convite pessoal (item 121): o formato mora em `schemas` (o formulário de cliente precisa dele), e o
+// gerador na composição, que `app/` não pode importar.
+export { FORMATO_DO_TOKEN } from "@/interface/schemas";
+export { montarCarteiro, novoTokenDeConvite } from "@/composicao";
 
 export { recusarEvolucaoPrevista, recusarSemDestino } from "./recusa-de-campos";
 

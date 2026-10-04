@@ -11,13 +11,18 @@ import { cn } from "@/interface/componentes/utilitarios";
 const ID_DO_TITULO = "titulo-da-tela";
 
 /**
- * A página: centrada nas duas direções. `relative` ancora o canto do controle de aparência e o pé.
+ * A página: uma coluna da altura da tela, com o corpo e o pé. `relative` ancora o canto do controle de
+ * aparência.
  *
- * **O fundo reserva o pé** (critério 116.4): o pé é absoluto, e numa tela mais alta que o celular ele
- * cairia em cima do último caminho. A reserva é o respiro do pé, os 44 px do alvo e 16 px de folga.
+ * **O pé está no fluxo desde o item 120**: ele era absoluto (critério 116.4) e, numa página mais alta que a
+ * janela, aparecia sobre o conteúdo ou numa altura que não era o fim. Agora o corpo cresce (`flex-1`) e
+ * empurra o pé para baixo; numa página alta, o pé vem depois do último caminho.
  */
-const PAGINA =
-  "relative flex min-h-dvh w-full flex-col items-center justify-center gap-8 px-6 pt-12 pb-[calc(max(1rem,env(safe-area-inset-bottom))+3.75rem)] lg:flex-row lg:gap-16";
+const PAGINA = "relative flex min-h-dvh w-full flex-col";
+
+/** O corpo: centrado nas duas direções, e em fileira a partir de `lg`, como a página era até o item 120. */
+const CORPO_DA_PAGINA =
+  "flex w-full flex-1 flex-col items-center justify-center gap-8 px-6 pt-12 pb-8 lg:flex-row lg:gap-16";
 
 /**
  * **Com apresentação, a página é uma grade de uma marca só** (critério 116.13). No celular, uma coluna:
@@ -38,7 +43,7 @@ const COLUNA_COM_CONVITE = "flex w-full max-w-[420px] flex-col items-center gap-
 
 /**
  * **O canto do controle de aparência** (item 114): no alto à direita da página, espelho do pé de T-01,
- * que fica embaixo. Em 390 px o alvo de 44 px cabe no respiro de 48 px de `PAGINA` sem encostar na
+ * que fica embaixo. Em 390 px o alvo de 44 px cabe no respiro de 48 px de `CORPO_DA_PAGINA` sem encostar na
  * marca; na T-01 de tela grande, a apresentação fica à esquerda e o canto direito está livre.
  */
 const CANTO = "absolute top-1 right-1";
@@ -74,12 +79,12 @@ const ORDEM_DO_CONVITE = { direita: "lg:order-3", esquerda: "lg:order-1" } as co
  * **De cima para baixo:** a marca fora do cartão; o cartão com o título da tela e a linha de fato; o
  * conteúdo, quando há; e os caminhos secundários fora do cartão, centrados.
  *
- * **O pé é de toda tela da moldura** (item 116), na moldura e na espera. Ele é absoluto, no respiro de
- * baixo da página, que é reservado para ele.
+ * **O pé é de toda tela da moldura** (item 116), na moldura e na espera. Desde o item 120 ele está no
+ * fluxo, depois do corpo, e o corpo cresce para empurrá-lo ao fim da página.
  *
  * **Componente, e não grupo de rotas.** Desde o item 116, **as quatro telas de credencial** têm uma
  * segunda coluna à esquerda do cartão (critérios 44m.8 e 116.1), e as outras sete telas da moldura não a
- * têm. Um layout de servidor recebe a página por um `children` só, sem saber qual rota está renderizando. O G1 do guia continua valendo: a geometria da página é declarada aqui, em `PAGINA` e
+ * têm. Um layout de servidor recebe a página por um `children` só, sem saber qual rota está renderizando. O G1 do guia continua valendo: a geometria da página é declarada aqui, em `PAGINA`, `CORPO_DA_PAGINA` e
  * `COLUNA`, e nenhum arquivo em `app/` a repete — nem a espera, que usa as mesmas duas constantes.
  *
  * **O salto vertical fica** (critério 116.3). A página centra nas duas direções, e as quatro telas de
@@ -154,39 +159,40 @@ export function MolduraDeConta(
       <div className={CANTO}>
         <ControleDeAparencia />
       </div>
-      {convite === undefined ? (
-        apresentacao ? (
-          <div className={GRADE_DA_APRESENTACAO}>
-            <MarcaDoProduto className="justify-self-center lg:col-start-1 lg:row-start-2 lg:justify-self-stretch" />
-            <Apresentacao />
-            <div className={cn(COLUNA, "lg:col-start-2 lg:row-span-4 lg:row-start-1 lg:self-center")}>
+      <div className={CORPO_DA_PAGINA}>
+        {convite === undefined ? (
+          apresentacao ? (
+            <div className={GRADE_DA_APRESENTACAO}>
+              <MarcaDoProduto className="justify-self-center lg:col-start-1 lg:row-start-2 lg:justify-self-stretch" />
+              <Apresentacao />
+              <div className={cn(COLUNA, "lg:col-start-2 lg:row-span-4 lg:row-start-1 lg:self-center")}>
+                {cartao}
+                {caminhos !== undefined && <div className="flex flex-col items-center gap-3">{caminhos}</div>}
+              </div>
+            </div>
+          ) : (
+            <div className={COLUNA}>
+              <MarcaDoProduto className="self-center" />
               {cartao}
               {caminhos !== undefined && <div className="flex flex-col items-center gap-3">{caminhos}</div>}
             </div>
-          </div>
+          )
         ) : (
-          <div className={COLUNA}>
+          <div className={COLUNA_COM_CONVITE}>
             <MarcaDoProduto className="self-center" />
-            {cartao}
+            <div className={cn(FILEIRA, TRILHAS[convite.lado])}>
+              <div className={cn("flex w-full flex-col", ORDEM_DO_CARTAO[convite.lado])}>
+                {cartao}
+              </div>
+              <ReguaDoOu />
+              <div className={cn("flex w-full flex-col", ORDEM_DO_CONVITE[convite.lado])}>
+                {convite.conteudo}
+              </div>
+            </div>
             {caminhos !== undefined && <div className="flex flex-col items-center gap-3">{caminhos}</div>}
           </div>
-        )
-      ) : (
-        <div className={COLUNA_COM_CONVITE}>
-          <MarcaDoProduto className="self-center" />
-          <div className={cn(FILEIRA, TRILHAS[convite.lado])}>
-            <div className={cn("flex w-full flex-col", ORDEM_DO_CARTAO[convite.lado])}>
-              {cartao}
-            </div>
-            <ReguaDoOu />
-            <div className={cn("flex w-full flex-col", ORDEM_DO_CONVITE[convite.lado])}>
-              {convite.conteudo}
-            </div>
-          </div>
-          {caminhos !== undefined && <div className="flex flex-col items-center gap-3">{caminhos}</div>}
-        </div>
-      )}
-
+        )}
+      </div>
       <RodapeDaMoldura />
     </main>
   );
@@ -277,12 +283,12 @@ const CLASSE_DO_LINK_DO_PE =
  * e em nova aba. Até o item 116 só `/entrar` o tinha, escrito à mão, e a porta da documentação não tem
  * motivo para existir só ali. *"Grupo 1"* é nome próprio no crédito (item 106).
  *
- * **Absoluto, e acima da barra do navegador**: com a apresentação a página é uma linha, e um terceiro
- * filho seria uma terceira coluna. O respiro de baixo é o maior entre 16 px e a área segura do aparelho.
+ * **No fluxo, e acima da barra do navegador**: o respiro de baixo é o maior entre 16 px e a área
+ * segura do aparelho. Até o item 120 ele era absoluto, e flutuava.
  */
 function RodapeDaMoldura() {
   return (
-    <footer className="absolute inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] flex justify-center">
+    <footer className="flex justify-center px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <p className="text-meta text-tinta-suave flex items-center gap-2">
         <Link href="/grupo" target="_blank" rel="noreferrer" className={CLASSE_DO_LINK_DO_PE}>
           Feito pelo Grupo 1<span className="sr-only">, abre em nova aba</span>
@@ -352,39 +358,40 @@ export function EsperaDaMolduraDeConta({
       <div className={CANTO}>
         <ControleDeAparencia />
       </div>
-      {convite === undefined ? (
-        apresentacao ? (
-          <div className={GRADE_DA_APRESENTACAO}>
-            <MarcaDoProduto className="justify-self-center lg:col-start-1 lg:row-start-2 lg:justify-self-stretch" />
-            <Apresentacao />
-            <div className={cn(COLUNA, "lg:col-start-2 lg:row-span-4 lg:row-start-1 lg:self-center")}>
+      <div className={CORPO_DA_PAGINA}>
+        {convite === undefined ? (
+          apresentacao ? (
+            <div className={GRADE_DA_APRESENTACAO}>
+              <MarcaDoProduto className="justify-self-center lg:col-start-1 lg:row-start-2 lg:justify-self-stretch" />
+              <Apresentacao />
+              <div className={cn(COLUNA, "lg:col-start-2 lg:row-span-4 lg:row-start-1 lg:self-center")}>
+                <CartaoDeEspera />
+                {children}
+              </div>
+            </div>
+          ) : (
+            <div className={COLUNA}>
+              <MarcaDoProduto className="self-center" />
               <CartaoDeEspera />
               {children}
             </div>
-          </div>
+          )
         ) : (
-          <div className={COLUNA}>
+          <div className={COLUNA_COM_CONVITE}>
             <MarcaDoProduto className="self-center" />
-            <CartaoDeEspera />
+            <div className={cn(FILEIRA, TRILHAS[convite.lado])}>
+              <div className={cn("flex w-full flex-col", ORDEM_DO_CARTAO[convite.lado])}>
+                <CartaoDeEspera />
+              </div>
+              <ReguaDoOu />
+              <div className={cn("flex w-full flex-col", ORDEM_DO_CONVITE[convite.lado])}>
+                <ConviteDeEspera />
+              </div>
+            </div>
             {children}
           </div>
-        )
-      ) : (
-        <div className={COLUNA_COM_CONVITE}>
-          <MarcaDoProduto className="self-center" />
-          <div className={cn(FILEIRA, TRILHAS[convite.lado])}>
-            <div className={cn("flex w-full flex-col", ORDEM_DO_CARTAO[convite.lado])}>
-              <CartaoDeEspera />
-            </div>
-            <ReguaDoOu />
-            <div className={cn("flex w-full flex-col", ORDEM_DO_CONVITE[convite.lado])}>
-              <ConviteDeEspera />
-            </div>
-          </div>
-          {children}
-        </div>
-      )}
-
+        )}
+      </div>
       <RodapeDaMoldura />
     </main>
   );

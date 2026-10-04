@@ -1528,3 +1528,32 @@ describe("o formulário de vínculo valida com o schema da rota (critério 8)", 
     expect(areaDoSeletor("a1")).toBe("a1");
   });
 });
+
+describe("T-08 depois do item 120 — critérios 11, 12 e 26", () => {
+  const raiz = fileURLToPath(new URL("../../", import.meta.url));
+  const tabela = readFileSync(`${raiz}src/interface/componentes/tabela-de-participantes.tsx`, "utf8");
+  const pagina = readFileSync(`${raiz}app/(casca)/vinculos/page.tsx`, "utf8");
+
+  it("o botão Etiquetas não existe mais, e a lista só tem Cadastrar participante no cabeçalho", () => {
+    expect(pagina).not.toMatch(/GerenciaDeEtiquetas|gerencia-de-etiquetas|usoPorEtiqueta/u);
+  });
+
+  it("o filtro de etiqueta é seleção única com busca, na linha da busca por nome, e a régua de etiquetas saiu", () => {
+    // Uma régua só: a dos papéis.
+    expect(tabela.match(/<ToggleGroup\b/gu)).toHaveLength(1);
+    const linha = tabela.slice(tabela.indexOf("{/* A linha da busca"), tabela.indexOf("{estado === \"vazio-do-filtro\""));
+    expect(linha).toContain("htmlFor={`${prefixo}-busca`}");
+    expect(linha).toContain("<EscolhaComBusca");
+    expect(linha).toContain("comEtiqueta(endereco,");
+    // *Todas* é a opção fixa, e não uma das ordenadas e cortadas por `primeirasOpcoes`.
+    expect(linha).toContain("fixa={{");
+    expect(linha).not.toMatch(/opcoes=\{\[\s*\{\s*valor: "todas"/u);
+  });
+
+  it("os dois rótulos ficam acima do campo, nas duas larguras (critério 26)", () => {
+    const linha = tabela.slice(tabela.indexOf("{/* A linha da busca"), tabela.indexOf("{estado === \"vazio-do-filtro\""));
+    // Rótulo e campo empilhados: nenhuma coluna da linha vira fileira com o rótulo ao lado.
+    expect(linha).not.toContain("md:flex-row md:items-center md:gap-3");
+    expect(linha.match(/flex flex-col gap-1\.5/gu)?.length).toBeGreaterThanOrEqual(2);
+  });
+});

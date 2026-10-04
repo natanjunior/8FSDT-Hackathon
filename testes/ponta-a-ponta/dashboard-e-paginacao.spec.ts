@@ -1,7 +1,19 @@
+import { readFileSync } from "node:fs";
+
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { cobre } from "./cobertura";
-import { entrar, HELENA, marcaDoInstante, RECANTO, registrarOcorrencia } from "./mundo";
+import {
+  AURORA,
+  conteudoDaCasca,
+  entrar,
+  HELENA,
+  marcaDoInstante,
+  RECANTO,
+  registrarOcorrencia,
+  trocarDeOrganizacao,
+} from "./mundo";
+import { SEM_TRANSBORDO, transbordo } from "./transbordo";
 
 /**
  * ============================================================================
@@ -324,9 +336,9 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   await trintaDias.click();
   await expect(trintaDias).toHaveAttribute("aria-busy", "true");
   await expect(painelDoPeriodo).toBeVisible();
-  await expect(helena.locator('main [aria-busy="true"]')).toHaveCount(1);
+  await expect(conteudoDaCasca(helena).locator('[aria-busy="true"]')).toHaveCount(1);
   await expect(painelDoPeriodo).toBeHidden();
-  await expect(helena.locator('main [aria-busy="true"]')).toHaveCount(0);
+  await expect(conteudoDaCasca(helena).locator('[aria-busy="true"]')).toHaveCount(0);
   expect(new URL(helena.url()).searchParams.has("de")).toBe(true);
   await helena.unroute(RESPOSTA_DO_RECORTE);
 
@@ -847,6 +859,39 @@ test("as portas públicas: a página do grupo e a documentação, com e sem sess
 });
 
 /**
+ * **O pé termina a página** (critério 120.29). Numa janela mais baixa que o conteúdo, o pé vem depois do
+ * último controle e não por cima dele; e em toda janela ele é o fim do documento. **A medida é contra o
+ * controle mais baixo do corpo**, e não contra o corpo: o corpo tem `flex-1` e encosta no pé por
+ * construção, o que faria o caso passar sem olhar nada. A tela grande entra porque é onde a apresentação
+ * vira fileira; e a medida de transbordo põe as telas da moldura sob o critério 31.
+ */
+test("o pé da moldura termina a página, no celular e na tela grande", async ({ browser }) => {
+  for (const viewport of [{ width: 360, height: 560 }, { width: 1440, height: 900 }]) {
+    const onde = `a ${String(viewport.width)} × ${String(viewport.height)}`;
+    const contexto = await browser.newContext({ viewport });
+    const pagina = await contexto.newPage();
+    await pagina.goto("/entrar");
+    const medida = await pagina.evaluate(() => {
+      const pe = document.querySelector("main > footer");
+      const corpo = pe?.previousElementSibling;
+      const controles = corpo ? [...corpo.querySelectorAll("a, button, input")] : [];
+      if (!pe || controles.length === 0) return null;
+      return {
+        topoDoPe: pe.getBoundingClientRect().top + window.scrollY,
+        fimDoConteudo: Math.max(...controles.map((c) => c.getBoundingClientRect().bottom)) + window.scrollY,
+        fimDoPe: pe.getBoundingClientRect().bottom + window.scrollY,
+        fimDoDocumento: document.documentElement.scrollHeight,
+      };
+    });
+    expect(medida, onde).not.toBeNull();
+    expect(medida!.topoDoPe, `o pé não cobre o conteúdo ${onde}`).toBeGreaterThanOrEqual(medida!.fimDoConteudo - 0.5);
+    expect(medida!.fimDoPe, `o pé termina a página ${onde}`).toBeGreaterThanOrEqual(medida!.fimDoDocumento - 0.5);
+    expect.soft(await transbordo(pagina), `transbordo ${onde}`).toStrictEqual(SEM_TRANSBORDO);
+    await contexto.close();
+  }
+});
+
+/**
  * **O teclado no painel — item 94.**
  *
  * Três coisas que nenhum teste de unidade alcança, porque as três só existem no navegador: a ordem de
@@ -870,7 +915,7 @@ test("o teclado no painel: o salto, os gráficos fora da tabulação e a gaveta 
   await expect(salto).toBeFocused();
   await expect(salto).toBeInViewport();
   await helena.keyboard.press("Enter");
-  await expect(helena.locator("main#conteudo")).toBeFocused();
+  await expect(conteudoDaCasca(helena)).toBeFocused();
   await helena.keyboard.press("Tab");
   expect(await helena.evaluate(() => document.activeElement?.closest("#conteudo") !== null)).toBe(true);
   cobre(test.info(), "7.2 · 10", { criterio: "94.6" });
@@ -914,4 +959,65 @@ test("o teclado no painel: o salto, os gráficos fora da tabulação e a gaveta 
   await expect(gatilho).toBeFocused();
   cobre(test.info(), "7.2 · 10", { criterio: "94.7" });
   await movel.close();
+});
+
+/**
+ * **A exportação em CSV — item 124.** Helena é Gestora do Recanto e Solicitante do Aurora: é a mesma pessoa
+ * dos dois lados da guarda. **Nenhuma contagem absoluta** contra a semente: o arquivo se compara com o
+ * total que a própria lista declara.
+ *
+ * O botão é procurado dentro do conteúdo da casca (`conteudoDaCasca`, do item 119), porque o streaming
+ * deixa uma cópia escondida do cabeçalho no `<body>` até a troca.
+ */
+test("a exportação em CSV: o arquivo inteiro, a recusa no servidor e o botão a 360 px", async ({ browser }) => {
+  const contexto = await browser.newContext({ acceptDownloads: true });
+  const helena = await contexto.newPage();
+  await entrar(helena, HELENA);
+  await helena.waitForURL(/\/organizacao$/u);
+  await helena.getByRole("button", { name: RECANTO }).click();
+  await helena.waitForURL(/\/ocorrencias$/u);
+
+  // Critério 1: com filtro e página na URL da tela, o arquivo traz tantas quanto a lista diz que existem.
+  await helena.goto("/ocorrencias?status=aberta&pagina=2");
+  const [download] = await Promise.all([
+    helena.waitForEvent("download"),
+    conteudoDaCasca(helena).getByRole("button", { name: "Exportar CSV" }).click(),
+  ]);
+  expect(download.suggestedFilename()).toMatch(/^ocorrencias-condominio-recanto-azul-teste-\d{4}-\d{2}-\d{2}\.csv$/u);
+  const bytes = readFileSync(await download.path());
+  // Critério 4: BOM e ponto e vírgula.
+  expect([...bytes.subarray(0, 3)]).toStrictEqual([0xef, 0xbb, 0xbf]);
+  const texto = bytes.toString("utf8").slice(1);
+  expect(texto.startsWith("ID;Título;Descrição;Status;")).toBe(true);
+
+  const pagina = (await (await helena.request.get("/api/ocorrencias")).json()) as { totalNoCorte: number };
+  const registros = texto.match(/(?:^|\r\n)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12};/gu) ?? [];
+  expect(pagina.totalNoCorte).toBeGreaterThan(20); // mais que uma página
+  expect(registros).toHaveLength(pagina.totalNoCorte);
+
+  // Critério 9: o botão aparece e cabe a 360 px nas quatro telas.
+  await helena.setViewportSize({ width: 360, height: 844 });
+  for (const rota of ["/ocorrencias", "/vinculos", "/configuracao/areas", "/configuracao/categorias"]) {
+    await helena.goto(rota);
+    const botao = conteudoDaCasca(helena).getByRole("button", { name: "Exportar CSV" });
+    await expect(botao, rota).toBeVisible();
+    await helena.evaluate(() => document.fonts.ready);
+    const caixa = await botao.boundingBox();
+    expect.soft((caixa?.x ?? 0) + (caixa?.width ?? 0), `botão em ${rota}`).toBeLessThanOrEqual(360);
+    expect.soft(await transbordo(helena), `transbordo em ${rota} a 360 px`).toStrictEqual(SEM_TRANSBORDO);
+  }
+
+  // Critério 3: no Aurora, Helena é Solicitante. As quatro rotas recusam no servidor.
+  await trocarDeOrganizacao(helena, AURORA);
+  for (const recurso of ["ocorrencias", "vinculos", "areas", "categorias"]) {
+    const recusa = await helena.request.get(`/api/${recurso}/exportacao`);
+    expect(recusa.status(), recurso).toBe(403);
+    expect(((await recusa.json()) as { codigo?: string }).codigo, recurso).toBe("PERMISSAO_INSUFICIENTE");
+  }
+  // E o botão não aparece para ela.
+  await helena.goto("/ocorrencias");
+  await expect(conteudoDaCasca(helena).getByRole("heading", { name: "Ocorrências" })).toBeVisible();
+  await expect(helena.getByRole("button", { name: "Exportar CSV" })).toHaveCount(0);
+
+  await contexto.close();
 });

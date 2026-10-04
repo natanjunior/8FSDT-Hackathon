@@ -9,7 +9,9 @@ import {
   cancelarOcorrencia,
   compartilharOcorrencia,
   enviarComentario,
+  exportarOcorrencias,
   iniciarAtendimento,
+  LIMITE_PADRAO,
   listarOcorrencias,
   podeLerOcorrencia,
   pausarOcorrencia,
@@ -5378,5 +5380,43 @@ describe("o sino — item 117", () => {
     });
     expect(sino.novidades).toHaveLength(1);
     expect(sino.naoLidas).toBeGreaterThan(1);
+  });
+});
+
+describe("a exportação — item 124", () => {
+  it("traz todas as da organização, mais que uma página, e a descrição volta inteira (critérios 1 e 5)", async () => {
+    // **Mais que uma página**: LIMITE_PADRAO + 1. Antes e depois, e não absoluto: outros blocos deste
+    // arquivo semeiam na mesma organização.
+    const perigosa = 'Vazamento; no 3º andar\ncom "aspas"';
+    const ids: string[] = [];
+    for (let i = 0; i <= LIMITE_PADRAO; i++) {
+      const lida = await registrarOcorrencia(
+        portas(),
+        { pessoaId, organizacaoId },
+        {
+          titulo: `Exportada ${i} ${SUFIXO}`,
+          descricao: i === 0 ? perigosa : "Descrição suficiente para o CHECK de texto.",
+          categoriaId,
+          areaId,
+          localizacaoComplemento: null,
+        },
+      );
+      ids.push(lida.id);
+    }
+
+    const exportadas = await exportarOcorrencias(portas().ocorrencias);
+    const [contagem] = await consultaCrua<{ total: number }>(
+      "select count(*)::int as total from ocorrencias where organizacao_id = $1",
+      [organizacaoId],
+    );
+    expect(exportadas).toHaveLength(contagem!.total);
+    for (const id of ids) expect(exportadas.some((o) => o.id === id)).toBe(true);
+    expect(exportadas.find((o) => o.id === ids[0])!.descricao).toBe(perigosa);
+
+    // A ordem padrão da lista: atualizada por último primeiro.
+    const datas = exportadas.map((o) => o.atualizadaEm);
+    expect([...datas].sort().reverse()).toStrictEqual(datas);
+    // `smallint` chega como número, ou `null` sem avaliação.
+    for (const o of exportadas) expect(o.notaDaAvaliacao === null || typeof o.notaDaAvaliacao === "number").toBe(true);
   });
 });

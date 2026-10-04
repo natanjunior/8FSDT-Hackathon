@@ -5,7 +5,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { ListaDoSino, Sino } from "@/interface/componentes/casca/sino";
+import { CLASSE_DA_LATERAL, ListaDoSino, Sino } from "@/interface/componentes/casca/sino";
 import {
   DESTINOS_DA_BARRA,
   destinoAtual,
@@ -137,12 +137,11 @@ describe("a marca da barra lateral — critério 1", () => {
     expect(estaMarcado("/meus-dados", "/meus-dados")).toBe(true);
   });
 
-  it("a lista tem os oito destinos da barra, sem repetição", () => {
+  it("a lista tem os sete destinos da barra, sem repetição", () => {
     expect([...DESTINOS_DA_BARRA].sort()).toStrictEqual([
       "/configuracao",
       "/configuracao/areas",
       "/configuracao/categorias",
-      "/convidar",
       "/dashboard",
       "/meus-dados",
       "/ocorrencias",
@@ -286,9 +285,11 @@ describe("a barra lateral — critérios 1 e 2 no componente", () => {
 });
 
 /**
- * As nove páginas que recusam sem redirecionar, com o título da face normal e a permissão.
+ * As oito páginas que recusam sem redirecionar, com o título da face normal e a permissão.
  *
- * **A nona é o QR da área** (item 111), debaixo de T-14 e com a mesma permissão.
+ * **A oitava é o QR da área** (item 111), debaixo de T-14 e com a mesma permissão.
+ *
+ * **Eram nove até o item 120**, que apagou `/convidar`: o convite virou cartão da configuração.
  *
  * **Eram onze até o item 44k**, que apagou as quatro rotas próprias de criar e editar de T-09 e T-14: as
  * duas listas passaram a criar e editar em modal, e o estado sem acesso das duas telas ficou sendo a
@@ -296,18 +297,17 @@ describe("a barra lateral — critérios 1 e 2 no componente", () => {
  */
 const PAGINAS_QUE_RECUSAM: Readonly<Record<string, readonly [string, string]>> = {
   "app/(casca)/configuracao/page.tsx": ["Configuração da organização", "organizacao.configurar"],
-  "app/(casca)/convidar/page.tsx": ["Convidar pessoas", "vinculo.gerir"],
   "app/(casca)/configuracao/categorias/page.tsx": ["Categorias", "organizacao.configurar"],
   "app/(casca)/configuracao/areas/page.tsx": ["Áreas", "organizacao.configurar"],
   "app/(casca)/configuracao/areas/[areaId]/qr/page.tsx": ["QR da área", "organizacao.configurar"],
   "app/(casca)/dashboard/page.tsx": ["Painel", "dashboard.ler"],
   "app/(casca)/vinculos/page.tsx": ["Participantes", "vinculo.gerir"],
-  "app/(casca)/vinculos/nova/page.tsx": ["Cadastrar pessoa sem conta", "vinculo.gerir"],
+  "app/(casca)/vinculos/nova/page.tsx": ["Cadastrar participante", "vinculo.gerir"],
   "app/(casca)/vinculos/[pessoaId]/editar/page.tsx": ["Editar participante", "vinculo.gerir"],
 };
 
 describe("o estado sem acesso nas páginas — critérios 3 e 4", () => {
-  it("as páginas da casca que recusam sem redirecionar são as nove", () => {
+  it("as páginas da casca que recusam sem redirecionar são as oito", () => {
     const recusam = arquivosDe("app/(casca)")
       .filter((caminho) => caminho.endsWith("/page.tsx"))
       .filter((caminho) =>
@@ -674,35 +674,40 @@ describe("o sino — item 117", () => {
     expect(vazia).not.toContain("<h3");
   });
 
-  it("no celular a lista sobe de baixo, pela gaveta do catálogo, e sem pacote novo (critério 118.5)", () => {
+  it("a lista abre numa gaveta nas duas larguras: da direita na tela grande, de baixo no celular (critérios 120.1, 120.3 e 118.5)", () => {
     const fonte = ler("src/interface/componentes/casca/sino.tsx");
-    // A largura vem do mesmo gancho da barra lateral, no mesmo limiar `md`.
+    // **Não há mais Popover** (critério 120.1). O pedido do dono, em 03/10, era gaveta em toda largura; o 118
+    // estreitou para o celular, e o 120 corrige (respostas.md P1 do 120).
+    expect(fonte).not.toMatch(/ui\/popover|<Popover|PopoverContent/u);
+    // O lado vem do mesmo gancho da barra lateral, no mesmo limiar `md`, e é a ÚNICA coisa que ele decide.
     expect(fonte).toContain("useIsMobile()");
-    expect(fonte).toContain('<SheetContent side="bottom"');
-    // **Uma raiz só**, como no `modal.tsx`: o `Dialog` com o `DialogTrigger` fica, e só o conteúdo troca.
-    // É o que faz girar o aparelho com a lista aberta não perder o estado, que mora no `Sino`.
+    expect(fonte).toContain('side={celular ? "bottom" : "right"}');
+    expect(fonte).toContain("className={celular ? CLASSE_DA_GAVETA : CLASSE_DA_LATERAL}");
+    // **Uma raiz e um conteúdo**, como no `modal.tsx`: girar o aparelho com a lista aberta troca as classes,
+    // e o estado, que mora no `Sino`, continua.
     expect(fonte.match(/<Dialog open=\{aberto\}/gu)).toHaveLength(1);
     expect(fonte.match(/<DialogTrigger asChild>/gu)).toHaveLength(1);
-    // E o `Popover` continua sendo a forma de tela grande.
-    expect(fonte).toContain("<PopoverContent");
-    // O título é obrigatório: dele sai o nome acessível que o ponta a ponta localiza, e o `pr-14` o
-    // mantém fora do X que a folha desenha.
+    expect(fonte.match(/<SheetContent\b/gu)).toHaveLength(1);
+    // O título é obrigatório: dele sai o nome acessível que o ponta a ponta localiza (`mundo.ts:252`).
     expect(fonte).toMatch(/<DialogTitle[^>]*pr-14[^>]*>Avisos<\/DialogTitle>/u);
-    // Só o corpo rola; o título fica fora da rolagem, como nos nove modais da família.
     expect(fonte).toContain('<div className="min-h-0 flex-1 overflow-y-auto">{lista}</div>');
-    // A forma da gaveta vem do `modal.tsx`, e não de uma segunda cópia da cadeia.
-    expect(fonte).toContain("CONTEUDO_DO_SHEET");
-    expect(fonte).toContain("max-h-[85dvh]");
-    // Nem o `drawer` do shadcn nem o `vaul`: a decisão do dono de 03/10.
     expect(fonte).not.toMatch(/from "(?:vaul|@\/interface\/componentes\/ui\/drawer)"/u);
-    // Sem `w-screen` e sem `h-dvh`: a folha de `side="bottom"` já é `inset-x-0`, e era o `100vw` que
-    // criava a rolagem lateral que o critério 8 proíbe.
     expect(fonte).not.toContain("w-screen");
     expect(fonte).not.toContain("h-dvh");
-    // **Nas duas formas o foco de abertura vai para o conteúdo**, e não para o primeiro tabulável, que
-    // é o botão de ícone da primeira linha: a dica abre no foco e engoliria o primeiro `Esc`, deixando a
-    // lista aberta. Duas ocorrências, uma por forma.
-    expect(fonte.match(/onOpenAutoFocus=\{focarOConteudo\}/gu)).toHaveLength(2);
+    // O foco de abertura vai ao conteúdo (o `Esc` da dica, item 118). Uma ocorrência: há um conteúdo só.
+    expect(fonte.match(/onOpenAutoFocus=\{focarOConteudo\}/gu)).toHaveLength(1);
+  });
+
+  it("a gaveta de baixo herda a forma do modal, e a lateral não herda o teto nem os cantos (critério 120.3)", () => {
+    const fonte = ler("src/interface/componentes/casca/sino.tsx");
+    expect(fonte).toContain("CONTEUDO_DO_SHEET");
+    expect(fonte).toContain("max-h-[85dvh]");
+    // A lateral é de altura inteira (`sheet.tsx:73-74`): teto e cantos de cima seriam da gaveta de baixo.
+    expect(CLASSE_DA_LATERAL).not.toMatch(/\bmax-h-|\brounded-t-/u);
+    // O tempo e a curva do guia §6 são os mesmos nas duas.
+    expect(CLASSE_DA_LATERAL).toContain("ease-(--curva-gaveta)");
+    expect(CLASSE_DA_LATERAL).toContain("data-[state=open]:duration-(--tempo-gaveta)");
+    expect(CLASSE_DA_LATERAL).toContain("bg-superficie");
   });
 
   it("a barra põe o sino entre o seletor e o menu de pessoa", () => {

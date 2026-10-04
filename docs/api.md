@@ -5,7 +5,7 @@ description: "As convenções da superfície HTTP: de onde vem a organização, 
 
 # A API
 
-A superfície HTTP tem 48 operações, e todas elas estão navegáveis na
+A superfície HTTP tem 62 operações, e todas elas estão navegáveis na
 [referência executável](/documentacao/api/referencia), com os campos de entrada e de saída de cada uma.
 Esta página não repete essa lista: ela explica as convenções que valem para todas, e as decisões que a
 referência mostra sem justificar.
@@ -25,7 +25,7 @@ cliente, e entrada do cliente é superfície de ataque.
 O que se perde fica declarado: a URL deixa de ser autodescritiva. `/ocorrencias/{id}` não diz de quem é a
 ocorrência, e quem abre a referência precisa entender que há um contexto ativo antes de clicar.
 
-**Seis operações rodam sem organização ativa**, e a lista é fechada:
+**Sete operações rodam sem organização ativa**, e a lista é fechada:
 
 | Operação | Por que fica fora |
 |---|---|
@@ -35,16 +35,56 @@ ocorrência, e quem abre a referência precisa entender que há um contexto ativ
 | pedir entrada numa organização | acontece antes de existir vínculo, e recebe o código público |
 | editar os próprios dados | a tabela de pessoas é global, e a escrita é da própria pessoa sobre si |
 | ler um convite | acontece antes de existir conta, e recebe o código público |
+| ler um convite pessoal | acontece antes de existir conta, e recebe o token apresentado |
+| aceitar um convite pessoal | a conta pode não ter vínculo nenhum, e recebe o token apresentado |
 
-Acrescentar uma sétima é mudança de contrato que exige revisão explícita. O que qualifica uma operação a
-entrar é ler ou escrever tabela global pela chave da sessão, ou pelo código público apresentado. Ler um
-convite é a única que dispensa a sessão. A razão está na
-[ADR-0018](adr/0018-a-primeira-operacao-sem-sessao.md).
+Acrescentar uma oitava é mudança de contrato que exige revisão explícita. O que qualifica uma operação a
+entrar é ler ou escrever tabela global pela chave da sessão, pelo código público apresentado ou pelo
+token apresentado. As duas leituras de convite são as únicas que dispensam a sessão. A razão está na
+[ADR-0021](adr/0021-o-convite-pessoal-e-a-segunda-operacao-sem-sessao.md), que substitui a 0018.
 
 O QR de cada área leva à mesma página do convite, com a área no endereço (`?area=`). Sem sessão, a página
 continua lendo só pelo código público, e mostra só o nome da organização. A área é lida depois do login,
 dentro do escopo da organização ativa, pela mesma leitura de áreas do registro. Nenhuma operação entra na
 lista acima por causa dele.
+
+## O convite pessoal
+
+O Gestor convida, pelo link pessoal, um participante que cadastrou sem conta. Quatro endereços servem o
+convite:
+
+| Operação | O que faz |
+|---|---|
+| `POST /vinculos/{pessoaId}/convite` | devolve o link vivo, ou cria um; abrir duas vezes devolve o mesmo |
+| `POST /vinculos/{pessoaId}/convite/renovacao` | invalida o link vivo e cria outro, de uma vez |
+| `GET /convites-pessoais/{token}` | sem sessão: o nome da pessoa, o da organização e o papel |
+| `POST /convites-pessoais/{token}/aceite` | com sessão: liga a conta ao vínculo que já existe |
+
+Os dois primeiros exigem a permissão de gerir vínculos. Encarregado e quem já tem conta não recebem
+convite, e a recusa é `409 CONVITE_INDISPONIVEL`.
+
+A leitura sem sessão responde `200` em todas as situações. Token inexistente, renovado, aceito ou de
+vínculo revogado volta como `{ "situacao": "nao-vale" }`, sem nome nenhum: um `404` para o token morto
+diria, pelo status, que ele existiu.
+
+Quando a conta que aceita já tem uma pessoa própria, o aceite funde as duas numa transação. O vínculo da
+conta nasce com o papel e a unidade do cadastro, o que estava pendurado na pessoa cadastrada passa para a
+da conta, e o vínculo antigo é apagado por último. O histórico de transições não é tocado. A conta que já
+participa da organização recebe `409 JA_VINCULADO`, e nada muda.
+
+## O convite por e-mail
+
+`POST /convites-pessoais/envios` envia o convite pessoal por e-mail, a um ou a até vinte participantes,
+com a lista de `pessoaIds` no corpo. O modal manda uma lista de um, e a regra de limite existe uma vez. A
+operação exige a permissão de gerir vínculos.
+
+A resposta é `200` com o resumo mesmo quando nenhum saiu: a requisição deu certo, o que falhou foi cada
+envio, e o resumo diz qual. Cada pessoa aparece em *enviados*, com o endereço, ou em *não enviados*, com um
+de sete motivos: não participa mais, sem e-mail, já tem conta, Encarregado, limite do dia, limite do
+participante, falha no envio.
+
+A lista vazia, repetida ou acima de vinte é `422 LOTE_DE_ENVIO_INVALIDO`. O teto existe porque não há fila:
+o envio acontece dentro da requisição, um depois do outro.
 
 ## A escrita é comando, e não campo
 
@@ -120,7 +160,7 @@ o que pode fazer, sem reimplementar a máquina de estados.
 | Idioma | pt-BR em recurso e em campo, sem exceção. `status` é o único termo estrangeiro, porque é palavra do desafio |
 | Caixa | `snake_case` no banco, `camelCase` no JSON, e o mesmo vocábulo nos dois |
 | Valores de enumeração | idênticos aos do banco, em minúsculo e sem acento. O rótulo que a pessoa lê é um campo à parte, e nunca uma tradução do valor |
-| Datas | ISO 8601, sempre em UTC na saída. Converter é do cliente. A janela do painel é a exceção, e é interpretada no fuso de São Paulo, porque agregar mês a mês em UTC partiria o mês brasileiro em dois |
+| Datas | ISO 8601, sempre em UTC na saída. Converter é do cliente. A janela do painel é a exceção, e é interpretada no fuso de São Paulo, porque agregar mês a mês em UTC partiria o mês brasileiro em dois. O arquivo exportado em CSV é a segunda, e escreve data e hora de São Paulo em `dd/mm/aaaa hh:mm`, porque numa planilha não há cliente que converta |
 | Identificadores | UUID em texto |
 | Ordenação | a listagem de ocorrências abre pelo que mudou por último, e aceita ordenar por qualquer coluna da tabela. A ordem é feita sem índice próprio, porque o volume de uma organização cabe na memória |
 
@@ -147,6 +187,27 @@ sistema opera.
 
 Dentro do recorte das compartilhadas, a listagem diz também se quem pergunta já abriu cada uma desde que
 ela foi compartilhada. Quantas faltam abrir a listagem não devolve: o número é o do sino, na tela.
+
+## A exportação em CSV
+
+Quatro listas saem num arquivo, cada uma com a permissão da tela que a mostra:
+
+| Endereço | Permissão | O que o arquivo traz |
+|---|---|---|
+| `GET /ocorrencias/exportacao` | `ocorrencia.ler_todas` | todas as ocorrências da organização, de todos os estados |
+| `GET /vinculos/exportacao` | `vinculo.gerir` | os participantes ativos, sem os pedidos de entrada |
+| `GET /areas/exportacao` | `organizacao.configurar` | as áreas, ativas e inativas |
+| `GET /categorias/exportacao` | `organizacao.configurar` | as categorias, ativas e inativas |
+
+A exportação ignora filtro e página: o arquivo traz tudo o que a pessoa alcança naquela tela, com colunas
+fixas. Ele abre no Excel em pt-BR sem ajuste, porque começa pelo BOM UTF-8, separa por ponto e vírgula e
+termina cada registro com CRLF. A célula vai entre aspas quando tem separador, aspas ou quebra de linha, e
+a descrição de uma ocorrência continua numa célula só. Os valores saem em palavra, com `Sim` e `Não` no
+lugar de booleano, e o texto que começa com `=`, `+`, `-` ou `@` sai com um apóstrofo na frente, para a
+planilha não o executar como fórmula.
+
+O arquivo de participantes leva e-mail e telefone, e por isso sai só para quem gere vínculos. O sucesso
+vem como `text/csv` com `Content-Disposition: attachment`; o erro continua `application/problem+json`.
 
 ## Os recortes do painel
 

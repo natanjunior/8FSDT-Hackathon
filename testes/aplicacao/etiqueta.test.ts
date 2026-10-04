@@ -5,6 +5,7 @@ import {
   VinculoNaoEncontrado,
   apagarEtiqueta,
   atribuirEtiqueta,
+  criarEtiqueta,
   tirarEtiqueta,
   type RepositorioEscopadoDeEtiquetas,
   type ResultadoDaAtribuicaoDeEtiqueta,
@@ -25,6 +26,7 @@ function portaFalsa(
 ): RepositorioEscopadoDeEtiquetas {
   return {
     listar: () => Promise.resolve([ELETRICISTA]),
+    criar: () => Promise.resolve({ etiqueta: ELETRICISTA, criada: true }),
     atribuir: () => Promise.resolve(atribuicao),
     tirar: () => Promise.resolve(retirada),
     apagar: () => Promise.resolve(apagamento),
@@ -71,5 +73,12 @@ describe("tirarEtiqueta e apagarEtiqueta", () => {
 
   it("o código é o do contrato", () => {
     expect(new EtiquetaNaoEncontrada().codigo).toBe("ETIQUETA_NAO_ENCONTRADA");
+  });
+});
+
+describe("criarEtiqueta (item 120)", () => {
+  it("devolve a etiqueta e se nasceu agora, sem traduzir nada: criar não tem recusa de domínio", async () => {
+    const porta = { ...portaFalsa({ desfecho: "nao-encontrado" }), criar: () => Promise.resolve({ etiqueta: ELETRICISTA, criada: false }) };
+    expect(await criarEtiqueta(porta, "eletricista")).toStrictEqual({ etiqueta: ELETRICISTA, criada: false });
   });
 });

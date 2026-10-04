@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import { listarCategorias } from "@/aplicacao/organizacao";
+import { BotaoDeExportacao } from "@/interface/componentes/botao-de-exportacao";
 import { CabecalhoDaPagina } from "@/interface/componentes/cabecalho-da-pagina";
 import { ModalDeCategoria } from "@/interface/componentes/modal-de-categoria";
 import { SemAcesso } from "@/interface/componentes/sem-acesso";
@@ -50,7 +51,13 @@ export default async function Categorias() {
       <CabecalhoDaPagina
         titulo="Categorias"
         fato={<Fato ativas={ativas} total={categorias.length} />}
-        acao={<ModalDeCategoria modo="criar" organizacaoId={organizacaoId} />}
+        acao={
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Com a lista vazia não há o que exportar (item 124). */}
+            {categorias.length > 0 && <BotaoDeExportacao endereco="/api/categorias/exportacao" />}
+            <ModalDeCategoria modo="criar" organizacaoId={organizacaoId} />
+          </div>
+        }
       />
 
       <TabelaDeCategorias

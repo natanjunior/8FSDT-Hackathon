@@ -9,7 +9,6 @@ import {
   LayoutGrid,
   Settings,
   Tags,
-  UserPlus,
   UserRound,
   Users,
   type LucideIcon,
@@ -53,7 +52,8 @@ import {
  * administrando duas linhas. Por isso `SidebarGroupLabel`, no sétimo papel da escala — o mesmo que a barra
  * superior usa para a marca.
  *
- * **Quatro filhos sob `Organização`, desde o item 48.** `Configuração` é a tela da organização inteira,
+ * **Quatro filhos sob `Organização`, desde o item 48, e de novo desde o item 120, que tirou *Convidar
+ * pessoas* — o convite virou cartão da configuração.** `Configuração` é a tela da organização inteira,
  * `Participantes` é quem está nela, e `Categorias` e `Áreas` são as duas listas que ela configura — a
  * ordem vai do geral para o particular, que é a mesma regra que põe `Dashboard` por último. **O modo de
  * ícones do catálogo continua fora**, pela razão medida no 44f: `SidebarMenuSub` carrega
@@ -159,15 +159,6 @@ export function Navegacao({
                       rotulo="Participantes"
                       Icone={Users}
                       apoio={pendentes === null ? null : fraseDePedidosPendentes(pendentes)}
-                      caminho={caminho}
-                      aoTocar={aoTocar}
-                    />
-                  )}
-                  {podeGerirVinculos && (
-                    <ItemDeNavegacao
-                      destino="/convidar"
-                      rotulo="Convidar pessoas"
-                      Icone={UserPlus}
                       caminho={caminho}
                       aoTocar={aoTocar}
                     />
