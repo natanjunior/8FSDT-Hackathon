@@ -651,6 +651,102 @@ paths:
                 traceId: "01JB8Z6K9T2M4N7Q"
         "500": { $ref: "#/components/responses/ErroInterno" }
 
+  /convites-pessoais/{token}:
+    get:
+      tags: [Entrada na organização]
+      operationId: lerConvitePessoal
+      summary: Ler o convite pessoal de uma pessoa cadastrada
+      description: |
+        O que a página do convite pessoal mostra: o nome da pessoa que o Gestor cadastrou, o nome da
+        organização, o papel, e a situação de quem abre.
+
+        **É a segunda operação que não exige sessão** (ADR-0021). O token só alcança o vínculo que o Gestor
+        já aprovou ao cadastrar. Sem sessão, a resposta tem os dois nomes, o papel e `situacao: sem-sessao`,
+        e **nenhum contato**. Com sessão, a situação diz se a conta já participa da organização ou se pode
+        aceitar.
+
+        **`200` em todas as situações.** Token fora do formato, inexistente, renovado, aceito, de vínculo
+        revogado ou de pessoa que já ganhou conta voltam como `{ situacao: nao-vale }`, sem nome nenhum: um
+        `404` para o token morto diria, pelo status, que ele existiu.
+      security:
+        - {}
+        - sessaoSupabase: []
+        - bearerSupabase: []
+      parameters:
+        - $ref: "#/components/parameters/TokenDoConvitePessoal"
+      responses:
+        "200":
+          description: O convite pessoal, ou `nao-vale`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConvitePessoal" }
+              examples:
+                semSessao:
+                  value:
+                    situacao: "sem-sessao"
+                    pessoa: { nome: "Maria Souza" }
+                    organizacao: { nome: "Jardim das Acácias" }
+                    papel: "solicitante"
+                naoVale:
+                  value: { situacao: "nao-vale" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /convites-pessoais/{token}/aceite:
+    post:
+      tags: [Entrada na organização]
+      operationId: aceitarConvitePessoal
+      summary: Aceitar o convite pessoal com a conta da sessão
+      description: |
+        Liga a conta da sessão ao vínculo que o Gestor cadastrou, **sem pedido de entrada**: o convite não
+        cria vínculo, e o Gestor já aprovou aquela pessoa ao cadastrá-la.
+
+        **Roda sem organização ativa**, porque a conta pode não ter vínculo nenhum. Escreve pela chave da
+        sessão e pelo token apresentado (ADR-0021).
+
+        Quando a conta já tem uma pessoa própria, as duas pessoas se fundem numa transação: o vínculo da
+        conta nasce com o papel e a unidade do cadastro (ou volta a valer, se tinha sido revogado), as
+        atribuições, os compartilhamentos, as etiquetas, os convites e os contatos passam para a pessoa da
+        conta, e o vínculo cadastrado é apagado por último. A trilha de auditoria não é tocada. Qualquer
+        recusa do banco desfaz tudo. A organização do convite passa a ser a ativa da sessão.
+      parameters:
+        - $ref: "#/components/parameters/TokenDoConvitePessoal"
+      responses:
+        "200":
+          description: Aceito. A organização do convite é agora a ativa.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [organizacaoId]
+                properties:
+                  organizacaoId: { type: string, format: uuid }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "404":
+          description: O convite não leva a lugar nenhum, e não diz por quê.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example:
+                type: "https://resolveai.app/erros/convite-pessoal-nao-vale"
+                title: "Convite não vale"
+                status: 404
+                detail: "Este convite não vale mais."
+                codigo: "CONVITE_PESSOAL_NAO_VALE"
+                traceId: "01JB8Z6K9T2M4N7Q"
+        "409":
+          description: A conta já participa desta organização. Nada muda, e o cadastro continua na lista para o Gestor revogar.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example:
+                type: "https://resolveai.app/erros/ja-vinculado"
+                title: "Você já está nesta organização"
+                status: 409
+                detail: "Você já tem vínculo ativo nesta organização."
+                codigo: "JA_VINCULADO"
+                traceId: "01JB8Z6K9T2M4N7Q"
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
   /pedidos-de-entrada/{pedidoId}/aprovar:
     post:
       tags: [Entrada na organização]
@@ -1074,7 +1170,7 @@ paths:
         pessoa recebeu sobrevive à revogação e volta a valer na readmissão.
 
         **As etiquetas saem.** Ao contrário do compartilhamento, o vínculo readmitido volta sem nenhuma
-        etiqueta.
+        etiqueta. **O convite pessoal vivo deixa de valer**, e a readmissão não o ressuscita.
 
         **Não revoga o último Gestor**, pela mesma razão e com a mesma resposta do `DELETE`.
 
@@ -1207,6 +1303,105 @@ paths:
               schema: { $ref: "#/components/schemas/Problema" }
               example: { type: "https://resolveai.app/erros/etiqueta-nao-encontrada", title: "Etiqueta não encontrada", status: 404, codigo: "ETIQUETA_NAO_ENCONTRADA", traceId: "01JB8Z6K9T2M4N7Q" }
         "409": { $ref: "#/components/responses/OrganizacaoDivergente" }
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /vinculos/{pessoaId}/convite:
+    post:
+      tags: [Vínculos]
+      operationId: garantirConvitePessoal
+      summary: Obter o link do convite pessoal, criando se não houver
+      description: |
+        O link pessoal de um participante **cadastrado sem conta**, Solicitante ou Gestor. Quem o abrir liga
+        a própria conta ao vínculo que já existe, sem pedido de entrada.
+
+        `POST` porque pode criar, e **idempotente**: abrir o modal de novo devolve o mesmo link, e duas
+        chamadas simultâneas não criam dois convites. O token vai só dentro do link, e só para quem gere
+        vínculos. Ele fica guardado em claro porque o Gestor recupera o link já gerado, e porque não concede
+        acesso novo: liga uma conta a um vínculo que o Gestor já aprovou.
+
+        *Permissão: `vinculo.gerir`.*
+      parameters:
+        - $ref: "#/components/parameters/PessoaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "200":
+          description: O convite vivo.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConviteDoGestor" }
+              example:
+                link: "https://resolveai.app/convite-pessoal/q8Zr0m3VbW1sXk7nYp2aT5uC9dE4fG6hJ0kL3mN8oP1"
+                criadoEm: "2026-10-02T15:00:00.000Z"
+                criadoPor: { nome: "Ana Lima" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404":
+          description: Não há vínculo ativo com esta Pessoa nesta organização.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example: { type: "https://resolveai.app/erros/vinculo-nao-encontrado", title: "Vínculo não encontrado", status: 404, codigo: "VINCULO_NAO_ENCONTRADO", traceId: "01JB8Z6K9T2M4N7Q" }
+        "409":
+          description: |
+            `CONVITE_INDISPONIVEL`: a pessoa é Encarregado ou já tem conta, e não recebe convite pessoal. Ou
+            `ORGANIZACAO_DIVERGENTE`, pelo cabeçalho de afirmação.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example:
+                type: "https://resolveai.app/erros/convite-indisponivel"
+                title: "Convite indisponível"
+                status: 409
+                detail: "Encarregados não usam o aplicativo."
+                codigo: "CONVITE_INDISPONIVEL"
+                traceId: "01JB8Z6K9T2M4N7Q"
+        "500": { $ref: "#/components/responses/ErroInterno" }
+
+  /vinculos/{pessoaId}/convite/renovacao:
+    post:
+      tags: [Vínculos]
+      operationId: renovarConvitePessoal
+      summary: Gerar um novo link do convite pessoal, invalidando o anterior
+      description: |
+        Invalida o link vivo e cria outro, numa transação. **O link anterior deixa de funcionar, inclusive
+        onde já foi enviado.** O convite antigo não é apagado: fica invalidado, com o instante.
+
+        *Permissão: `vinculo.gerir`.*
+      parameters:
+        - $ref: "#/components/parameters/PessoaId"
+        - $ref: "#/components/parameters/OrganizacaoAfirmada"
+      responses:
+        "201":
+          description: O convite novo.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ConviteDoGestor" }
+              example:
+                link: "https://resolveai.app/convite-pessoal/q8Zr0m3VbW1sXk7nYp2aT5uC9dE4fG6hJ0kL3mN8oP1"
+                criadoEm: "2026-10-02T15:00:00.000Z"
+                criadoPor: { nome: "Ana Lima" }
+        "401": { $ref: "#/components/responses/NaoAutenticado" }
+        "403": { $ref: "#/components/responses/SemPermissao" }
+        "404":
+          description: Não há vínculo ativo com esta Pessoa nesta organização.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example: { type: "https://resolveai.app/erros/vinculo-nao-encontrado", title: "Vínculo não encontrado", status: 404, codigo: "VINCULO_NAO_ENCONTRADO", traceId: "01JB8Z6K9T2M4N7Q" }
+        "409":
+          description: |
+            `CONVITE_INDISPONIVEL`: a pessoa é Encarregado ou já tem conta, e não recebe convite pessoal. Ou
+            `ORGANIZACAO_DIVERGENTE`, pelo cabeçalho de afirmação.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problema" }
+              example:
+                type: "https://resolveai.app/erros/convite-indisponivel"
+                title: "Convite indisponível"
+                status: 409
+                detail: "Encarregados não usam o aplicativo."
+                codigo: "CONVITE_INDISPONIVEL"
+                traceId: "01JB8Z6K9T2M4N7Q"
         "500": { $ref: "#/components/responses/ErroInterno" }
 
   /vinculos/{pessoaId}/etiquetas:
@@ -3372,6 +3567,12 @@ components:
         precisam guardar cookies (`curl -c/-b`) depois de chamar `PUT /contexto/organizacao`.
 
   parameters:
+    TokenDoConvitePessoal:
+      name: token
+      in: path
+      required: true
+      description: 32 bytes aleatórios em base64url. Fora do formato, o convite não vale.
+      schema: { type: string, pattern: "^[A-Za-z0-9_-]{43}$" }
     OrganizacaoAfirmada:
       name: X-Organizacao-Id
       in: header
@@ -4049,6 +4250,50 @@ components:
           type: string
           description: Decidida no servidor, para que a API e a página digam a mesma coisa.
           enum: [sem-sessao, pode-pedir, ja-participa, pedido-pendente]
+
+    ConviteDoGestor:
+      type: object
+      description: |
+        O convite pessoal como o Gestor o vê. **O token só sai dentro do link**, e só para quem gere vínculos.
+      required: [link, criadoEm, criadoPor]
+      properties:
+        link: { type: string, format: uri }
+        criadoEm: { type: string, format: date-time }
+        criadoPor:
+          type: object
+          required: [nome]
+          properties:
+            nome: { type: string }
+
+    ConvitePessoal:
+      description: |
+        O convite pessoal lido pelo token. **Nenhum contato**, porque este corpo é entregue a quem não tem
+        sessão. `nao-vale` vem sozinho, sem nome nenhum.
+      oneOf:
+        - type: object
+          required: [situacao]
+          additionalProperties: false
+          properties:
+            situacao: { type: string, enum: [nao-vale] }
+        - type: object
+          required: [situacao, pessoa, organizacao, papel]
+          additionalProperties: false
+          properties:
+            situacao:
+              type: string
+              description: Decidida no servidor, para que a API e a página digam a mesma coisa.
+              enum: [sem-sessao, pode-aceitar, ja-participa]
+            pessoa:
+              type: object
+              required: [nome]
+              properties:
+                nome: { type: string }
+            organizacao:
+              type: object
+              required: [nome]
+              properties:
+                nome: { type: string }
+            papel: { $ref: "#/components/schemas/PapelVinculo" }
 
     PedidoDeEntrada:
       type: object

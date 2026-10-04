@@ -5,7 +5,7 @@ description: "As convenções da superfície HTTP: de onde vem a organização, 
 
 # A API
 
-A superfície HTTP tem 56 operações, e todas elas estão navegáveis na
+A superfície HTTP tem 61 operações, e todas elas estão navegáveis na
 [referência executável](/documentacao/api/referencia), com os campos de entrada e de saída de cada uma.
 Esta página não repete essa lista: ela explica as convenções que valem para todas, e as decisões que a
 referência mostra sem justificar.
@@ -25,7 +25,7 @@ cliente, e entrada do cliente é superfície de ataque.
 O que se perde fica declarado: a URL deixa de ser autodescritiva. `/ocorrencias/{id}` não diz de quem é a
 ocorrência, e quem abre a referência precisa entender que há um contexto ativo antes de clicar.
 
-**Seis operações rodam sem organização ativa**, e a lista é fechada:
+**Sete operações rodam sem organização ativa**, e a lista é fechada:
 
 | Operação | Por que fica fora |
 |---|---|
@@ -35,16 +35,42 @@ ocorrência, e quem abre a referência precisa entender que há um contexto ativ
 | pedir entrada numa organização | acontece antes de existir vínculo, e recebe o código público |
 | editar os próprios dados | a tabela de pessoas é global, e a escrita é da própria pessoa sobre si |
 | ler um convite | acontece antes de existir conta, e recebe o código público |
+| ler um convite pessoal | acontece antes de existir conta, e recebe o token apresentado |
+| aceitar um convite pessoal | a conta pode não ter vínculo nenhum, e recebe o token apresentado |
 
-Acrescentar uma sétima é mudança de contrato que exige revisão explícita. O que qualifica uma operação a
-entrar é ler ou escrever tabela global pela chave da sessão, ou pelo código público apresentado. Ler um
-convite é a única que dispensa a sessão. A razão está na
-[ADR-0018](adr/0018-a-primeira-operacao-sem-sessao.md).
+Acrescentar uma oitava é mudança de contrato que exige revisão explícita. O que qualifica uma operação a
+entrar é ler ou escrever tabela global pela chave da sessão, pelo código público apresentado ou pelo
+token apresentado. As duas leituras de convite são as únicas que dispensam a sessão. A razão está na
+[ADR-0021](adr/0021-o-convite-pessoal-e-a-segunda-operacao-sem-sessao.md), que substitui a 0018.
 
 O QR de cada área leva à mesma página do convite, com a área no endereço (`?area=`). Sem sessão, a página
 continua lendo só pelo código público, e mostra só o nome da organização. A área é lida depois do login,
 dentro do escopo da organização ativa, pela mesma leitura de áreas do registro. Nenhuma operação entra na
 lista acima por causa dele.
+
+## O convite pessoal
+
+O Gestor convida, pelo link pessoal, um participante que cadastrou sem conta. Quatro endereços servem o
+convite:
+
+| Operação | O que faz |
+|---|---|
+| `POST /vinculos/{pessoaId}/convite` | devolve o link vivo, ou cria um; abrir duas vezes devolve o mesmo |
+| `POST /vinculos/{pessoaId}/convite/renovacao` | invalida o link vivo e cria outro, de uma vez |
+| `GET /convites-pessoais/{token}` | sem sessão: o nome da pessoa, o da organização e o papel |
+| `POST /convites-pessoais/{token}/aceite` | com sessão: liga a conta ao vínculo que já existe |
+
+Os dois primeiros exigem a permissão de gerir vínculos. Encarregado e quem já tem conta não recebem
+convite, e a recusa é `409 CONVITE_INDISPONIVEL`.
+
+A leitura sem sessão responde `200` em todas as situações. Token inexistente, renovado, aceito ou de
+vínculo revogado volta como `{ "situacao": "nao-vale" }`, sem nome nenhum: um `404` para o token morto
+diria, pelo status, que ele existiu.
+
+Quando a conta que aceita já tem uma pessoa própria, o aceite funde as duas numa transação. O vínculo da
+conta nasce com o papel e a unidade do cadastro, o que estava pendurado na pessoa cadastrada passa para a
+da conta, e o vínculo antigo é apagado por último. O histórico de transições não é tocado. A conta que já
+participa da organização recebe `409 JA_VINCULADO`, e nada muda.
 
 ## A escrita é comando, e não campo
 
