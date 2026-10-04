@@ -1,9 +1,12 @@
 import { ConviteIndisponivel, VinculoNaoEncontrado } from "./erros";
+import type { QuemAbreOConvite } from "./ler-convite";
 import type {
   ConvitePessoalVivo,
+  LeituraDeConvitesPessoais,
   RepositorioEscopadoDeConvitesPessoais,
   RepositorioEscopadoDeVinculos,
 } from "./portas";
+import type { Papel } from "@/dominio/organizacao";
 
 /**
  * ============================================================================
@@ -54,4 +57,36 @@ export async function renovarConvitePessoal(
 ): Promise<ConvitePessoalVivo> {
   await conferirElegivel(repos.vinculos, pessoaId);
   return repos.convitesPessoais.renovar(pessoaId, novoToken(), porPessoaId);
+}
+
+export type SituacaoDoConvitePessoal = "sem-sessao" | "pode-aceitar" | "ja-participa";
+
+export type ConvitePessoalLido = {
+  situacao: SituacaoDoConvitePessoal;
+  pessoa: { nome: string };
+  organizacao: { nome: string };
+  papel: Papel;
+};
+
+/**
+ * **Ler o convite pessoal** — o modelo de leitura de `GET /convites-pessoais/{token}` e da página. A
+ * situação é decidida aqui, como em `lerConvite`, para a API e a página dizerem o mesmo. `null` é *não
+ * vale*: inexistente, adulterado, renovado, aceito, de vínculo revogado ou de quem já tem conta. A
+ * Aplicação não distingue, e a tela também não.
+ */
+export async function lerConvitePessoal(
+  portas: { convitesPessoais: LeituraDeConvitesPessoais },
+  quem: QuemAbreOConvite | null,
+  token: string,
+): Promise<ConvitePessoalLido | null> {
+  const vivo = await portas.convitesPessoais.vivoPorToken(token);
+  if (vivo === null) return null;
+  const base = {
+    pessoa: { nome: vivo.nomeDaPessoa },
+    organizacao: { nome: vivo.nomeDaOrganizacao },
+    papel: vivo.papel,
+  };
+  if (quem === null) return { ...base, situacao: "sem-sessao" };
+  if (quem.organizacoesComVinculoAtivo.includes(vivo.organizacaoId)) return { ...base, situacao: "ja-participa" };
+  return { ...base, situacao: "pode-aceitar" };
 }

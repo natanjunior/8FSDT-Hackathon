@@ -22,6 +22,7 @@ export {
   lerCorpoOpcional,
   registrarFalha,
   resolverConviteParaTela,
+  resolverConvitePessoalParaTela,
   resolverEscopoParaTela,
   resolverParaTela,
   resposta,

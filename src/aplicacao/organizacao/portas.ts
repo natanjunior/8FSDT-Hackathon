@@ -742,6 +742,28 @@ export interface RepositorioEscopadoDeConvitesPessoais {
 }
 
 /**
+ * O que a leitura sem sessão do convite pessoal pode saber (item 121, critério 8). **Nenhum contato**:
+ * contato só é legível dentro da organização do vínculo, e quem abre o link sem conta não está em
+ * organização nenhuma.
+ */
+export type ConvitePessoalPorToken = {
+  pessoaId: string;
+  organizacaoId: string;
+  nomeDaPessoa: string;
+  nomeDaOrganizacao: string;
+  papel: Papel;
+};
+
+/**
+ * **A porta que o `semSessao` recebe.** Leitura, e mais nada: quem roda sem sessão recebe a leitura e
+ * nenhuma escrita, nem no tipo nem no objeto.
+ */
+export interface LeituraDeConvitesPessoais {
+  /** Só convite vivo, de vínculo ativo, de Pessoa sem conta. Qualquer outro caso: `null`. */
+  vivoPorToken(token: string): Promise<ConvitePessoalPorToken | null>;
+}
+
+/**
  * Os desfechos da aprovação. **Etiqueta, não exceção**, pela mesma razão do 7a: são desfechos de uma
  * escrita transacional, três deles são **traduções de garantias do banco**, e o vocabulário de recusa do
  * contrato pertence à Aplicação, não à Infraestrutura.

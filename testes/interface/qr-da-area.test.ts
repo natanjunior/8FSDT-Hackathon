@@ -307,11 +307,13 @@ describe("o QR da área para quem configura — critério 1 na fonte", () => {
 });
 
 describe("o critério 6, na fonte", () => {
-  it("as listas fechadas do lint não ganharam linha", () => {
+  it("as listas fechadas do lint só crescem pelos dois convites", () => {
+    // O QR da área (item 111) não ganhou arquivo próprio em lista nenhuma. Os dois que entram na lista sem
+    // sessão são do convite pessoal (item 121, ADR-0021), e o que entra na sem organização é o aceite dele.
     const lint = ler("eslint.config.mjs");
     const inicioSemSessao = lint.indexOf("const ARQUIVOS_SEM_SESSAO");
     const semSessao = lint.slice(inicioSemSessao, lint.indexOf("];", inicioSemSessao));
-    expect(semSessao.match(/"app\//gu)).toHaveLength(2);
+    expect(semSessao.match(/"app\//gu)).toHaveLength(4);
     const inicioSemOrganizacao = lint.indexOf("const ROTAS_SEM_ORGANIZACAO");
     const semOrganizacao = lint.slice(inicioSemOrganizacao, lint.indexOf("];", inicioSemOrganizacao));
     expect(semOrganizacao.match(/"app\//gu)).toHaveLength(5);

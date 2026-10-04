@@ -3,7 +3,7 @@ import type { PortasGlobais, RepositoriosEscopados } from "@/aplicacao/contexto"
 import { randomBytes } from "node:crypto";
 
 import type { PortaDeCredenciais } from "@/aplicacao/credenciais";
-import type { RepositorioDeConvites } from "@/aplicacao/organizacao";
+import type { LeituraDeConvitesPessoais, RepositorioDeConvites } from "@/aplicacao/organizacao";
 import {
   criarArmazenamentoDeAnexos,
   criarAutenticacao,
@@ -18,6 +18,7 @@ import { livroDeAutorizacoesDeUpload } from "@/infraestrutura/repositorios/anexo
 import { repositorioEscopadoDeDashboard } from "@/infraestrutura/repositorios/dashboard";
 import { repositorioEscopadoDeOcorrencias } from "@/infraestrutura/repositorios/ocorrencia";
 import {
+  leituraDeConvitesPessoais,
   repositorioDeConvites,
   repositorioDeOrganizacoes,
   repositorioDePedidosDeEntrada,
@@ -149,6 +150,16 @@ export function montarPortasEscopadas(organizacaoId: string): RepositoriosEscopa
  */
 export function montarPortaDeConvites(): RepositorioDeConvites {
   return repositorioDeConvites(criarConsulta());
+}
+
+/**
+ * A leitura do convite pessoal (item 121, ADR-0021), no molde de `montarPortaDeConvites`.
+ *
+ * **Quem a recebe não recebe escrita**: é o que o `semSessao` entrega à segunda operação sem sessão, e o
+ * objeto devolvido só tem `vivoPorToken`. O aceite e a ligação moram nas portas globais, com sessão.
+ */
+export function montarLeituraDeConvitesPessoais(): LeituraDeConvitesPessoais {
+  return leituraDeConvitesPessoais(criarConsulta());
 }
 
 /**

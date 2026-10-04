@@ -9,11 +9,13 @@ import {
   VinculoNaoEncontrado,
   cadastrarVinculo,
   garantirConvitePessoal,
+  lerConvitePessoal,
   renovarConvitePessoal,
   corrigirVinculo,
   listarVinculos,
   removerVinculo,
   revogarVinculo,
+  type ConvitePessoalPorToken,
   type ConvitePessoalVivo,
   type RepositorioEscopadoDeConvitesPessoais,
   type RepositorioEscopadoDeVinculos,
@@ -374,5 +376,46 @@ describe("garantir o convite pessoal (item 121)", () => {
         () => "x",
       ),
     ).rejects.toBeInstanceOf(VinculoNaoEncontrado);
+  });
+});
+
+describe("ler o convite pessoal (item 121)", () => {
+  const VIVO_POR_TOKEN: ConvitePessoalPorToken = {
+    pessoaId: "p1",
+    organizacaoId: "org-jardim",
+    nomeDaPessoa: "Maria Souza",
+    nomeDaOrganizacao: "Jardim das Acácias",
+    papel: "solicitante",
+  };
+  const leitura = (vivo: ConvitePessoalPorToken | null) => ({
+    convitesPessoais: { vivoPorToken: () => Promise.resolve(vivo) },
+  });
+  const quem = (organizacoes: string[]) => ({
+    pessoaId: "p2",
+    codigosComVinculoAtivo: [],
+    organizacoesComVinculoAtivo: organizacoes,
+  });
+
+  it("o que não vale é null", async () => {
+    expect(await lerConvitePessoal(leitura(null), null, "x")).toBeNull();
+  });
+
+  it("sem sessão, os nomes e o papel", async () => {
+    expect(await lerConvitePessoal(leitura(VIVO_POR_TOKEN), null, "x")).toStrictEqual({
+      situacao: "sem-sessao",
+      pessoa: { nome: "Maria Souza" },
+      organizacao: { nome: "Jardim das Acácias" },
+      papel: "solicitante",
+    });
+  });
+
+  it("com vínculo ativo na organização, já participa", async () => {
+    expect((await lerConvitePessoal(leitura(VIVO_POR_TOKEN), quem(["org-jardim"]), "x"))?.situacao).toBe(
+      "ja-participa",
+    );
+  });
+
+  it("com sessão e sem vínculo ali, pode aceitar", async () => {
+    expect((await lerConvitePessoal(leitura(VIVO_POR_TOKEN), quem(["outra"]), "x"))?.situacao).toBe("pode-aceitar");
   });
 });

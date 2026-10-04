@@ -21,6 +21,8 @@ export type QuemAbreOConvite = {
   pessoaId: string;
   /** Os `codigoPublico` das organizações em que a Pessoa tem vínculo **ativo**. */
   codigosComVinculoAtivo: readonly string[];
+  /** Os `id` das mesmas organizações: o convite pessoal (item 121) conhece a organização pelo `id`. */
+  organizacoesComVinculoAtivo: readonly string[];
 };
 
 export async function lerConvite(

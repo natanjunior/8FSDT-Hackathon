@@ -3,7 +3,12 @@ export { projetarContexto, type ContextoProjetado } from "./contexto";
 
 export { projetarConvite, type ConviteProjetado } from "./convite";
 
-export { projetarConviteDoGestor, type ConviteDoGestorProjetado } from "./convite-pessoal";
+export {
+  projetarConviteDoGestor,
+  projetarConvitePessoal,
+  type ConviteDoGestorProjetado,
+  type ConvitePessoalProjetado,
+} from "./convite-pessoal";
 
 export {
   projetarDashboard,

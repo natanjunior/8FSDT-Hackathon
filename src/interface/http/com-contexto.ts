@@ -17,11 +17,15 @@ import {
 import {
   CodigoPublicoNaoEncontrado,
   lerConvite,
+  lerConvitePessoal,
   lerRotulosDoSolicitante,
+  type ConvitePessoalLido,
+  type LeituraDeConvitesPessoais,
   type QuemAbreOConvite,
   type RepositorioDeConvites,
 } from "@/aplicacao/organizacao";
 import {
+  montarLeituraDeConvitesPessoais,
   montarPortaDeConvites,
   montarPortasEscopadas,
   montarPortasGlobais,
@@ -36,6 +40,7 @@ import {
   type ConviteProjetado,
   type LenteDeRotulo,
 } from "@/interface/projecoes";
+import { FORMATO_DO_TOKEN } from "@/interface/schemas";
 
 import {
   assinarOrganizacao,
@@ -395,27 +400,30 @@ const abrirRequisicao = cache(async function abrirRequisicao(): Promise<{
 });
 
 // ---------------------------------------------------------------------------
-// semSessao — a primeira operação sem sessão (item 86, ADR-0018)
+// semSessao — as duas leituras sem sessão (item 86, item 121, ADR-0021)
 // ---------------------------------------------------------------------------
 
 /**
- * O que `GET /convites/{codigo}` recebe.
+ * O que `GET /convites/{codigo}` e `GET /convites-pessoais/{token}` recebem.
  *
  * **`resolucao` é `null` sem sessão, e nunca lança `NaoAutenticado`.** Com sessão, é a mesma resolução
  * das outras portas, e é dela que sai `quem`, sem consulta nenhuma. **Não há portas globais nem
- * escopadas aqui**: quem roda sem sessão recebe o convite e mais nada.
+ * escopadas aqui**: quem roda sem sessão recebe as duas leituras de convite e mais nada.
  */
 export type EntradaSemSessao = {
   resolucao: ResolucaoDeContexto | null;
   quem: QuemAbreOConvite | null;
   convites: RepositorioDeConvites;
+  /** A leitura do convite pessoal (item 121). Leitura, e mais nada: o aceite tem sessão e mora nas globais. */
+  convitesPessoais: LeituraDeConvitesPessoais;
   parametros: Readonly<Record<string, string>>;
   requisicao: Request;
 };
 
 /**
- * **A quarta lista fechada** (`eslint.config.mjs`, `SEM_SESSAO`): só a rota e a página do convite a
- * importam. Um segundo endpoint sem sessão é ADR nova, e não uma linha de código.
+ * **A quarta lista fechada** (`eslint.config.mjs`, `SEM_SESSAO`): só as rotas e as páginas dos dois
+ * convites a importam. O segundo endpoint sem sessão custou a ADR-0021; um terceiro é ADR nova, e não uma
+ * linha de código.
  */
 export function semSessao(manipulador: Manipulador<EntradaSemSessao>): RotaDoNext {
   return async (requisicao, contextoDaRota) => {
@@ -426,6 +434,7 @@ export function semSessao(manipulador: Manipulador<EntradaSemSessao>): RotaDoNex
         resolucao,
         quem: quemAbre(resolucao),
         convites: montarPortaDeConvites(),
+        convitesPessoais: montarLeituraDeConvitesPessoais(),
         parametros: await lerParametros(contextoDaRota),
         requisicao,
       });
@@ -462,6 +471,25 @@ export async function resolverConviteParaTela(
   }
 }
 
+/**
+ * A **estrada direta** de `GET /convites-pessoais/{token}`, para `app/convite-pessoal/[token]/page.tsx`
+ * (item 121, ADR-0021). Token fora do formato dá o mesmo `null` de token inexistente: adulterado,
+ * inexistente e morto têm a mesma resposta.
+ */
+export async function resolverConvitePessoalParaTela(
+  tokenBruto: string,
+): Promise<{ resolucao: ResolucaoDeContexto | null; convite: ConvitePessoalLido | null }> {
+  const resolucao = await resolverSeHouverSessao();
+  const token = decodificar(tokenBruto);
+  if (!FORMATO_DO_TOKEN.test(token)) return { resolucao, convite: null };
+  const convite = await lerConvitePessoal(
+    { convitesPessoais: montarLeituraDeConvitesPessoais() },
+    quemAbre(resolucao),
+    token,
+  );
+  return { resolucao, convite };
+}
+
 /** `%` solto no endereço faz `decodeURIComponent` lançar; o cru serve, e o formato o recusa em seguida. */
 function decodificar(valor: string): string {
   try {
@@ -486,6 +514,7 @@ function quemAbre(resolucao: ResolucaoDeContexto | null): QuemAbreOConvite | nul
   return {
     pessoaId: resolucao.sessao.pessoaId,
     codigosComVinculoAtivo: resolucao.vinculos.map((v) => v.organizacao.codigoPublico),
+    organizacoesComVinculoAtivo: resolucao.vinculos.map((v) => v.organizacao.id),
   };
 }
 

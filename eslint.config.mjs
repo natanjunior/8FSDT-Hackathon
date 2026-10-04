@@ -45,7 +45,7 @@ import nextTypescript from "eslint-config-next/typescript";
  * | *(sem número — não fala de camada)* `semOrganizacao` só nos cinco caminhos da lista fechada do contrato §4.4 | **sim** — `SEM_ORGANIZACAO` |
  * | *(sem número)* `portasDeAnexo` só no único `route.ts` que emite credencial de upload | **sim** — `PORTAS_DE_ANEXO` |
  * | *(sem número)* `armazenamentoDeAnexos` só nos dois `route.ts` que reivindicam ou leem anexo | **sim** — `ARMAZENAMENTO_DE_ANEXOS` |
- * | *(sem número)* `semSessao` e `resolverConviteParaTela` só na rota e na página do convite | **sim** — `SEM_SESSAO` |
+ * | *(sem número)* `semSessao` e as duas estradas diretas só nas rotas e nas páginas dos dois convites | **sim** — `SEM_SESSAO` |
  *
  * E uma que **não é regra numerada da ADR-0006** — vem da §5.2 da `arquitetura.md`,
  * que é onde a inversão de dependência mora:
@@ -276,25 +276,30 @@ const ROTAS_DE_ARMAZENAMENTO = [
 ];
 
 /**
- * **A quarta lista fechada** (item 86, ADR-0018).
+ * **A quarta lista fechada** (item 86, ADR-0018; ampliada pelo item 121, ADR-0021).
  *
- * `semSessao` e `resolverConviteParaTela` entregam a única porta que roda **sem sessão**: o nome e o
- * código de uma organização a partir do código. Um segundo consumidor é um segundo lugar em que alguém
- * sem conta lê o banco, e isso é ADR nova.
+ * `semSessao` e as duas estradas diretas entregam as duas portas que rodam **sem sessão**: o nome e o
+ * código de uma organização a partir do código, e o nome de uma pessoa, o da organização e o papel a
+ * partir do token do convite pessoal. Um terceiro consumidor é um terceiro lugar em que alguém sem conta
+ * lê o banco, e isso é ADR nova.
  */
 const SEM_SESSAO = {
   group: ["@/interface/http"],
-  importNames: ["semSessao", "resolverConviteParaTela"],
+  importNames: ["semSessao", "resolverConviteParaTela", "resolverConvitePessoalParaTela"],
   message:
-    "semSessao e resolverConviteParaTela são de GET /convites/{codigo} e da página /convite/{codigo}, e " +
-    "de mais nenhum arquivo: é a única leitura do produto sem sessão (ADR-0018). Acrescentar um terceiro " +
-    "consumidor é emenda de ADR, e passa por acrescentar o caminho em eslint.config.mjs.",
+    "semSessao, resolverConviteParaTela e resolverConvitePessoalParaTela são das rotas e das páginas dos " +
+    "dois convites (GET /convites/{codigo}, /convite/{codigo}, GET /convites-pessoais/{token} e " +
+    "/convite-pessoal/{token}), e de mais nenhum arquivo: são as duas leituras do produto sem sessão " +
+    "(ADR-0021). Acrescentar outro consumidor é ADR nova, e passa por acrescentar o caminho em " +
+    "eslint.config.mjs.",
 };
 
-/** Os dois arquivos do convite. Os colchetes literais seguem a regra de `ROTAS_DE_ARMAZENAMENTO`. */
+/** Os quatro arquivos dos dois convites. Os colchetes literais seguem a regra de `ROTAS_DE_ARMAZENAMENTO`. */
 const ARQUIVOS_SEM_SESSAO = [
   "app/api/convites/[[]codigo[]]/route.ts",
   "app/convite/[[]codigo[]]/page.tsx",
+  "app/api/convites-pessoais/[[]token[]]/route.ts",
+  "app/convite-pessoal/[[]token[]]/page.tsx",
 ];
 
 const proibir = (...grupos) => ["error", { patterns: grupos }];
@@ -550,7 +555,7 @@ const configuracao = [
   },
 
   // -------------------------------------------------------------------------
-  // Os dois arquivos do convite, os únicos que rodam sem sessão (item 86).
+  // Os quatro arquivos dos dois convites, os únicos que rodam sem sessão (item 86, item 121).
   // -------------------------------------------------------------------------
   {
     files: ARQUIVOS_SEM_SESSAO,
@@ -561,7 +566,7 @@ const configuracao = [
         COMPOSICAO,
         SUPERFICIE_PUBLICA,
         RELATIVO_PARA_FORA,
-        // Dispensam `SEM_SESSAO`, que é o que os define, e mantêm as outras três: nenhum dos dois está
+        // Dispensam `SEM_SESSAO`, que é o que os define, e mantêm as outras três: nenhum dos quatro está
         // na lista da §4.4, nem emite credencial de upload, nem lê anexo.
         SEM_ORGANIZACAO,
         PORTAS_DE_ANEXO,

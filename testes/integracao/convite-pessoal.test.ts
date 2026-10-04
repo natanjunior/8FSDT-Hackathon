@@ -3,9 +3,10 @@ import { randomBytes } from "node:crypto";
 import { Pool } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { criarTransacao } from "@/infraestrutura/clientes";
+import { criarConsulta, criarTransacao } from "@/infraestrutura/clientes";
 import { escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
 import {
+  leituraDeConvitesPessoais,
   repositorioEscopadoDeConvitesPessoais,
   repositorioEscopadoDeVinculos,
 } from "@/infraestrutura/repositorios/organizacao";
@@ -122,6 +123,16 @@ function convitesEscopados(organizacaoId = idOrganizacao) {
   );
 }
 
+function leituraGlobal() {
+  return leituraDeConvitesPessoais(criarConsulta());
+}
+
+/** O estado de quem ganhou conta por outro caminho, sem passar pelo convite. */
+async function darConta(pessoaId: string): Promise<void> {
+  const usuario = await usuarioNovo();
+  await consulta(`update pessoas set usuario_id = $2 where id = $1`, [pessoaId, usuario]);
+}
+
 async function inserirConvite(pessoaId: string, porPessoaId = idGestora): Promise<string> {
   const token = tokenDeTeste();
   await consulta(
@@ -204,5 +215,59 @@ describe("garantir e renovar, no banco (critério 1)", () => {
     );
     expect(linha?.invalidado_em).toBeInstanceOf(Date);
     expect((await convitesEscopados().vivoDe(pessoa))?.token).toBe(novo.token);
+  });
+});
+
+describe("a leitura sem sessão (critério 8)", () => {
+  it("o vivo devolve nome, organização e papel, e nenhum campo a mais", async () => {
+    const pessoa = await cadastrarSemConta("Maria Lida Sem Sessao", { email: "maria.lida@exemplo.com" });
+    const { token } = await convitesEscopados().garantir(pessoa, tokenDeTeste(), idGestora);
+    const lido = await leituraGlobal().vivoPorToken(token);
+    expect(Object.keys(lido ?? {}).sort()).toStrictEqual([
+      "nomeDaOrganizacao",
+      "nomeDaPessoa",
+      "organizacaoId",
+      "papel",
+      "pessoaId",
+    ]);
+    expect(lido).toMatchObject({ nomeDaPessoa: "Maria Lida Sem Sessao", nomeDaOrganizacao: "Jardim do 121", papel: "solicitante" });
+    expect(JSON.stringify(lido)).not.toContain("maria.lida@exemplo.com");
+  });
+
+  it.each([
+    ["inexistente", () => Promise.resolve(tokenDeTeste())],
+    [
+      "renovado",
+      async () => {
+        const p = await cadastrarSemConta("Renovada Lida");
+        const a = await convitesEscopados().garantir(p, tokenDeTeste(), idGestora);
+        await convitesEscopados().renovar(p, tokenDeTeste(), idGestora);
+        return a.token;
+      },
+    ],
+    [
+      "de vínculo revogado",
+      async () => {
+        const p = await cadastrarSemConta("Revogada Lida");
+        const a = await convitesEscopados().garantir(p, tokenDeTeste(), idGestora);
+        await vinculos().revogar(p);
+        return a.token;
+      },
+    ],
+    [
+      "de pessoa que ganhou conta",
+      async () => {
+        const p = await cadastrarSemConta("Ganhou Conta");
+        const a = await convitesEscopados().garantir(p, tokenDeTeste(), idGestora);
+        await darConta(p);
+        return a.token;
+      },
+    ],
+  ] as const)("%s: null, sem nome nenhum", async (_caso, preparar) => {
+    expect(await leituraGlobal().vivoPorToken(await preparar())).toBeNull();
+  });
+
+  it("o objeto que o semSessao recebe não tem escrita", () => {
+    expect(Object.keys(leituraGlobal())).toStrictEqual(["vivoPorToken"]);
   });
 });

@@ -24,7 +24,13 @@ export {
   revogarVinculo,
   verVinculo,
 } from "./vinculos";
-export { garantirConvitePessoal, renovarConvitePessoal } from "./convite-pessoal";
+export {
+  garantirConvitePessoal,
+  lerConvitePessoal,
+  renovarConvitePessoal,
+  type ConvitePessoalLido,
+  type SituacaoDoConvitePessoal,
+} from "./convite-pessoal";
 export { apagarEtiqueta, atribuirEtiqueta, criarEtiqueta, listarEtiquetas, tirarEtiqueta } from "./etiquetas";
 export {
   alterarConfiguracao,
@@ -77,6 +83,7 @@ export type {
   ContagemDaLista,
   ContatoLido,
   ContatoParaEscrita,
+  ConvitePessoalPorToken,
   ConvitePessoalVivo,
   CorrecaoDeArea,
   CorrecaoDeCategoria,
@@ -85,6 +92,7 @@ export type {
   DadosDoCadastro,
   EtiquetaLida,
   ImpedimentoDeRemocao,
+  LeituraDeConvitesPessoais,
   MudancaDeConfiguracaoLida,
   NovaArea,
   NovaCategoria,
