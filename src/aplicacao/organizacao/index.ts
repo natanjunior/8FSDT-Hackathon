@@ -25,6 +25,7 @@ export {
   verVinculo,
 } from "./vinculos";
 export {
+  aceitarConvitePessoal,
   garantirConvitePessoal,
   lerConvitePessoal,
   renovarConvitePessoal,
@@ -60,6 +61,7 @@ export {
   CodigoPublicoNaoEncontrado,
   ContatoDuplicado,
   ConviteIndisponivel,
+  ConvitePessoalNaoVale,
   EtiquetaNaoEncontrada,
   JaVinculado,
   ListaDesatualizada,
@@ -109,6 +111,7 @@ export type {
   RegrasDaOrganizacao,
   Reordenacao,
   RepositorioDeConvites,
+  RepositorioDeConvitesPessoais,
   RepositorioDeOrganizacoes,
   RepositorioDePedidosDeEntrada,
   RepositorioEscopadoDaConfiguracao,
@@ -133,6 +136,7 @@ export type {
   ResultadoDeCriacaoDeArea,
   ResultadoDeCriacaoDeCategoria,
   ResultadoDoApagarEtiqueta,
+  ResultadoDoAceite,
   ResultadoDoCadastro,
   ResultadoDoPedidoDeEntrada,
   RotulosDoSolicitante,

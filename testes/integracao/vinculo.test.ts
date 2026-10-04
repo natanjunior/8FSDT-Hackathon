@@ -5,6 +5,8 @@ import { criarTransacao } from "@/infraestrutura/clientes";
 import { escoparConsulta, escoparTransacao } from "@/infraestrutura/contexto";
 import { repositorioEscopadoDeOcorrencias } from "@/infraestrutura/repositorios/ocorrencia";
 import {
+  CHAVES_DA_FUSAO,
+  conferirChavesDaFusao,
   repositorioDePedidosDeEntrada,
   repositorioEscopadoDeVinculos,
   repositorioGlobalDeVinculos,
@@ -866,6 +868,58 @@ describe("impedimentosDeRemocao — o que a tela precisa saber, por vínculo", (
 
     expect(linhas.map((l) => l.par).sort()).toStrictEqual(COBERTAS);
     expect(new Set(COBERTAS.map((par) => par.split(".")[0])).size).toBe(14);
+  });
+});
+
+describe("a fusão conhece toda chave para vinculos e para pessoas (item 121, critério 6)", () => {
+  /**
+   * **A guarda de cima protege o botão de remover; esta protege a fusão.** Uma chave nova para
+   * `vinculos` ou para `pessoas` que ninguém classificou é uma tabela que a fusão do convite pessoal
+   * esqueceria de reapontar, e três das chaves de hoje apagam em cascata: esquecer não dá erro, apaga dado.
+   * **Varre os dois pais**, porque `contatos` pendura em `pessoas (id)`, e uma varredura só de `vinculos`
+   * não a encontraria.
+   */
+  it("o catálogo real não tem chave sem classificação", async () => {
+    const catalogo = await consulta<{ tabela: string; chave: string }>(
+      `select c.conrelid::regclass::text as tabela, c.conname::text as chave
+         from pg_constraint c
+        where c.contype = 'f'
+          and c.confrelid in ('public.vinculos'::regclass, 'public.pessoas'::regclass)`,
+    );
+    expect(conferirChavesDaFusao(catalogo)).toStrictEqual([]);
+  });
+
+  it("uma tabela nova que a fusão não conhece reprova, nomeando a tabela", () => {
+    const real = Object.values(CHAVES_DA_FUSAO)
+      .flat()
+      .map((par) => {
+        const [tabela, chave] = par.split(".");
+        return { tabela: tabela ?? "", chave: chave ?? "" };
+      });
+    const defeitos = conferirChavesDaFusao([...real, { tabela: "lembretes", chave: "lembretes_vinculo_fk" }]);
+    expect(defeitos).toStrictEqual([
+      "lembretes: a chave lembretes_vinculo_fk aponta para vinculos ou pessoas e não está em nenhuma lista da fusão",
+    ]);
+  });
+
+  it("uma chave em duas listas também reprova", () => {
+    const catalogo = [{ tabela: "contatos", chave: "contatos_pessoa_fk" }];
+    expect(
+      conferirChavesDaFusao(catalogo, {
+        reapontadas: ["contatos.contatos_pessoa_fk"],
+        deQuemFez: ["contatos.contatos_pessoa_fk"],
+      }),
+    ).toStrictEqual(["contatos: a chave contatos_pessoa_fk está em mais de uma lista da fusão"]);
+  });
+
+  it("uma lista velha também reprova", () => {
+    const real = Object.values(CHAVES_DA_FUSAO)
+      .flat()
+      .filter((par) => par !== "contatos.contatos_pessoa_fk")
+      .map((par) => ({ tabela: par.split(".")[0] ?? "", chave: par.split(".")[1] ?? "" }));
+    expect(conferirChavesDaFusao(real)).toStrictEqual([
+      "contatos: a chave contatos_pessoa_fk está numa lista da fusão e não existe mais no banco",
+    ]);
   });
 });
 

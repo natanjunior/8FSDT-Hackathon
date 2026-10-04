@@ -1,8 +1,9 @@
-import { ConviteIndisponivel, VinculoNaoEncontrado } from "./erros";
+import { ConviteIndisponivel, ConvitePessoalNaoVale, JaVinculado, VinculoNaoEncontrado } from "./erros";
 import type { QuemAbreOConvite } from "./ler-convite";
 import type {
   ConvitePessoalVivo,
   LeituraDeConvitesPessoais,
+  RepositorioDeConvitesPessoais,
   RepositorioEscopadoDeConvitesPessoais,
   RepositorioEscopadoDeVinculos,
 } from "./portas";
@@ -89,4 +90,19 @@ export async function lerConvitePessoal(
   if (quem === null) return { ...base, situacao: "sem-sessao" };
   if (quem.organizacoesComVinculoAtivo.includes(vivo.organizacaoId)) return { ...base, situacao: "ja-participa" };
   return { ...base, situacao: "pode-aceitar" };
+}
+
+/**
+ * **Aceitar o convite pessoal com conta** — a fusão (item 121). O que não vale é `404`; a conta que já
+ * participa daquela organização é o `409 JA_VINCULADO` que o produto já tem (o caso 2, que recusa).
+ */
+export async function aceitarConvitePessoal(
+  portas: { convitesPessoais: RepositorioDeConvitesPessoais },
+  pessoaDaConta: string,
+  token: string,
+): Promise<{ organizacaoId: string }> {
+  const resultado = await portas.convitesPessoais.aceitar(token, pessoaDaConta);
+  if (resultado.desfecho === "nao-vale") throw new ConvitePessoalNaoVale();
+  if (resultado.desfecho === "ja-participa") throw new JaVinculado();
+  return { organizacaoId: resultado.organizacaoId };
 }

@@ -20,6 +20,7 @@ import { repositorioEscopadoDeOcorrencias } from "@/infraestrutura/repositorios/
 import {
   leituraDeConvitesPessoais,
   repositorioDeConvites,
+  repositorioDeConvitesPessoais,
   repositorioDeOrganizacoes,
   repositorioDePedidosDeEntrada,
   repositorioEscopadoDaConfiguracao,
@@ -59,7 +60,7 @@ import { repositorioDePessoas } from "@/infraestrutura/repositorios/pessoa";
 export type { ArmazenamentoDeCookies };
 
 /**
- * As portas que as cinco operações sem organização consomem (contrato §4.4), mais a porta que o ponto
+ * As portas que as seis operações sem organização consomem (contrato §4.4), mais a porta que o ponto
  * único de contexto usa em **toda** requisição.
  */
 export function montarPortasGlobais(
@@ -77,6 +78,9 @@ export function montarPortasGlobais(
     pedidosDeEntrada: repositorioGlobalDePedidosDeEntrada(consulta),
     // A escrita das três linhas num `COMMIT` só. Recebe a transação, não a consulta.
     escritaDePedidosDeEntrada: repositorioDePedidosDeEntrada(criarTransacao()),
+    // O aceite do convite pessoal (item 121): a leitura pela consulta, e a fusão pela transação global,
+    // que reaponta os filhos e apaga o vínculo antigo num `COMMIT` só.
+    convitesPessoais: repositorioDeConvitesPessoais(consulta, criarTransacao()),
   };
 }
 
@@ -144,7 +148,7 @@ export function montarPortasEscopadas(organizacaoId: string): RepositoriosEscopa
 /**
  * A porta do convite (item 86, ADR-0018).
  *
- * **Separada das globais e das escopadas, e a separação é a decisão.** As globais servem as cinco
+ * **Separada das globais e das escopadas, e a separação é a decisão.** As globais servem as
  * operações do §4.4, todas com sessão; o convite roda sem. Quem recebe esta porta não recebe mais nada:
  * nem vínculos, nem pessoas, nem escrita.
  */

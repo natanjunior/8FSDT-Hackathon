@@ -82,8 +82,8 @@ import { novoTraceId } from "./traco";
  * `eslint.config.mjs`. Então um `route.ts` que não passe por aqui não tem função de consulta, não tem porta
  * e não tem cliente: não tem como falar com o banco.
  *
- * **`semOrganizacao` é a lista fechada da ADR-0003 virada mecanismo.** Exatamente cinco operações rodam
- * sem escopo (contrato §4.4), e o lint só permite importar `semOrganizacao` nos cinco `route.ts` daquela
+ * **`semOrganizacao` é a lista fechada da ADR-0003 virada mecanismo.** Exatamente seis operações rodam
+ * sem escopo (contrato §4.4), e o lint só permite importar `semOrganizacao` nos seis `route.ts` daquela
  * lista. Um quinto endpoint não é caso a resolver no código: é emenda à ADR.
  */
 
@@ -169,7 +169,7 @@ export type EntradaSemOrganizacao<C> = {
   ctx: ContextoDaSessao;
   /** A resolução inteira — é ela que `GET /contexto` projeta, sem refazer consulta nenhuma. */
   resolucao: ResolucaoDeContexto;
-  /** O nome grita que **não** é escopado. Só as cinco operações da lista fechada o recebem. */
+  /** O nome grita que **não** é escopado. Só as seis operações da lista fechada o recebem. */
   portasGlobais: PortasGlobais;
   corpo: C;
   parametros: Readonly<Record<string, string>>;
@@ -304,7 +304,7 @@ export function comContexto<C = undefined>(
 }
 
 // ---------------------------------------------------------------------------
-// semOrganizacao — os cinco da lista fechada (contrato §4.4)
+// semOrganizacao — os seis da lista fechada (contrato §4.4)
 // ---------------------------------------------------------------------------
 
 export function semOrganizacao<C = undefined>(

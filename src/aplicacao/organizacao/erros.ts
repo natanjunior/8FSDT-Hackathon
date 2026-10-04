@@ -47,6 +47,13 @@ export class ConviteIndisponivel extends ErroDeDominio {
   }
 }
 
+/** `404 CONVITE_PESSOAL_NAO_VALE` — o convite não leva a lugar nenhum. Não diz por quê (item 121). */
+export class ConvitePessoalNaoVale extends ErroDeDominio {
+  constructor() {
+    super("CONVITE_PESSOAL_NAO_VALE", "Convite não vale", "Este convite não vale mais.");
+  }
+}
+
 /** `409 JA_VINCULADO` — a Pessoa já tem vínculo ativo naquela organização. */
 export class JaVinculado extends ErroDeDominio {
   constructor() {

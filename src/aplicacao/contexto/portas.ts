@@ -1,5 +1,6 @@
 import type { RepositorioEscopadoDeDashboard } from "@/aplicacao/dashboard";
 import type {
+  RepositorioDeConvitesPessoais,
   RepositorioDeOrganizacoes,
   RepositorioDePedidosDeEntrada,
   RepositorioEscopadoDaConfiguracao,
@@ -135,7 +136,7 @@ export interface EscolhaDaSessao {
   organizacaoEscolhida(usuarioId: string): string | null;
 }
 
-/** O que as cinco operações da §4.4 recebem. O nome grita que **não** é escopado. */
+/** O que as seis operações com sessão da §4.4 recebem. O nome grita que **não** é escopado. */
 export type PortasGlobais = {
   autenticacao: PortaDeAutenticacao;
   pessoas: RepositorioDePessoas;
@@ -156,6 +157,12 @@ export type PortasGlobais = {
    * que escapar. `resolverContexto` a recebe e **não a usa** — exatamente como já não usa `organizacoes`.
    */
   escritaDePedidosDeEntrada: RepositorioDePedidosDeEntrada;
+  /**
+   * O aceite do convite pessoal (item 121, ADR-0021). **Global pelo motivo do pedido de entrada**: no
+   * instante do aceite a conta pode não ter vínculo nenhum, e não há organização ativa a que escopar. A
+   * escrita parte da Pessoa da sessão e do token apresentado.
+   */
+  convitesPessoais: RepositorioDeConvitesPessoais;
 };
 
 /** O que os outros 36 endpoints recebem. Tudo aqui já vem filtrado pela organização ativa. */

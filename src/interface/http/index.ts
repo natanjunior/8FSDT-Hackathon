@@ -1,7 +1,7 @@
 /**
  * Superfície pública de `interface/http`.
  *
- * `semOrganizacao` é exportado daqui, mas **o lint só permite importá-lo nos cinco `route.ts` da lista
+ * `semOrganizacao` é exportado daqui, mas **o lint só permite importá-lo nos seis `route.ts` da lista
  * fechada da §4.4 do contrato** — ver `eslint.config.mjs`. É a lista enumerável da ADR-0003 virada
  * mecanismo, em vez de comentário.
  *

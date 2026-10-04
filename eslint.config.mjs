@@ -42,7 +42,7 @@ import nextTypescript from "eslint-config-next/typescript";
  * | 2 · `infraestrutura/` só é importada por `composicao/` | **sim** — `INFRAESTRUTURA` |
  * | 2b · `composicao/` só é importada por `interface/http/` | **sim** — `COMPOSICAO` |
  * | 3 · só pela superfície pública do módulo | **sim** — `SUPERFICIE_PUBLICA` |
- * | *(sem número — não fala de camada)* `semOrganizacao` só nos cinco caminhos da lista fechada do contrato §4.4 | **sim** — `SEM_ORGANIZACAO` |
+ * | *(sem número — não fala de camada)* `semOrganizacao` só nos seis caminhos da lista fechada do contrato §4.4 | **sim** — `SEM_ORGANIZACAO` |
  * | *(sem número)* `portasDeAnexo` só no único `route.ts` que emite credencial de upload | **sim** — `PORTAS_DE_ANEXO` |
  * | *(sem número)* `armazenamentoDeAnexos` só nos dois `route.ts` que reivindicam ou leem anexo | **sim** — `ARMAZENAMENTO_DE_ANEXOS` |
  * | *(sem número)* `semSessao` e as duas estradas diretas só nas rotas e nas páginas dos dois convites | **sim** — `SEM_SESSAO` |
@@ -203,27 +203,29 @@ const RELATIVO_PARA_FORA = {
  * **A lista fechada da ADR-0003, virada mecanismo.**
  *
  * *"Exatamente cinco operações não passam pelo repositório escopado"* (contrato §4.4), e *"qualquer
- * endpoint acrescentado a esta lista é mudança de contrato que exige revisão explícita"*. Aqui o sexto
- * `route.ts` que tentar importar `semOrganizacao` **não passa no lint** — a revisão explícita passa a ser
- * uma linha neste arquivo, com o caminho do endpoint escrita nela.
+ * endpoint acrescentado a esta lista é mudança de contrato que exige revisão explícita"*. Aqui o
+ * `route.ts` a mais que tentar importar `semOrganizacao` **não passa no lint** — a revisão explícita passa
+ * a ser uma linha neste arquivo, com o caminho do endpoint escrita nela. A sexta rota entrou assim: o
+ * aceite do convite pessoal (item 121, ADR-0021), que escreve pela chave da sessão e pelo token apresentado.
  */
 const SEM_ORGANIZACAO = {
   group: ["@/interface/http"],
   importNames: ["semOrganizacao"],
   message:
-    "semOrganizacao é para as CINCO operações da lista fechada do contrato §4.4 e mais nenhuma: " +
+    "semOrganizacao é para as SEIS rotas da lista fechada do contrato §4.4 e mais nenhuma: " +
     "GET /contexto, PATCH /contexto/pessoa, PUT /contexto/organizacao, POST /organizacoes, " +
-    "POST /pedidos-de-entrada. Acrescentar um sexto é emenda à ADR-0003, e passa por acrescentar o " +
-    "caminho em eslint.config.mjs.",
+    "POST /pedidos-de-entrada e POST /convites-pessoais/{token}/aceite (ADR-0021). Acrescentar outra é " +
+    "ADR nova, e passa por acrescentar o caminho em eslint.config.mjs.",
 };
 
-/** Os cinco `route.ts` da lista fechada. Os cinco existem. */
+/** Os seis `route.ts` da lista fechada. Os seis existem. */
 const ROTAS_SEM_ORGANIZACAO = [
   "app/api/contexto/route.ts",
   "app/api/contexto/pessoa/route.ts",
   "app/api/contexto/organizacao/route.ts",
   "app/api/organizacoes/route.ts",
   "app/api/pedidos-de-entrada/route.ts",
+  "app/api/convites-pessoais/[[]token[]]/aceite/route.ts",
 ];
 
 /**
@@ -471,7 +473,7 @@ const configuracao = [
   },
 
   // -------------------------------------------------------------------------
-  // Os cinco `route.ts` da lista fechada do contrato §4.4.
+  // Os seis `route.ts` da lista fechada do contrato §4.4.
   // -------------------------------------------------------------------------
   {
     files: ROTAS_SEM_ORGANIZACAO,

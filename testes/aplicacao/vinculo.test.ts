@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import {
   AreaInvalida,
+  ConvitePessoalNaoVale,
+  JaVinculado,
   ContatoDuplicado,
   PessoaComContaNaoEditavel,
   UltimoGestor,
   VinculoComHistorico,
   VinculoNaoEncontrado,
+  aceitarConvitePessoal,
   cadastrarVinculo,
   garantirConvitePessoal,
   lerConvitePessoal,
@@ -17,6 +20,8 @@ import {
   revogarVinculo,
   type ConvitePessoalPorToken,
   type ConvitePessoalVivo,
+  type RepositorioDeConvitesPessoais,
+  type ResultadoDoAceite,
   type RepositorioEscopadoDeConvitesPessoais,
   type RepositorioEscopadoDeVinculos,
   type ResultadoDaCorrecao,
@@ -417,5 +422,32 @@ describe("ler o convite pessoal (item 121)", () => {
 
   it("com sessão e sem vínculo ali, pode aceitar", async () => {
     expect((await lerConvitePessoal(leitura(VIVO_POR_TOKEN), quem(["outra"]), "x"))?.situacao).toBe("pode-aceitar");
+  });
+});
+
+describe("aceitar o convite pessoal (item 121)", () => {
+  const portas = (resultado: ResultadoDoAceite): { convitesPessoais: RepositorioDeConvitesPessoais } => ({
+    convitesPessoais: {
+      vivoPorToken: () => Promise.resolve(null),
+      aceitar: () => Promise.resolve(resultado),
+    },
+  });
+
+  it("o que não vale é 404", async () => {
+    await expect(aceitarConvitePessoal(portas({ desfecho: "nao-vale" }), "p2", "t")).rejects.toBeInstanceOf(
+      ConvitePessoalNaoVale,
+    );
+  });
+
+  it("quem já participa é o 409 que o produto já tem", async () => {
+    await expect(aceitarConvitePessoal(portas({ desfecho: "ja-participa" }), "p2", "t")).rejects.toBeInstanceOf(
+      JaVinculado,
+    );
+  });
+
+  it("aceito devolve a organização", async () => {
+    expect(
+      await aceitarConvitePessoal(portas({ desfecho: "aceito", organizacaoId: "org-jardim" }), "p2", "t"),
+    ).toStrictEqual({ organizacaoId: "org-jardim" });
   });
 });

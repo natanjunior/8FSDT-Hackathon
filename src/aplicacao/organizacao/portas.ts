@@ -763,6 +763,24 @@ export interface LeituraDeConvitesPessoais {
   vivoPorToken(token: string): Promise<ConvitePessoalPorToken | null>;
 }
 
+/** Os desfechos do aceite com conta (item 121). **Desfecho, não exceção**, como nas outras portas. */
+export type ResultadoDoAceite =
+  | { desfecho: "aceito"; organizacaoId: string }
+  | { desfecho: "nao-vale" }
+  | { desfecho: "ja-participa" };
+
+/**
+ * **A escrita do convite pessoal.** Vai para as portas globais, com sessão; o `semSessao` nunca a recebe.
+ * Estende a leitura porque o aceite e a página leem o mesmo convite.
+ */
+export interface RepositorioDeConvitesPessoais extends LeituraDeConvitesPessoais {
+  /**
+   * **A fusão** da Pessoa cadastrada na Pessoa da conta, numa transação. Erro do banco no meio não é
+   * traduzido: sobe, e a transação desfaz tudo.
+   */
+  aceitar(token: string, pessoaDaConta: string): Promise<ResultadoDoAceite>;
+}
+
 /**
  * Os desfechos da aprovação. **Etiqueta, não exceção**, pela mesma razão do 7a: são desfechos de uma
  * escrita transacional, três deles são **traduções de garantias do banco**, e o vocabulário de recusa do

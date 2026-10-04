@@ -316,6 +316,6 @@ describe("o critério 6, na fonte", () => {
     expect(semSessao.match(/"app\//gu)).toHaveLength(4);
     const inicioSemOrganizacao = lint.indexOf("const ROTAS_SEM_ORGANIZACAO");
     const semOrganizacao = lint.slice(inicioSemOrganizacao, lint.indexOf("];", inicioSemOrganizacao));
-    expect(semOrganizacao.match(/"app\//gu)).toHaveLength(5);
+    expect(semOrganizacao.match(/"app\//gu)).toHaveLength(6);
   });
 });
