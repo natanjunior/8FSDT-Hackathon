@@ -106,8 +106,8 @@ cabeçalho que diz.
 No mesmo cabeçalho fica o sino. O número conta as ocorrências com novidade feita por outra pessoa que quem
 olha ainda não leu, entre as que são dela: as que registrou, as de que é responsável e as compartilhadas
 com ela. Para o Gestor, conta também as recém-registradas. O sino é da organização ativa: quem participa de
-duas vê o de uma só, e o número muda ao trocar. Ele abre por cima da tela em que a pessoa está, e no
-celular sobe de baixo como uma gaveta, com uma linha por ocorrência e a novidade mais recente dela. Abrir
+duas vê o de uma só, e o número muda ao trocar. Ele abre numa gaveta, que vem da direita na tela grande
+e sobe de baixo no celular, com uma linha por ocorrência e a novidade mais recente dela. Abrir
 a ocorrência, agir nela ou marcá-la como lida à mão a tira do número, e abrir o sino não zera nada. A tela
 de registro fica sem ele, como fica sem a navegação lateral, para não convidar a sair do registro.
 
