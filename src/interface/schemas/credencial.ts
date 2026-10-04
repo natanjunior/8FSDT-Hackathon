@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { FORMATO_DO_TOKEN } from "./convite-pessoal";
+
 /**
  * Os schemas das telas de credencial — T-01 (entrar) e T-11 (criar conta).
  *
@@ -35,6 +37,8 @@ export const criarContaSchema = z.object({
   nome: nomeDePessoa,
   email,
   senha,
+  // Item 121: o token do convite pessoal, num campo oculto da página do convite. Fora do formato, é ignorado.
+  convite: z.string().regex(FORMATO_DO_TOKEN).optional().catch(undefined),
 });
 
 /** T-12 · um campo: o e-mail da conta. Não pede senha — quem chega aqui é quem não a tem. */

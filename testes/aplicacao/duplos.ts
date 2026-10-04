@@ -118,7 +118,7 @@ export function escritaDePedidosFalsa(): RepositorioDePedidosDeEntrada {
  */
 export function convitesPessoaisFalsos(): RepositorioDeConvitesPessoais {
   const naoExercida = () => Promise.reject(new Error("porta não exercida por este duplo"));
-  return { vivoPorToken: naoExercida, aceitar: naoExercida };
+  return { vivoPorToken: naoExercida, aceitar: naoExercida, ligarConta: naoExercida };
 }
 
 /**

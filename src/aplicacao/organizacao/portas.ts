@@ -763,6 +763,9 @@ export interface LeituraDeConvitesPessoais {
   vivoPorToken(token: string): Promise<ConvitePessoalPorToken | null>;
 }
 
+/** O desfecho da ligação da conta nova à Pessoa cadastrada (item 121, o caminho sem conta). */
+export type ResultadoDaLigacao = { desfecho: "ligada"; organizacaoId: string } | { desfecho: "nao-vale" };
+
 /** Os desfechos do aceite com conta (item 121). **Desfecho, não exceção**, como nas outras portas. */
 export type ResultadoDoAceite =
   | { desfecho: "aceito"; organizacaoId: string }
@@ -779,6 +782,11 @@ export interface RepositorioDeConvitesPessoais extends LeituraDeConvitesPessoais
    * traduzido: sobe, e a transação desfaz tudo.
    */
   aceitar(token: string, pessoaDaConta: string): Promise<ResultadoDoAceite>;
+  /**
+   * **O caminho sem conta**: carimba a conta recém-criada e o nome do formulário na Pessoa cadastrada, e
+   * o convite como aceito. Roda antes de qualquer requisição da sessão nova.
+   */
+  ligarConta(token: string, usuarioId: string, nome: string): Promise<ResultadoDaLigacao>;
 }
 
 /**

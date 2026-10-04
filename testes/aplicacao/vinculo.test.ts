@@ -430,6 +430,7 @@ describe("aceitar o convite pessoal (item 121)", () => {
     convitesPessoais: {
       vivoPorToken: () => Promise.resolve(null),
       aceitar: () => Promise.resolve(resultado),
+      ligarConta: () => Promise.reject(new Error("não exercida")),
     },
   });
 

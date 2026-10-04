@@ -2,6 +2,7 @@ import type {
   ConvitePessoalPorToken,
   LeituraDeConvitesPessoais,
   RepositorioDeConvitesPessoais,
+  ResultadoDaLigacao,
   ResultadoDoAceite,
 } from "@/aplicacao/organizacao";
 import type { Papel } from "@/dominio/organizacao";
@@ -196,5 +197,50 @@ export function repositorioDeConvitesPessoais(
         return { desfecho: "aceito", organizacaoId: org };
       });
     },
+
+    /**
+     * **O caminho sem conta** (item 121, spec §3.6). Roda logo depois do `signUp`, antes de qualquer
+     * requisição da sessão nova: quando a primeira chegar, `porUsuario` acha a P1, e
+     * `garantirParaUsuario` nunca roda. O `where usuario_id is null` é a guarda contra a corrida com essa
+     * primeira requisição: se ela chegou antes e criou outra Pessoa para a conta, a `pessoas_usuario_uk`
+     * recusa, e o desfecho é `nao-vale` — a pessoa cai na página do convite e aceita pela fusão.
+     */
+    async ligarConta(token, usuarioId, nome) {
+      try {
+        return await emTransacao<ResultadoDaLigacao>(async (sql) => {
+          const [convite] = await sql<{ id: string; organizacao_id: string; pessoa_id: string }>(
+            `select c.id, c.organizacao_id, c.pessoa_id
+               from convites_pessoais c
+               join vinculos v on v.pessoa_id = c.pessoa_id and v.organizacao_id = c.organizacao_id
+               join pessoas p  on p.id = c.pessoa_id
+              where c.token = $1 and c.invalidado_em is null and c.aceito_em is null
+                and v.revogado_em is null and p.usuario_id is null
+                for update of c, p`,
+            [token],
+          );
+          if (convite === undefined) return { desfecho: "nao-vale" };
+          await sql(`update pessoas set usuario_id = $2, nome = $3 where id = $1`, [
+            convite.pessoa_id,
+            usuarioId,
+            nome,
+          ]);
+          await sql(`update convites_pessoais set aceito_em = now() where id = $1`, [convite.id]);
+          return { desfecho: "ligada", organizacaoId: convite.organizacao_id };
+        });
+      } catch (erro) {
+        if (ehPessoaDaContaDuplicada(erro)) return { desfecho: "nao-vale" };
+        throw erro;
+      }
+    },
   };
+}
+
+/**
+ * A conta já tem Pessoa (a primeira requisição da sessão nova chegou antes): a `pessoas_usuario_uk`
+ * recusa. Lê `code` e `constraint` sem importar o driver, como `ehVinculoDuplicado`.
+ */
+function ehPessoaDaContaDuplicada(erro: unknown): boolean {
+  if (typeof erro !== "object" || erro === null) return false;
+  const comCodigo = erro as { code?: unknown; constraint?: unknown };
+  return comCodigo.code === "23505" && comCodigo.constraint === "pessoas_usuario_uk";
 }

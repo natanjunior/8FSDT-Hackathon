@@ -11,7 +11,15 @@
 export type ResultadoDeCredencial =
   | { readonly ok: true }
   /** A conta foi criada e o provedor exige confirmação por e-mail antes do primeiro login. */
-  | { readonly ok: true; readonly precisaConfirmarEmail: boolean }
+  | {
+      readonly ok: true;
+      readonly precisaConfirmarEmail: boolean;
+      /**
+       * O id da conta criada (item 121): o convite pessoal liga esta conta à Pessoa cadastrada. Opcional no
+       * tipo porque `entrar` devolve a mesma união; o cadastro o preenche sempre que o provedor o devolve.
+       */
+      readonly usuarioId?: string;
+    }
   | { readonly ok: false; readonly recusa: RecusaDeCredencial };
 
 /**

@@ -603,3 +603,52 @@ describe("a fusão (critérios 3, 4, 5 e 7)", () => {
     expect(await contatosDe(p2)).toStrictEqual([]);
   });
 });
+
+describe("o caminho sem conta (critério 2)", () => {
+  it("liga a conta nova à P1, com o nome editado, sem Pessoa nova e sem pedido", async () => {
+    const p1 = await cadastrarSemConta("Maria Sem Conta");
+    const { token } = await convitesEscopados().garantir(p1, tokenDeTeste(), idGestora);
+    const usuario = await usuarioNovo("maria.nova-121@exemplo.test");
+
+    expect(await globais().ligarConta(token, usuario, "Maria Souza")).toStrictEqual({
+      desfecho: "ligada",
+      organizacaoId: idOrganizacao,
+    });
+
+    const pessoas = await consulta<{ id: string; nome: string }>(`select id, nome from pessoas where usuario_id = $1`, [
+      usuario,
+    ]);
+    expect(pessoas).toStrictEqual([{ id: p1, nome: "Maria Souza" }]);
+    expect(await leituraGlobal().vivoPorToken(token)).toBeNull();
+    const [pedidos] = await consulta<{ n: number }>(
+      `select count(*)::int as n from pedidos_de_entrada where pessoa_id = $1`,
+      [p1],
+    );
+    expect(pedidos?.n).toBe(0);
+    const [vinculo] = await consulta<{ papel: string }>(
+      `select papel::text as papel from vinculos where pessoa_id = $1 and organizacao_id = $2 and revogado_em is null`,
+      [p1, idOrganizacao],
+    );
+    expect(vinculo?.papel).toBe("solicitante");
+  });
+
+  it("ligação recusada devolve nao-vale, e a conta segue sem Pessoa", async () => {
+    const p1 = await cadastrarSemConta("Renovada No Meio");
+    const { token } = await convitesEscopados().garantir(p1, tokenDeTeste(), idGestora);
+    await convitesEscopados().renovar(p1, tokenDeTeste(), idGestora);
+    const usuario = await usuarioNovo("renovada.no.meio-121@exemplo.test");
+    expect(await globais().ligarConta(token, usuario, "Renovada")).toStrictEqual({ desfecho: "nao-vale" });
+    const [n] = await consulta<{ n: number }>(`select count(*)::int as n from pessoas where usuario_id = $1`, [usuario]);
+    expect(n?.n).toBe(0);
+  });
+
+  it("a primeira requisição da sessão chegou antes e criou outra Pessoa: nao-vale, sem erro", async () => {
+    const p1 = await cadastrarSemConta("Corrida Com a Sessao");
+    const { token } = await convitesEscopados().garantir(p1, tokenDeTeste(), idGestora);
+    const usuario = await usuarioNovo();
+    await consulta(`insert into pessoas (usuario_id, nome) values ($1, 'Pessoa Preguiçosa')`, [usuario]);
+
+    expect(await globais().ligarConta(token, usuario, "Corrida")).toStrictEqual({ desfecho: "nao-vale" });
+    expect(await leituraGlobal().vivoPorToken(token)).not.toBeNull();
+  });
+});

@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 import { describe, expect, it, vi } from "vitest";
 
 // `@/interface/http` alcança `next/headers`, que não roda fora de uma requisição. Aqui o que está sob
@@ -286,5 +289,28 @@ describe("destinoSeguro — a volta depois de entrar ou criar conta (critério 8
     expect(destinoSeguro(undefined)).toBeNull();
     expect(destinoSeguro(null)).toBeNull();
     expect(destinoSeguro(["/a"])).toBeNull();
+  });
+});
+
+describe("o convite pessoal no cadastro (item 121)", () => {
+  const valido = { nome: "Maria Souza", email: "maria@exemplo.test", senha: "segredo" };
+  const TOKEN = "A".repeat(43);
+
+  it("criarContaSchema aceita o convite no formato, e o descarta fora dele", () => {
+    expect(criarContaSchema.parse({ ...valido, convite: TOKEN }).convite).toBe(TOKEN);
+    const torto = criarContaSchema.safeParse({ ...valido, convite: "curto" });
+    expect(torto.success).toBe(true);
+    expect(torto.data?.convite).toBeUndefined();
+    expect(criarContaSchema.safeParse({ ...valido, convite: null }).data?.convite).toBeUndefined();
+  });
+
+  it("a ação lê o convite do formulário, e o formulário navega pelo destino que a ação devolveu", () => {
+    const raiz = fileURLToPath(new URL("../../", import.meta.url));
+    const acoes = readFileSync(`${raiz}src/interface/acoes/index.ts`, "utf8");
+    expect(acoes).toContain('convite: formulario.get("convite")');
+    expect(acoes).toContain("ligarContaAoConvitePessoal(");
+    const formulario = readFileSync(`${raiz}src/interface/componentes/formulario-de-cadastro.tsx`, "utf8");
+    expect(formulario).toContain("router.replace(proximo.destino ?? destino");
+    expect(formulario).toContain('<input type="hidden" name="convite"');
   });
 });

@@ -3,7 +3,11 @@ import type { PortasGlobais, RepositoriosEscopados } from "@/aplicacao/contexto"
 import { randomBytes } from "node:crypto";
 
 import type { PortaDeCredenciais } from "@/aplicacao/credenciais";
-import type { LeituraDeConvitesPessoais, RepositorioDeConvites } from "@/aplicacao/organizacao";
+import type {
+  LeituraDeConvitesPessoais,
+  RepositorioDeConvites,
+  RepositorioDeConvitesPessoais,
+} from "@/aplicacao/organizacao";
 import {
   criarArmazenamentoDeAnexos,
   criarAutenticacao,
@@ -164,6 +168,15 @@ export function montarPortaDeConvites(): RepositorioDeConvites {
  */
 export function montarLeituraDeConvitesPessoais(): LeituraDeConvitesPessoais {
   return leituraDeConvitesPessoais(criarConsulta());
+}
+
+/**
+ * A porta de escrita do convite pessoal para a ação de criar conta (item 121, o caminho sem conta). É o
+ * mesmo repositório das portas globais: a ação roda no servidor, logo depois do `signUp`, e ainda não tem
+ * resolução de contexto de onde tirar as globais.
+ */
+export function montarPortaDeConvitesPessoais(): RepositorioDeConvitesPessoais {
+  return repositorioDeConvitesPessoais(criarConsulta(), criarTransacao());
 }
 
 /**

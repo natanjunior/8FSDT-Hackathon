@@ -152,6 +152,37 @@ describe("criarConta — onde a doutrina do não-confirmar cede (critério 4)", 
   });
 });
 
+describe("criarConta — o id da conta (item 121)", () => {
+  it("o cadastro devolve o id do usuário, que o convite pessoal liga à Pessoa cadastrada", async () => {
+    signUp.mockResolvedValue({
+      data: { session: { access_token: "fingido" }, user: { id: "usuario-novo" } },
+      error: null,
+    });
+
+    const resultado = await criarCredenciais(cookiesVazios).criarConta(
+      "Helena Rocha",
+      "helena@exemplo.test",
+      "segredo",
+      "https://exemplo.test/confirmar-conta",
+    );
+
+    expect(resultado).toStrictEqual({ ok: true, precisaConfirmarEmail: false, usuarioId: "usuario-novo" });
+  });
+
+  it("com confirmação de e-mail, o id vem mesmo sem sessão", async () => {
+    signUp.mockResolvedValue({ data: { session: null, user: { id: "usuario-novo" } }, error: null });
+
+    const resultado = await criarCredenciais(cookiesVazios).criarConta(
+      "Helena Rocha",
+      "helena@exemplo.test",
+      "segredo",
+      "https://exemplo.test/confirmar-conta",
+    );
+
+    expect(resultado).toStrictEqual({ ok: true, precisaConfirmarEmail: true, usuarioId: "usuario-novo" });
+  });
+});
+
 describe("criarConta — o nome no metadado (critério 2)", () => {
   it("manda o nome em options.data.nome, e é de lá que o ACL semeia pessoas.nome", async () => {
     signUp.mockResolvedValue({
@@ -230,7 +261,8 @@ describe("criarConta — o nome no metadado (critério 2)", () => {
       "https://exemplo.test/confirmar-conta",
     );
 
-    expect(resultado).toStrictEqual({ ok: true, precisaConfirmarEmail: false });
+    // Desde o item 121 o id da conta vem junto: o convite pessoal o liga à Pessoa cadastrada.
+    expect(resultado).toStrictEqual({ ok: true, precisaConfirmarEmail: false, usuarioId: "usuario-novo" });
   });
 });
 

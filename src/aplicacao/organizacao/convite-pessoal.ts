@@ -4,6 +4,7 @@ import type {
   ConvitePessoalVivo,
   LeituraDeConvitesPessoais,
   RepositorioDeConvitesPessoais,
+  ResultadoDaLigacao,
   RepositorioEscopadoDeConvitesPessoais,
   RepositorioEscopadoDeVinculos,
 } from "./portas";
@@ -105,4 +106,17 @@ export async function aceitarConvitePessoal(
   if (resultado.desfecho === "nao-vale") throw new ConvitePessoalNaoVale();
   if (resultado.desfecho === "ja-participa") throw new JaVinculado();
   return { organizacaoId: resultado.organizacaoId };
+}
+
+/**
+ * **A conta nasce ligada à Pessoa cadastrada** (item 121, o caminho sem conta). Repassa, com o nome
+ * aparado: é o nome que a pessoa escreveu (ou deixou como o Gestor cadastrou) no formulário de criar conta.
+ */
+export function ligarContaAoConvitePessoal(
+  portas: { convitesPessoais: RepositorioDeConvitesPessoais },
+  token: string,
+  usuarioId: string,
+  nome: string,
+): Promise<ResultadoDaLigacao> {
+  return portas.convitesPessoais.ligarConta(token, usuarioId, nome.trim());
 }

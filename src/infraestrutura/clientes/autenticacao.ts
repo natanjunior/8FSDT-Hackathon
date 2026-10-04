@@ -142,7 +142,13 @@ export function criarCredenciais(cookies: ArmazenamentoDeCookies): PortaDeCreden
 
       // Sessão ausente depois de um `signUp` bem-sucedido significa confirmação de e-mail obrigatória —
       // é o interruptor do provedor que decide o fim de T-11 (inventário, Q-T9).
-      return { ok: true, precisaConfirmarEmail: data.session === null };
+      return {
+        ok: true,
+        precisaConfirmarEmail: data.session === null,
+        // Item 121: o convite pessoal liga esta conta à Pessoa cadastrada, e precisa do id. O provedor o
+        // devolve com e sem confirmação de e-mail.
+        ...(data.user?.id !== undefined ? { usuarioId: data.user.id } : {}),
+      };
     },
 
     async confirmarPorCodigo(codigo): Promise<ResultadoDeCredencial> {
