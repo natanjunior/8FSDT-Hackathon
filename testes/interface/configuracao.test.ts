@@ -18,6 +18,7 @@ import {
 } from "@/interface/componentes/frases-da-configuracao";
 import { DESENHO_DO_ICONE } from "@/interface/componentes/icone-de-categoria";
 import { gruposDoCodigo } from "@/interface/componentes/grupos-do-codigo";
+import { ABAS_DA_CONFIGURACAO, consultaDaAba, lerAba } from "@/interface/componentes/aba-da-configuracao";
 import {
   FILTROS,
   cicloDaOrdem,
@@ -1061,5 +1062,57 @@ describe("a peça tabs — critério 120.14", () => {
     expect(origens.sort()).toStrictEqual(
       ["@/interface/componentes/utilitarios", "class-variance-authority", "radix-ui", "react"].sort(),
     );
+  });
+});
+
+describe("as abas da configuração — critérios 120.13, 120.15 e 120.16", () => {
+  const TODAS = ["ocorrencias", "participantes", "historico"] as const;
+
+  it("são três, nesta ordem e com estes nomes", () => {
+    expect(ABAS_DA_CONFIGURACAO).toStrictEqual([
+      { valor: "ocorrencias", rotulo: "Configurações de ocorrências" },
+      { valor: "participantes", rotulo: "Configurações de participantes" },
+      { valor: "historico", rotulo: "Histórico" },
+    ]);
+  });
+
+  it("o endereço escolhe a aba, e o que não vale cai na primeira", () => {
+    expect(lerAba(undefined, TODAS)).toBe("ocorrencias");
+    expect(lerAba("historico", TODAS)).toBe("historico");
+    expect(lerAba("xyz", TODAS)).toBe("ocorrencias");
+    expect(lerAba(["participantes", "historico"], TODAS)).toBe("participantes");
+    // Quem não alcança a aba de participantes cai na primeira, e não numa aba vazia.
+    expect(lerAba("participantes", ["ocorrencias", "historico"])).toBe("ocorrencias");
+  });
+
+  it("a primeira não escreve parâmetro; as outras escrevem", () => {
+    expect(consultaDaAba("ocorrencias")).toBe("");
+    expect(consultaDaAba("participantes")).toBe("?aba=participantes");
+  });
+
+  const pagina = readFileSync(fileURLToPath(new URL("../../app/(casca)/configuracao/page.tsx", import.meta.url)), "utf8");
+
+  it("a Identidade fica fora das abas, acima delas, e cada cartão mora na sua", () => {
+    const identidade = pagina.indexOf('<Cartao tituloId="identidade">');
+    const abas = pagina.indexOf("<AbasDaConfiguracao");
+    expect(identidade).toBeGreaterThan(-1);
+    expect(abas).toBeGreaterThan(identidade);
+    const trecho = (de: string, ate: string) => pagina.slice(pagina.indexOf(de), pagina.indexOf(ate));
+    const ocorrencias = trecho("ocorrencias: (", "participantes:");
+    expect(ocorrencias).toContain('tituloId="regras"');
+    expect(ocorrencias).toContain('tituloId="rotulos"');
+    expect(ocorrencias).toContain('tituloId="listas"');
+    const historico = pagina.slice(pagina.indexOf("historico: ("));
+    expect(historico).toContain('tituloId="mudancas"');
+  });
+
+  const componente = readFileSync(fileURLToPath(new URL("../../src/interface/componentes/abas-da-configuracao.tsx", import.meta.url)), "utf8");
+
+  it("as abas são line, quebram linha no celular, e trocar escreve o endereço sem entrada de histórico", () => {
+    expect(componente).toContain('<TabsList variant="line"');
+    expect(componente).toContain("flex-wrap");
+    expect(componente).toContain("group-data-[orientation=horizontal]/tabs:h-auto");
+    expect(componente).toContain("window.history.replaceState(");
+    expect(componente).not.toContain("router.push(");
   });
 });

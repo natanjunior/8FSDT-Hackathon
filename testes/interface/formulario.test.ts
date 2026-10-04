@@ -464,7 +464,9 @@ describe("o alcance do 44i — o cartão mostra, o modal edita", () => {
   it("T-15 edita o nome no modal, e as duas caixas e a frase do apagar saíram (critérios 44i.2 e 44i.4)", () => {
     const fonte = ler("app/(casca)/configuracao/page.tsx");
     expect(fonte).toMatch(/<EdicaoDeNome\s+alvo="organizacao"/u);
-    expect(fonte).not.toContain("searchParams");
+    // O único parâmetro que T-15 lê é a aba (item 120); a faixa de desfecho por `?renomeada` (44i) não volta.
+    expect(fonte).not.toMatch(/renomeada|FaixaDoDesfecho/u);
+    expect([...fonte.matchAll(/\(await searchParams\)\["(\w+)"\]/gu)].map((m) => m[1])).toStrictEqual(["aba"]);
     expect(fonte).not.toContain("Não há como apagar");
     expect(fonte).not.toContain("function Destino(");
   });

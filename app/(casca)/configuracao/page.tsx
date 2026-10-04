@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import { contarAreas, contarCategorias, lerConfiguracao } from "@/aplicacao/organizacao";
+import { type AbaDaConfiguracao, lerAba } from "@/interface/componentes/aba-da-configuracao";
+import { AbasDaConfiguracao } from "@/interface/componentes/abas-da-configuracao";
 import { CabecalhoDaPagina } from "@/interface/componentes/cabecalho-da-pagina";
 import { CabecaDoCartao, Cartao } from "@/interface/componentes/cartao";
 import { CodigoDaOrganizacao } from "@/interface/componentes/codigo-da-organizacao";
@@ -59,9 +61,10 @@ import { projetarConfiguracao, rotuloPadraoDoSolicitante } from "@/interface/pro
  * total, ativas e inativas. O nome e o código vêm do contexto que a página já resolveu. O desfecho do
  * salvamento é um aviso, que mora no layout raiz.
  *
- * **Quatro cartões e uma pauta desde o item 100, e a ordem é a mesma de sempre:** o que a organização é,
- * como ela trabalha, como ela fala, e o que o formulário oferece. As mudanças vão por último porque são
- * história — das regras e dos textos.
+ * **A identidade fica fixa, e o resto vai em três abas** (item 120, ordem do dono em 03/10/2026):
+ * *Configurações de ocorrências* (regras, textos e as listas do formulário), *Configurações de
+ * participantes* (etiquetas e convite) e *Histórico* (as mudanças). A primeira vem selecionada, e o
+ * endereço diz qual está aberta (`aba-da-configuracao.ts`).
  *
  * **A leitura vai pela estrada direta** (contrato §5): `app/` não pode montar repositório.
  */
@@ -92,13 +95,26 @@ function rotulosCustomizados(
   ) as Readonly<Partial<Record<EstadoDaTela, string>>>;
 }
 
-export default async function ConfiguracaoDaOrganizacao() {
+export default async function ConfiguracaoDaOrganizacao({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const escopo = await resolverOuMandarParaPorta();
 
   if (escopo.situacao === "sem-organizacao") redirect("/organizacao");
   if (escopo.situacao === "sem-permissao") {
     return <SemAcesso titulo="Configuração da organização" permissao="organizacao.configurar" />;
   }
+
+  // **A aba de participantes responde por `vinculo.gerir`**, e cada cartão dela também (item 120, bloco 5).
+  // Hoje as duas permissões andam juntas no Gestor (`Permissao.ts:58-59`); a regra existe para o dia em que
+  // os papéis se separarem.
+  const geriVinculos = escopo.ctx.vinculo.pode("vinculo.gerir");
+  const disponiveis: readonly AbaDaConfiguracao[] = geriVinculos
+    ? ["ocorrencias", "participantes", "historico"]
+    : ["ocorrencias", "historico"];
+  const inicial = lerAba((await searchParams)["aba"], disponiveis);
 
   const [categorias, areas, configuracao] = await Promise.all([
     contarCategorias(escopo.repos.categorias),
@@ -115,7 +131,7 @@ export default async function ConfiguracaoDaOrganizacao() {
           título, e o `loading.tsx` também. */}
       <CabecalhoDaPagina
         titulo="Configuração da organização"
-        fato="A identidade desta organização, as regras do atendimento, os textos que quem abriu lê e as duas listas do formulário de registro."
+        fato="A identidade desta organização, e o que se ajusta nas ocorrências e nos participantes, com o histórico das mudanças."
       />
 
       {/* **Identidade primeiro, listas depois.** A pergunta da tela é *"o que desta organização eu posso
@@ -151,163 +167,177 @@ export default async function ConfiguracaoDaOrganizacao() {
         </Cartao>
       )}
 
-      {/* **As regras entre a identidade e as listas** (item 99): quem a organização é, como ela
-          trabalha, e o que ela oferece no formulário — do geral para o particular. */}
-      {ativo !== null && (
-        <Cartao tituloId="regras">
-          <CabecaDoCartao
-            id="regras"
-            titulo={TITULO_DAS_REGRAS}
-            apoio={APOIO_DO_CARTAO_DE_REGRAS}
-            acao={
-              <EdicaoDasRegras
-                regras={{
-                  exigirSolucaoAoResolver: configuracao.exigirSolucaoAoResolver,
-                  limiteDeCancelamentoDoSolicitante: configuracao.limiteDeCancelamentoDoSolicitante,
-                  diasParaParada: configuracao.diasParaParada,
-                }}
-                organizacaoId={ativo.organizacao.id}
-              />
-            }
-          />
-          <dl className="grid lg:grid-cols-2">
-            <div className="flex flex-col gap-2 p-[15px] md:px-6 md:py-5">
-              <dt className={ROTULO}>{ROTULO_DA_REGRA.exigir_solucao_ao_resolver}</dt>
-              <dd className="text-titulo-bloco text-tinta font-medium">
-                {valorEmPalavra(
-                  "exigir_solucao_ao_resolver",
-                  String(configuracao.exigirSolucaoAoResolver),
+      <AbasDaConfiguracao
+        inicial={inicial}
+        disponiveis={disponiveis}
+        conteudo={{
+          ocorrencias: (
+            <>
+              {/* **As regras entre a identidade e as listas** (item 99): quem a organização é, como ela
+                  trabalha, e o que ela oferece no formulário — do geral para o particular. */}
+              {ativo !== null && (
+                <Cartao tituloId="regras">
+                  <CabecaDoCartao
+                    id="regras"
+                    titulo={TITULO_DAS_REGRAS}
+                    apoio={APOIO_DO_CARTAO_DE_REGRAS}
+                    acao={
+                      <EdicaoDasRegras
+                        regras={{
+                          exigirSolucaoAoResolver: configuracao.exigirSolucaoAoResolver,
+                          limiteDeCancelamentoDoSolicitante: configuracao.limiteDeCancelamentoDoSolicitante,
+                          diasParaParada: configuracao.diasParaParada,
+                        }}
+                        organizacaoId={ativo.organizacao.id}
+                      />
+                    }
+                  />
+                  <dl className="grid lg:grid-cols-2">
+                    <div className="flex flex-col gap-2 p-[15px] md:px-6 md:py-5">
+                      <dt className={ROTULO}>{ROTULO_DA_REGRA.exigir_solucao_ao_resolver}</dt>
+                      <dd className="text-titulo-bloco text-tinta font-medium">
+                        {valorEmPalavra(
+                          "exigir_solucao_ao_resolver",
+                          String(configuracao.exigirSolucaoAoResolver),
+                        )}
+                      </dd>
+                    </div>
+                    <div className="border-linha-suave flex flex-col gap-2 border-t p-[15px] md:px-6 md:py-5 lg:border-t-0 lg:border-l">
+                      <dt className={ROTULO}>{ROTULO_DA_REGRA.limite_cancelamento_solicitante}</dt>
+                      <dd className="text-titulo-bloco text-tinta font-medium">
+                        {valorEmPalavra(
+                          "limite_cancelamento_solicitante",
+                          configuracao.limiteDeCancelamentoDoSolicitante,
+                        )}
+                      </dd>
+                      <dd className="text-meta text-tinta-suave max-w-110">{APOIO_DO_LIMITE}</dd>
+                    </div>
+                    {/* **A terceira regra** (item 101): quantos dias sem atividade até a ocorrência contar como
+                        parada. O valor vai em palavra, com a unidade. */}
+                    <div className="border-linha-suave flex flex-col gap-2 border-t p-[15px] md:px-6 md:py-5">
+                      <dt className={ROTULO}>{ROTULO_DA_REGRA.dias_para_parada}</dt>
+                      <dd className="text-titulo-bloco text-tinta font-medium">
+                        {valorEmPalavra("dias_para_parada", String(configuracao.diasParaParada))}
+                      </dd>
+                      <dd className="text-meta text-tinta-suave max-w-110">{APOIO_DOS_DIAS}</dd>
+                    </div>
+                  </dl>
+                </Cartao>
+              )}
+
+              {/* **Como ela fala, depois de como ela trabalha** (item 100): o texto de cada ponto do ciclo é
+                  apresentação, e o nome interno não muda — é a D19. Em pilha no celular, duas colunas na tela
+                  grande, como a identidade. */}
+              {ativo !== null && (
+                <Cartao tituloId="rotulos">
+                  <CabecaDoCartao
+                    id="rotulos"
+                    titulo={TITULO_DOS_ROTULOS}
+                    apoio={APOIO_DO_CARTAO_DE_ROTULOS}
+                    acao={
+                      <EdicaoDosRotulos
+                        rotulos={rotulosCustomizados(configuracao.rotulosDoSolicitante)}
+                        padroes={PADROES_DO_SOLICITANTE}
+                        organizacaoId={ativo.organizacao.id}
+                      />
+                    }
+                  />
+                  <dl className="grid lg:grid-cols-2">
+                    {ESTADOS_DO_CICLO.map((estado, indice) => {
+                      const customizado = configuracao.rotulosDoSolicitante[estado];
+                      return (
+                        <div
+                          key={estado}
+                          /* **`min-w-0`, e é o que faz o critério 5 fechar em 360 px.** Item de grade nasce
+                             com `min-width: auto`, e um texto de quarenta caracteres sem espaço vira a largura
+                             mínima da coluna — a grade cresce e a página rola de lado. Com ele, o
+                             `wrap-break-word` do `<dd>` tem onde quebrar. */
+                          className={`border-linha-suave flex min-w-0 flex-col gap-2 p-[15px] md:px-6 md:py-5 ${
+                            indice === 0 ? "" : "border-t"
+                          } ${indice < 2 ? "lg:border-t-0" : ""} ${indice % 2 === 1 ? "lg:border-l" : ""}`}
+                        >
+                          <dt className={ROTULO}>{NOME_DO_CICLO[estado]}</dt>
+                          <dd className="text-titulo-bloco text-tinta font-medium wrap-break-word">
+                            {customizado ?? PADROES_DO_SOLICITANTE[estado]}
+                          </dd>
+                          {customizado === null && (
+                            <dd className="text-meta text-tinta-suave">{MARCA_DO_PADRAO}</dd>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </dl>
+                </Cartao>
+              )}
+
+              <Cartao tituloId="listas">
+                <CabecaDoCartao
+                  id="listas"
+                  titulo="Listas do formulário de registro"
+                  apoio="O que o Solicitante escolhe quando registra uma ocorrência."
+                />
+                <ul>
+                  <li className="border-linha-suave border-b">
+                    <DestinoDaPauta
+                      href="/configuracao/categorias"
+                      Icone={Tags}
+                      titulo="Categorias"
+                      descricao="A natureza da ocorrência."
+                      ativas={categorias.ativas}
+                      total={categorias.total}
+                    />
+                  </li>
+                  <li>
+                    {/* **"desta organização", e não o lugar do exemplo** (A-02 da spec): a organização pode ser
+                        condomínio, empresa ou bairro. */}
+                    <DestinoDaPauta
+                      href="/configuracao/areas"
+                      Icone={LayoutGrid}
+                      titulo="Áreas"
+                      descricao="Onde, dentro desta organização, ela aconteceu."
+                      ativas={areas.ativas}
+                      total={areas.total}
+                    />
+                  </li>
+                </ul>
+              </Cartao>
+            </>
+          ),
+          participantes: null,
+          historico: (
+            <>
+              {/* **A história por último** (item 99). Cada mudança é uma pilha de duas linhas, e não uma tabela:
+                  é o que a mantém legível em 360 px sem rolagem lateral (critério 99.8). */}
+              <Cartao tituloId="mudancas">
+                <CabecaDoCartao
+                  id="mudancas"
+                  titulo={TITULO_DAS_MUDANCAS}
+                  apoio="Quem mudou o quê, quando, e de que valor para qual."
+                />
+                {configuracao.mudancas.length === 0 ? (
+                  <p className="text-interface text-tinta-suave p-[15px] md:px-6 md:py-5">{SEM_MUDANCAS}</p>
+                ) : (
+                  <ul>
+                    {configuracao.mudancas.map((mudanca) => (
+                      <li
+                        key={`${mudanca.chave}-${mudanca.ocorridaEm}`}
+                        className="border-linha-suave flex flex-col gap-1 border-b p-[15px] last:border-b-0 md:px-6 md:py-5"
+                      >
+                        <span className="text-meta text-tinta-suave wrap-break-word">
+                          {mudanca.autor.nome} · {dataEHora(mudanca.ocorridaEm)}
+                        </span>
+                        <span className="text-interface text-tinta wrap-break-word">
+                          {fraseDaMudanca(mudanca)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 )}
-              </dd>
-            </div>
-            <div className="border-linha-suave flex flex-col gap-2 border-t p-[15px] md:px-6 md:py-5 lg:border-t-0 lg:border-l">
-              <dt className={ROTULO}>{ROTULO_DA_REGRA.limite_cancelamento_solicitante}</dt>
-              <dd className="text-titulo-bloco text-tinta font-medium">
-                {valorEmPalavra(
-                  "limite_cancelamento_solicitante",
-                  configuracao.limiteDeCancelamentoDoSolicitante,
-                )}
-              </dd>
-              <dd className="text-meta text-tinta-suave max-w-110">{APOIO_DO_LIMITE}</dd>
-            </div>
-            {/* **A terceira regra** (item 101): quantos dias sem atividade até a ocorrência contar como
-                parada. O valor vai em palavra, com a unidade. */}
-            <div className="border-linha-suave flex flex-col gap-2 border-t p-[15px] md:px-6 md:py-5">
-              <dt className={ROTULO}>{ROTULO_DA_REGRA.dias_para_parada}</dt>
-              <dd className="text-titulo-bloco text-tinta font-medium">
-                {valorEmPalavra("dias_para_parada", String(configuracao.diasParaParada))}
-              </dd>
-              <dd className="text-meta text-tinta-suave max-w-110">{APOIO_DOS_DIAS}</dd>
-            </div>
-          </dl>
-        </Cartao>
-      )}
-
-      {/* **Como ela fala, depois de como ela trabalha** (item 100): o texto de cada ponto do ciclo é
-          apresentação, e o nome interno não muda — é a D19. Em pilha no celular, duas colunas na tela
-          grande, como a identidade. */}
-      {ativo !== null && (
-        <Cartao tituloId="rotulos">
-          <CabecaDoCartao
-            id="rotulos"
-            titulo={TITULO_DOS_ROTULOS}
-            apoio={APOIO_DO_CARTAO_DE_ROTULOS}
-            acao={
-              <EdicaoDosRotulos
-                rotulos={rotulosCustomizados(configuracao.rotulosDoSolicitante)}
-                padroes={PADROES_DO_SOLICITANTE}
-                organizacaoId={ativo.organizacao.id}
-              />
-            }
-          />
-          <dl className="grid lg:grid-cols-2">
-            {ESTADOS_DO_CICLO.map((estado, indice) => {
-              const customizado = configuracao.rotulosDoSolicitante[estado];
-              return (
-                <div
-                  key={estado}
-                  /* **`min-w-0`, e é o que faz o critério 5 fechar em 360 px.** Item de grade nasce
-                     com `min-width: auto`, e um texto de quarenta caracteres sem espaço vira a largura
-                     mínima da coluna — a grade cresce e a página rola de lado. Com ele, o
-                     `wrap-break-word` do `<dd>` tem onde quebrar. */
-                  className={`border-linha-suave flex min-w-0 flex-col gap-2 p-[15px] md:px-6 md:py-5 ${
-                    indice === 0 ? "" : "border-t"
-                  } ${indice < 2 ? "lg:border-t-0" : ""} ${indice % 2 === 1 ? "lg:border-l" : ""}`}
-                >
-                  <dt className={ROTULO}>{NOME_DO_CICLO[estado]}</dt>
-                  <dd className="text-titulo-bloco text-tinta font-medium wrap-break-word">
-                    {customizado ?? PADROES_DO_SOLICITANTE[estado]}
-                  </dd>
-                  {customizado === null && (
-                    <dd className="text-meta text-tinta-suave">{MARCA_DO_PADRAO}</dd>
-                  )}
-                </div>
-              );
-            })}
-          </dl>
-        </Cartao>
-      )}
-
-      <Cartao tituloId="listas">
-        <CabecaDoCartao
-          id="listas"
-          titulo="Listas do formulário de registro"
-          apoio="O que o Solicitante escolhe quando registra uma ocorrência."
-        />
-        <ul>
-          <li className="border-linha-suave border-b">
-            <DestinoDaPauta
-              href="/configuracao/categorias"
-              Icone={Tags}
-              titulo="Categorias"
-              descricao="A natureza da ocorrência."
-              ativas={categorias.ativas}
-              total={categorias.total}
-            />
-          </li>
-          <li>
-            {/* **"desta organização", e não o lugar do exemplo** (A-02 da spec): a organização pode ser
-                condomínio, empresa ou bairro. */}
-            <DestinoDaPauta
-              href="/configuracao/areas"
-              Icone={LayoutGrid}
-              titulo="Áreas"
-              descricao="Onde, dentro desta organização, ela aconteceu."
-              ativas={areas.ativas}
-              total={areas.total}
-            />
-          </li>
-        </ul>
-      </Cartao>
-      {/* **A história por último** (item 99). Cada mudança é uma pilha de duas linhas, e não uma tabela:
-          é o que a mantém legível em 360 px sem rolagem lateral (critério 99.8). */}
-      <Cartao tituloId="mudancas">
-        <CabecaDoCartao
-          id="mudancas"
-          titulo={TITULO_DAS_MUDANCAS}
-          apoio="Quem mudou o quê, quando, e de que valor para qual."
-        />
-        {configuracao.mudancas.length === 0 ? (
-          <p className="text-interface text-tinta-suave p-[15px] md:px-6 md:py-5">{SEM_MUDANCAS}</p>
-        ) : (
-          <ul>
-            {configuracao.mudancas.map((mudanca) => (
-              <li
-                key={`${mudanca.chave}-${mudanca.ocorridaEm}`}
-                className="border-linha-suave flex flex-col gap-1 border-b p-[15px] last:border-b-0 md:px-6 md:py-5"
-              >
-                <span className="text-meta text-tinta-suave wrap-break-word">
-                  {mudanca.autor.nome} · {dataEHora(mudanca.ocorridaEm)}
-                </span>
-                <span className="text-interface text-tinta wrap-break-word">
-                  {fraseDaMudanca(mudanca)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Cartao>
-
+              </Cartao>
+            </>
+          ),
+        }}
+      />
     </div>
   );
 }
