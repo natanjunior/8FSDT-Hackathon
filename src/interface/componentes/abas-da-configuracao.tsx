@@ -5,6 +5,7 @@ import { useState, type ReactNode } from "react";
 
 import {
   ABAS_DA_CONFIGURACAO,
+  CLASSE_DA_ABA,
   consultaDaAba,
   type AbaDaConfiguracao,
 } from "@/interface/componentes/aba-da-configuracao";
@@ -21,9 +22,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/interface/componente
  * **No celular a lista de abas quebra linha** e não rola de lado: a medida do item 112 pega controle além
  * da borda do contêiner de rolagem, e encurtar o nome mudaria o que o dono escreveu.
  */
-const CLASSE_DA_ABA =
-  "text-interface text-tinta-suave data-[state=active]:text-tinta min-h-11 flex-none px-3 font-medium";
-
 export function AbasDaConfiguracao({
   inicial,
   disponiveis,

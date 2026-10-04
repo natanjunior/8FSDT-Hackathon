@@ -34,7 +34,9 @@ import { SeloDeStatus } from "@/interface/componentes/selo-de-status";
 import { ROTULO_DE_COLUNA, CELULA } from "@/interface/componentes/pecas-da-tabela";
 import { CAIXA_DO_FILTRO, OPCAO_DO_FILTRO, CONTAGEM_DO_FILTRO } from "@/interface/componentes/filtro-rapido";
 import { SeloDeNaoVista } from "@/interface/componentes/selo-de-nao-vista";
-import { CLASSE_DA_PILULA } from "@/interface/componentes/casca/sino";
+import { CLASSE_DA_LATERAL, CLASSE_DA_PILULA } from "@/interface/componentes/casca/sino";
+import { Tabs, TabsList, TabsTrigger } from "@/interface/componentes/ui/tabs";
+import { CLASSE_DA_ABA } from "@/interface/componentes/aba-da-configuracao";
 
 // O `postcss` não é dependência declarada do projeto; é do `@tailwindcss/postcss`, e é por ele que se
 // alcança, para não depender de como o `npm` achatou a árvore.
@@ -251,6 +253,28 @@ const PECAS = [
   { id: "corpo", html: () => `<p class="text-corpo">A bomba faz um ruído.</p>`, esperado: { "line-height": "22px" } },
   { id: "interface", html: () => `<span class="text-interface">Onde</span>`, esperado: { "line-height": "19px" } },
   { id: "meta", html: () => `<span class="text-meta">Limpeza</span>`, esperado: { "line-height": "17px" } },
+  {
+    id: "aba-da-configuracao",
+    // Item 120: a aba marcada em tinta, com 44 px de alvo. A régua de baixo é o `after` da variante line.
+    html: () =>
+      renderToStaticMarkup(
+        h(Tabs, { defaultValue: "a" }, h(TabsList, { variant: "line" }, h(TabsTrigger, { value: "a", className: CLASSE_DA_ABA }, "Histórico"))),
+      ),
+    seletor: "[data-slot=tabs-trigger]",
+    esperado: {
+      "min-height": "44px",
+      color: "token(--ink)",
+    },
+  },
+  {
+    id: "gaveta-lateral-do-sino",
+    // Item 120: a lateral do sino sobre a superfície, sem cantos de cima.
+    html: () => `<div class="${CLASSE_DA_LATERAL}">Avisos</div>`,
+    esperado: {
+      "background-color": "token(--surface)",
+      "border-top-left-radius": "0px",
+    },
+  },
 ];
 
 /** A peça sabidamente errada: o raio de 8 px que o item tirou do botão. Tem de ser recusada. */

@@ -16,6 +16,14 @@ export const ABAS_DA_CONFIGURACAO: readonly { valor: AbaDaConfiguracao; rotulo: 
   { valor: "historico", rotulo: "Histórico" },
 ];
 
+/**
+ * **A aba marcada em tinta, as outras na tinta suave, com 44 px de alvo.** Mora aqui, no módulo puro, porque
+ * o portão de estilo a mede (`ferramentas/conferir-estilo.mjs`) e roda em Node: o componente cliente
+ * importa `next/navigation`.
+ */
+export const CLASSE_DA_ABA =
+  "text-interface text-tinta-suave data-[state=active]:text-tinta min-h-11 flex-none px-3 font-medium";
+
 /** **Ausente, desconhecida ou fora do alcance de quem lê vale a primeira** — nunca uma aba vazia. */
 export function lerAba(
   valor: string | string[] | undefined,
