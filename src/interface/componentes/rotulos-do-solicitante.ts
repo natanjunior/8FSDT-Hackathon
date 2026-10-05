@@ -3,7 +3,7 @@ import { nomeDoStatus, rotuloPadraoDoSolicitante } from "@/interface/projecoes";
 
 /**
  * ============================================================================
- *  Os textos que quem abriu lê, na tela de configuração — item 100
+ *  Os textos do Solicitante, na tela de configuração — item 100
  * ============================================================================
  *
  * **Funções e textos puros, com teste**, pela regra do item 20: decisão de texto de produto não mora num
@@ -39,7 +39,7 @@ export const NOME_DO_CICLO: Readonly<Record<EstadoDaTela, string>> = Object.from
   STATUS.map((estado) => [estado, nomeDoStatus(estado)]),
 ) as Record<EstadoDaTela, string>;
 
-export const TITULO_DOS_ROTULOS = "Como quem abre lê o status";
+export const TITULO_DOS_ROTULOS = "Textos do Solicitante";
 export const APOIO_DO_CARTAO_DE_ROTULOS =
   "O texto que o Solicitante lê em cada ponto do ciclo. O nome interno não muda.";
 export const DESCRICAO_DOS_ROTULOS = "Seis textos, um por ponto do ciclo. Em branco, vale o padrão.";

@@ -538,7 +538,7 @@ export const RECORTE_COMPARTILHADAS = "Compartilhadas comigo";
  *
  * **A palavra existe porque o compromisso A-5 a exige:** nada é comunicado só por cor nem só por forma.
  */
-export const SELO_NAO_VISTA = "Não vista";
+export const SELO_NAO_VISTA = "Não lida";
 
 /**
  * ============================================================================

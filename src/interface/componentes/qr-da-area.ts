@@ -18,7 +18,7 @@ const FORMATO_DO_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]
 export const TEXTOS_DO_QR = {
   naoEncontrado: {
     titulo: "QR não encontrado",
-    corpo: "Confira se a etiqueta está inteira.",
+    corpo: "Confira se o QR está inteiro e legível.",
     acao: "Ir para o início",
   },
   semSessao: {

@@ -388,7 +388,7 @@ export function TabelaDeParticipantes({
                         />
                         <CabecaDaTabela
                           coluna="unidade"
-                          rotulo="Unidade"
+                          rotulo="Área"
                           endereco={endereco}
                           aoOrdenar={escrever}
                           largura="w-[150px]"

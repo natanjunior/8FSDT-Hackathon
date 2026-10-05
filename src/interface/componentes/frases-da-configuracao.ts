@@ -308,7 +308,7 @@ export function avisoDaMudancaDeTipo(
   contagem: number,
 ): AvisoDeConclusao {
   const rotulo = rotuloDoTipo(tipo);
-  if (contagem <= 0) return { titulo: `${nome} passou a ser ${rotulo}.` };
+  if (contagem <= 0) return { titulo: `${nome} passou a ser ${rotulo}` };
   const quantas =
     contagem === 1
       ? "1 ocorrência já registrada mantém o tipo anterior."

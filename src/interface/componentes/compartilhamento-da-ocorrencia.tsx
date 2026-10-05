@@ -85,14 +85,14 @@ export function CartaoDeCompartilhamento({
       );
       if (!resposta.ok) {
         avisarErro(
-          "Não foi possível desfazer.",
+          "Não foi possível desfazer o compartilhamento",
           mensagemDoProblema(await resposta.json().catch(() => null)),
         );
         return;
       }
       router.refresh();
     } catch {
-      avisarErro("Não foi possível desfazer.", "Verifique a conexão e tente de novo.");
+      avisarErro("Não foi possível desfazer o compartilhamento", "Verifique a conexão e tente de novo.");
     } finally {
       setDesfazendo(null);
     }

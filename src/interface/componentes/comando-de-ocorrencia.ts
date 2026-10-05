@@ -1,5 +1,5 @@
 import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
-import { MENSAGEM_GENERICA, mensagemDoProblema } from "@/interface/componentes/retorno-de-acao";
+import { MENSAGEM_SEM_CONEXAO, mensagemDoProblema } from "@/interface/componentes/retorno-de-acao";
 
 /**
  * ============================================================================
@@ -56,7 +56,7 @@ export async function executarComando(
   } catch {
     // `fetch` rejeitou antes de haver resposta — rede caiu. Sem este `catch` a rejeição aciona o Error
     // Boundary em vez de mostrar a linha de aviso. Nuvem sem SLA: rede instável é o caso esperado.
-    return { ok: false, aviso: MENSAGEM_GENERICA };
+    return { ok: false, aviso: MENSAGEM_SEM_CONEXAO };
   }
 }
 
@@ -147,10 +147,13 @@ export async function enviarComentario(
     }
 
     const problema = (await resposta.json().catch(() => null)) as unknown;
-    return { ok: false, aviso: mensagemDoProblema(problema) };
+    return {
+      ok: false,
+      aviso: mensagemDoProblema(problema, { SEM_VINCULO_NA_ORGANIZACAO: SEM_ACESSO_A_ORGANIZACAO }),
+    };
   } catch {
     // `fetch` rejeitou antes de haver resposta — rede caiu. Sem este `catch` a rejeição aciona o Error
     // Boundary em vez de mostrar a linha de aviso. Nuvem sem SLA: rede instável é o caso esperado.
-    return { ok: false, aviso: MENSAGEM_GENERICA };
+    return { ok: false, aviso: MENSAGEM_SEM_CONEXAO };
   }
 }

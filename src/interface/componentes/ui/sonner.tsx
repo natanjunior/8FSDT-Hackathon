@@ -44,7 +44,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       theme="system"
       position={telaGrande ? "bottom-right" : "top-center"}
       closeButton
-      containerAriaLabel="Avisos"
+      containerAriaLabel="Notificações"
       className="toaster group"
       icons={{
         success: <CircleCheckIcon className="size-4" />,

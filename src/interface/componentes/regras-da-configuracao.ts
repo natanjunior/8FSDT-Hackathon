@@ -46,7 +46,7 @@ export function erroDaSolucaoObrigatoria(solucao: string, exige: boolean): strin
 }
 
 export const ROTULO_DA_REGRA: Readonly<Record<ChaveDaTela, string>> = {
-  exigir_solucao_ao_resolver: "Exigir a solução ao resolver",
+  exigir_solucao_ao_resolver: "Exigir a solução aplicada ao resolver",
   limite_cancelamento_solicitante: "O Solicitante pode cancelar também em atendimento",
   dias_para_parada: "Dias até contar como parada",
 };

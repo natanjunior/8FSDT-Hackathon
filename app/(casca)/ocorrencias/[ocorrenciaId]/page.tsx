@@ -349,7 +349,7 @@ export default async function Ocorrencia({
 
   /**
    * **Quem lê é o autor?** — lido por TRÊS consumidores: o título do bloco da avaliação (*"Sua
-   * avaliação"* × *"Avaliação do solicitante"*, item 27) e as **duas** frases da conversa (o vazio e o
+   * avaliação"* × *"Avaliação do Solicitante"*, item 27) e as **duas** frases da conversa (o vazio e o
    * rótulo do campo, critério 30.4). **O convite a avaliar NÃO usa isto:** ele usa `acoesDisponiveis`,
    * que já cruza autoria com *"ainda não avaliou"*.
    */
@@ -484,8 +484,8 @@ export default async function Ocorrencia({
         descricao="O trabalho começa agora."
         rotuloDoGatilho="Iniciar atendimento"
         rotuloDoCampo="Observação (opcional)"
-        rotuloDeConfirmar="Iniciar"
-        verboEnviando="Iniciando…"
+        rotuloDeConfirmar="Iniciar atendimento"
+        verboEnviando="Iniciando atendimento…"
         variante={primario === "iniciar-atendimento" ? "primario" : "secundario"}
         rotulosDeStatus={rotulos}
         organizacaoId={organizacaoId}
@@ -840,7 +840,7 @@ export default async function Ocorrencia({
                     href="#linha-do-tempo"
                     className="text-tinta-marca text-interface inline-flex min-h-11 items-center self-start font-medium"
                   >
-                    ver a linha do tempo →
+                    Ver a linha do tempo →
                   </a>
                 </dd>
               </dl>
@@ -936,7 +936,7 @@ export default async function Ocorrencia({
             <Cartao tituloId="bloco-avaliacao">
               <FaixaDoCartao>
                 <h2 id="bloco-avaliacao" className={TITULO_DA_FAIXA}>
-                  {ehAutor ? "Sua avaliação" : "Avaliação do solicitante"}
+                  {ehAutor ? "Sua avaliação" : "Avaliação do Solicitante"}
                 </h2>
               </FaixaDoCartao>
               <CorpoDoCartao>
@@ -995,6 +995,7 @@ export default async function Ocorrencia({
                     eventos={linhaDoTempoPedida}
                     pessoaIdDeQuemLe={escopo.ctx.pessoaId}
                     lente={lente}
+                    autorPessoaId={detalhe.autor.pessoaId}
                   />
                 </Suspense>
               </FalhaDoCartao>
@@ -1037,13 +1038,16 @@ async function LinhaDoTempo({
   eventos,
   pessoaIdDeQuemLe,
   lente,
+  autorPessoaId,
 }: {
   eventos: Promise<readonly EventoLido[]>;
   pessoaIdDeQuemLe: string;
   /** A coluna do `glossario.md` §4 desta leitura — item 31, critério 31.7. */
   lente: LenteDeRotulo;
+  /** Quem registrou: a espera pelo autor só diz "você" para ele (item 126, escolha 13). */
+  autorPessoaId: string;
 }) {
-  const itens = (await eventos).map((evento) => projetarEventoDaLinhaDoTempo(evento, lente));
+  const itens = (await eventos).map((evento) => projetarEventoDaLinhaDoTempo(evento, lente, autorPessoaId));
 
   return (
     <>

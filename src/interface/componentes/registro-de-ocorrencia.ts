@@ -80,7 +80,7 @@ export const TEXTOS_DO_REGISTRO = {
 
 export const MENSAGENS_DE_CAMPO = {
   titulo: "Dê um título à ocorrência.",
-  descricao: "Descreva o que aconteceu, em uma frase.",
+  descricao: "Descreva o que aconteceu.",
   categoriaId: "Escolha uma categoria.",
   areaId: "Escolha onde aconteceu.",
 } as const;
@@ -94,6 +94,7 @@ export const FRASES_DO_SERVIDOR: Readonly<Record<string, string>> = {
     "Muitas fotos enviadas na última hora. Espere um pouco antes de anexar outra.",
   CATEGORIA_INVALIDA: "Esta categoria não está mais disponível. Escolha outra.",
   AREA_INVALIDA: "Esta área não está mais disponível. Escolha outra.",
+  SEM_VINCULO_NA_ORGANIZACAO: "Você não tem mais acesso a esta organização.",
 };
 
 /**

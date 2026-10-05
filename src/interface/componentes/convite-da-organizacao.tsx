@@ -40,7 +40,7 @@ export function ConviteDaOrganizacao({
           <CodigoDaOrganizacao codigo={organizacao.codigoPublico} />
         </div>
         <div className={`${COLUNA} border-t xl:border-t-0 xl:border-l`}>
-          <dt className={ROTULO}>Link da organização</dt>
+          <dt className={ROTULO}>Link do convite</dt>
           <dd className="text-interface text-tinta max-w-110">
             O link leva ao pedido de entrada nesta organização. Mande por mensagem ou cole no grupo.
           </dd>
@@ -51,7 +51,7 @@ export function ConviteDaOrganizacao({
         <div className={`${COLUNA} border-t xl:border-t-0 xl:border-l`}>
           <dt className={ROTULO}>QR do convite</dt>
           <dd className="text-interface text-tinta max-w-110">
-            Quem preferir pode usar o QR, que leva ao mesmo convite.
+            Quem preferir pode usar o QR, que leva ao mesmo link.
           </dd>
           <dd>
             <QrDoLink link={link} rotulo={`QR do link de convite para ${organizacao.nome}`} />

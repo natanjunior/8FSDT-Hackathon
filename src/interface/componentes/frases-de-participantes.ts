@@ -51,7 +51,7 @@ export const PAPEIS: readonly OpcaoDePapel[] = [
     papel: "encarregado",
     rotulo: "Encarregado",
     consequencia: "Aparece como responsável pela ocorrência.",
-    alerta: "Não consegue fazer nada dentro do sistema.",
+    alerta: "Não entra no aplicativo.",
   },
 ];
 
@@ -179,9 +179,9 @@ export const TEXTOS_DA_RESPOSTA = {
   gatilho: "Responder",
   titulo: "Responder pedido de entrada",
   legenda: "Entra como",
-  unidade: "Unidade",
-  semUnidade: "Sem unidade",
-  ajudaDaUnidade: "Para quem mora ou trabalha numa unidade.",
+  unidade: "Área",
+  semUnidade: "Sem área",
+  ajudaDaUnidade: "Onde a pessoa mora ou trabalha, se for o caso.",
   semTelefone: "Sem telefone informado no pedido.",
   aprovando: "Aprovando…",
   recusar: "Recusar pedido",
@@ -209,7 +209,7 @@ export function erroDoPapelNaResposta(nome: string): string {
 
 export function avisoDoEncarregado(nome: string): { readonly destaque: string; readonly resto: string } {
   return {
-    destaque: `${primeiroNome(nome)} não vai conseguir fazer nada dentro do sistema.`,
+    destaque: `${primeiroNome(nome)} não entra no aplicativo.`,
     resto:
       "Aparece como responsável e recebe o trabalho fora do aplicativo. O papel não muda depois: para corrigir, remova a pessoa da organização, e ela pede entrada de novo.",
   };
@@ -239,7 +239,7 @@ export const TEXTOS_DO_FORMULARIO = {
   cartaoPessoa: "Pessoa",
   cartaoContatos: "Contatos",
   nome: "Nome",
-  ajudaDoNome: "A unidade tem campo próprio; não a escreva aqui.",
+  ajudaDoNome: "A área tem campo próprio; não a escreva aqui.",
   papel: "Papel",
   erroDoPapel: "Escolha o papel desta pessoa.",
   semMudanca: "Altere algum dado antes de salvar.",
@@ -275,14 +275,14 @@ export const FALHA = {
   recusar: "Não foi possível recusar o pedido",
   remover: "Não foi possível remover da organização",
   encerrar: "Não foi possível encerrar o acesso",
-  cadastrar: "Não foi possível cadastrar a pessoa",
+  cadastrar: "Não foi possível cadastrar o participante",
   salvar: "Não foi possível salvar os dados",
 } as const;
 
 export function avisoDeAprovado(nome: string, papel: string, unidade: string | null): AvisoDeConclusao {
   return {
     titulo: `${nome} entrou como ${rotuloDoPapel(papel)}`,
-    descricao: unidade === null ? "Sem unidade registrada." : `Na unidade ${unidade}.`,
+    descricao: unidade === null ? "Sem área registrada." : `Na área ${unidade}.`,
   };
 }
 

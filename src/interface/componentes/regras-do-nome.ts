@@ -68,7 +68,7 @@ export const EDICAO_DE_NOME: Readonly<Record<AlvoDoNome, EdicaoDoAlvo>> = {
     descricao: "Vale em todas as suas organizações.",
     rotulo: "Nome",
     ajuda:
-      "Aparece na lista de participantes, nos seus pedidos de entrada e em cada transição que você já registrou. A trilha guarda quem agiu e mostra o nome de agora.",
+      "É como você aparece nas suas organizações, inclusive no que já fez nas ocorrências.",
     falha: "Não foi possível salvar o seu nome",
     // **A frase carrega o alcance**, que o item 49 fez questão de dizer (Persona 1B).
     sucesso: (nome) => ({

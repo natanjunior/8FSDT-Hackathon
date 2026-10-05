@@ -200,7 +200,7 @@ function FacePedidoEnviado({
       titulo="Pedido enviado"
       contexto={
         <>
-          Seu pedido para entrar em <Nome>{convite.organizacao.nome}</Nome> está aguardando o Gestor.
+          Seu pedido para entrar em <Nome>{convite.organizacao.nome}</Nome> está aguardando a decisão de um Gestor.
         </>
       }
       caminhos={<CaminhoDeVolta contexto={contexto} />}

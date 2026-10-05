@@ -11,7 +11,7 @@ import {
   type EstadoDaOrdem,
   type EventoDaOrdem,
 } from "@/interface/componentes/ordem-da-lista";
-import { MENSAGEM_GENERICA, avisarErro, mensagemDoProblema } from "@/interface/componentes/retorno-de-acao";
+import { MENSAGEM_SEM_CONEXAO, avisarErro, mensagemDoProblema } from "@/interface/componentes/retorno-de-acao";
 
 /**
  * ============================================================================
@@ -122,7 +122,7 @@ export function useOrdemGravada<T extends { readonly id: string }>(opcoes: {
       // Sem este ramo a rejeição do `fetch` subiria pela fronteira do React. O erro de controle do Next
       // continua subindo.
       unstable_rethrow(erro);
-      evento = { tipo: "respondeu-erro", geracao, aviso: MENSAGEM_GENERICA, desatualizada: false };
+      evento = { tipo: "respondeu-erro", geracao, aviso: MENSAGEM_SEM_CONEXAO, desatualizada: false };
     }
     aplicar(agora.current, evento);
   }

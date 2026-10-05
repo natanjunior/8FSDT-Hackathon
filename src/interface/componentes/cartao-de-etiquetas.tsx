@@ -82,7 +82,7 @@ export function CartaoDeEtiquetas({
       if (!resposta.ok) {
         setEscolhidas(anteriores);
         avisarErro(
-          mudanca.tipo === "entrou" ? "Não foi possível adicionar a etiqueta." : "Não foi possível tirar a etiqueta.",
+          mudanca.tipo === "entrou" ? "Não foi possível adicionar a etiqueta" : "Não foi possível tirar a etiqueta",
           mensagemDoProblema(await resposta.json().catch(() => null)),
         );
         return;
@@ -91,7 +91,7 @@ export function CartaoDeEtiquetas({
       router.refresh();
     } catch {
       setEscolhidas(anteriores);
-      avisarErro("Não foi possível gravar a etiqueta.", "Verifique a conexão e tente de novo.");
+      avisarErro("Não foi possível gravar a etiqueta", "Verifique a conexão e tente de novo.");
     } finally {
       setGravando(false);
     }

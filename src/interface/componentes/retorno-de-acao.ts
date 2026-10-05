@@ -21,7 +21,10 @@ import { toast } from "sonner";
  */
 
 /** A frase de quando não há frase melhor. **Existe uma vez só no produto** (critério 44g.6). */
-export const MENSAGEM_GENERICA = "Não foi possível realizar a ação.";
+export const MENSAGEM_GENERICA = "Não foi possível concluir agora. Tente de novo em instantes.";
+
+/** A frase do `catch` de rede: o `fetch` rejeitou antes de haver resposta. */
+export const MENSAGEM_SEM_CONEXAO = "Sem conexão. Verifique a internet e tente de novo.";
 
 /** Os dois títulos de aviso de uma ação: o do sucesso e o da falha. */
 export type TextosDoRetorno = { readonly sucesso: string; readonly falha: string };

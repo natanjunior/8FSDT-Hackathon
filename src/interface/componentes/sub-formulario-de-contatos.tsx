@@ -110,7 +110,7 @@ export function SubFormularioDeContatos({
   }, [contatos]);
 
   return (
-    // `id="contatos"` é o alvo do *Acrescentar e-mail* do modal do convite (item 122).
+    // `id="contatos"` é o alvo do *Adicionar e-mail* do modal do convite (item 122).
     <div ref={lista} id="contatos" className="scroll-mt-20">
       {contatos.length > 0 && (
         <div
@@ -128,7 +128,7 @@ export function SubFormularioDeContatos({
           </span>
           <span>Finalidade</span>
           <span>WhatsApp</span>
-          <span>Observação</span>
+          <span>Anotação</span>
           <span />
         </div>
       )}
@@ -339,7 +339,7 @@ function LinhaDeContato({
           )}
         </div>
 
-        <Campo id={id("observacao")} rotulo="Observação" rotuloEmTelaGrande="oculto">
+        <Campo id={id("observacao")} rotulo="Anotação" rotuloEmTelaGrande="oculto">
           {(controle) => (
             <Input
               {...controle}

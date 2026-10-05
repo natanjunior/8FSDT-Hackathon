@@ -332,7 +332,7 @@ export function FormularioDePedidoDeEntrada({
             <Campo
               id="nome"
               rotulo="Seu nome"
-              ajuda="É como você vai aparecer para os Gestores e no histórico das ocorrências."
+              ajuda="É como você vai aparecer nas organizações de que participar."
               erro={formulario.erroDe("nome", estado.erros)}
             >
               {(controle) => (
