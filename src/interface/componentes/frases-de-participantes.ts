@@ -211,7 +211,7 @@ export function avisoDoEncarregado(nome: string): { readonly destaque: string; r
   return {
     destaque: `${primeiroNome(nome)} não vai conseguir fazer nada dentro do sistema.`,
     resto:
-      "Aparece como responsável e recebe o trabalho fora do aplicativo. O papel não muda depois: para corrigir, é preciso remover o vínculo e pedir entrada de novo.",
+      "Aparece como responsável e recebe o trabalho fora do aplicativo. O papel não muda depois: para corrigir, remova a pessoa da organização, e ela pede entrada de novo.",
   };
 }
 
@@ -226,7 +226,7 @@ export function descricaoDaRecusa(nome: string): string {
 /** As frases que T-08 escreve para os códigos do pedido (inventário, §7). */
 export const FRASES_DO_PEDIDO: FrasesDaTela = {
   PEDIDO_JA_DECIDIDO: "Este pedido já foi decidido por outro Gestor.",
-  JA_VINCULADO: "Esta pessoa já tem vínculo nesta organização.",
+  JA_VINCULADO: "Esta pessoa já participa desta organização.",
   AREA_INVALIDA: "Esta área não existe nesta organização ou está desativada.",
   PEDIDO_NAO_ENCONTRADO: "Este pedido não existe mais.",
 };
@@ -259,7 +259,7 @@ export const FRASES_DO_FORMULARIO: FrasesDaTela = {
   AREA_INVALIDA: "Esta área não existe nesta organização ou está desativada.",
   PESSOA_COM_CONTA_NAO_EDITAVEL:
     "Esta pessoa tem conta no Resolve Aí e edita os próprios dados. O cadastro de quem tem conta vale em todas as organizações dela.",
-  VINCULO_NAO_ENCONTRADO: "Este vínculo não existe mais nesta organização.",
+  VINCULO_NAO_ENCONTRADO: "Esta pessoa não participa mais desta organização.",
   CAMPO_NAO_SUPORTADO: "Um dos campos enviados não é aceito por esta operação.",
   FORMATO_INVALIDO: "Confira os campos indicados.",
   CONTATO_DUPLICADO: "Este contato já está na lista. Confira os contatos marcados.",
@@ -273,7 +273,7 @@ export const FRASES_DO_FORMULARIO: FrasesDaTela = {
 export const FALHA = {
   aprovar: "Não foi possível aprovar o pedido",
   recusar: "Não foi possível recusar o pedido",
-  remover: "Não foi possível remover o vínculo",
+  remover: "Não foi possível remover da organização",
   encerrar: "Não foi possível encerrar o acesso",
   cadastrar: "Não foi possível cadastrar a pessoa",
   salvar: "Não foi possível salvar os dados",
@@ -291,7 +291,7 @@ export function avisoDeRecusado(nome: string): AvisoDeConclusao {
 }
 
 export function avisoDeRemovido(nome: string): AvisoDeConclusao {
-  return { titulo: `Vínculo de ${nome} removido`, descricao: "O cadastro da pessoa não é apagado." };
+  return { titulo: `${nome} saiu da organização`, descricao: "O cadastro da pessoa não é apagado." };
 }
 
 /** O aviso de sucesso de encerrar o acesso (item 84). A descrição diz o que ficou, e é o item inteiro. */

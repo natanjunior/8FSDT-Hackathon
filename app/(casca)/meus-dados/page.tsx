@@ -75,7 +75,7 @@ export default async function MeusDados() {
         <dl className="grid lg:grid-cols-2">
           <div className="flex flex-col gap-1.5 p-[15px] md:px-6 md:py-5">
             <dt className={ROTULO}>E-mail de entrada</dt>
-            <dd className="text-interface text-tinta break-all">{email ?? "Não informado pelo provedor"}</dd>
+            <dd className="text-interface text-tinta break-all">{email ?? "Sem e-mail"}</dd>
             <dd className="text-meta text-tinta-suave">
               É com ele que você entra e recebe o link de recuperação de senha.
             </dd>

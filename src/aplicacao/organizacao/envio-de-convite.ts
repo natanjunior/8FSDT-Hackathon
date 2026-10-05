@@ -1,4 +1,4 @@
-import { ENVIOS_POR_PARTICIPANTE, LOTE_DE_ENVIO, type MotivoDeNaoEnvio } from "@/dominio/organizacao";
+import { ENVIOS_POR_PARTICIPANTE, LOTE_DE_ENVIO, type MotivoDeNaoEnvio, type Papel } from "@/dominio/organizacao";
 
 import { LoteDeEnvioInvalido } from "./erros";
 import type {
@@ -57,6 +57,16 @@ function conferirLote(pessoaIds: readonly string[]): void {
   }
 }
 
+/**
+ * O papel **em palavra**, para a frase do e-mail (item 126). Mora aqui, e não vem de `@/interface`, pela
+ * regra de dependência (ADR-0005). O Encarregado não recebe convite, mas o tipo pede as três chaves.
+ */
+const PAPEL_NO_CONVITE: Readonly<Record<Papel, string>> = {
+  solicitante: "Solicitante",
+  gestor: "Gestor",
+  encarregado: "Encarregado",
+};
+
 /** O motivo que vem antes do convite, ou `null` quando a pessoa pode receber. */
 function motivoAntesDoConvite(vinculo: VinculoLido, email: string | null): MotivoDeNaoEnvio | null {
   if (email === null) return "sem-email";
@@ -102,6 +112,7 @@ export async function enviarConvitesPorEmail(
             pessoa: nome,
             organizacao: entrada.organizacao.nome,
             quemConvidou: entrada.porPessoa.nome,
+            papel: PAPEL_NO_CONVITE[vinculo.papel],
             link: entrada.montarLink(vivo.token),
           }),
         ),
@@ -150,13 +161,15 @@ export function montarMensagemDoConvite(dados: {
   pessoa: string;
   organizacao: string;
   quemConvidou: string;
+  /** O papel em palavra: *Solicitante* ou *Gestor*. */
+  papel: string;
   link: string;
 }): Mensagem {
   const ignorar = "Se você não esperava este convite, pode ignorar esta mensagem.";
   const texto = [
     `Olá, ${dados.pessoa}.`,
     "",
-    `${dados.quemConvidou} convida você para usar o Resolve Aí no ${dados.organizacao}.`,
+    `${dados.quemConvidou} convida você para usar o Resolve Aí em ${dados.organizacao}, como ${dados.papel}.`,
     "Abra o link para entrar:",
     dados.link,
     "",
@@ -164,7 +177,7 @@ export function montarMensagemDoConvite(dados: {
   ].join("\n");
   const html = [
     `<p>Olá, ${escapar(dados.pessoa)}.</p>`,
-    `<p>${escapar(dados.quemConvidou)} convida você para usar o Resolve Aí no ${escapar(dados.organizacao)}.</p>`,
+    `<p>${escapar(dados.quemConvidou)} convida você para usar o Resolve Aí em ${escapar(dados.organizacao)}, como ${escapar(dados.papel)}.</p>`,
     `<p><a href="${escapar(dados.link)}">Abrir o convite</a></p>`,
     `<p>${escapar(dados.link)}</p>`,
     `<p>${ignorar}</p>`,

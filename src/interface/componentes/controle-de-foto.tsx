@@ -7,6 +7,7 @@ import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organi
 import { BotaoDeIcone } from "@/interface/componentes/botao-de-icone";
 import {
   FOTO,
+  FOTO_ACIMA_DO_SELETOR,
   FRASES_DA_FOTO,
   FRASES_DO_SERVIDOR,
   ROTULOS,
@@ -139,7 +140,7 @@ export function ControleDeFoto({
     // O teto do seletor é do RNF8, e a recusa acontece **antes de decodificar**: um arquivo de 40 MB não
     // precisa virar bitmap para se saber que não serve.
     if (arquivo.size > LIMITE_DO_SELETOR_EM_BYTES) {
-      setSituacao({ nome: "erro", mensagem: FRASES_DO_SERVIDOR.ANEXO_ACIMA_DO_LIMITE! });
+      setSituacao({ nome: "erro", mensagem: FOTO_ACIMA_DO_SELETOR });
       aoMudar({ nome: "falhou" });
       return;
     }

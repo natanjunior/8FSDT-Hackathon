@@ -327,7 +327,7 @@ export function acoesDaBarra(
  */
 export function vazioDaBarra(status: StatusOcorrencia): string {
   if (ehTerminal(status)) return "Esta ocorrência está encerrada.";
-  return "Só os Gestores podem cancelar a partir daqui. Peça o cancelamento pelo comentário.";
+  return "Agora só os Gestores podem cancelar. Peça o cancelamento nas mensagens abaixo.";
 }
 
 /**
@@ -395,8 +395,8 @@ export function rotuloDoCampoDeConversa(ehAutor: boolean): string {
  *
  * | Lente | A frase |
  * |---|---|
- * | `"gestor"` | *"…agora ela está **Pausada**."* — a coluna dele é uma palavra por status |
- * | `"solicitante"` | *"…agora ela está **Parada**."* — a degradação de `rotuloDeStatus` sem motivo |
+ * | `"gestor"` | *"…Agora: **Pausada**."* — a coluna dele é uma palavra por status |
+ * | `"solicitante"` | *"…Agora: **Parada**."* — a degradação de `rotuloDeStatus` sem motivo |
  *
  * **A lente é obrigatória** pela mesma razão que em `rotuloDeStatus`: um padrão faria a próxima tela
  * escolher a coluna errada em silêncio.

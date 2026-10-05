@@ -586,7 +586,7 @@ describe("o sino — item 117", () => {
     });
     const tela = projetarSino(
       { novidades: [novidade("a", true), novidade("b", false)], naoLidas: 4 },
-      { pessoaId: "s", lente: { leitor: "solicitante", rotulos: {} } },
+      { pessoaId: "s", lente: { leitor: "solicitante", rotulos: {}, pessoaId: "s" } },
       Date.parse("2026-10-03T12:00:00.000Z"),
     );
     expect(tela.naoLidasNaLista.map((l) => l.ocorrenciaId)).toStrictEqual(["a"]);

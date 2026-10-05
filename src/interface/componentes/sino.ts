@@ -41,7 +41,7 @@ export function textoDoTipo(novidade: NovidadeNaTela, quemLePessoaId: string, st
     case "status":
       return status ?? "Mudança de status";
     case "comentario":
-      return "Comentário";
+      return "Mensagem nova";
     case "atribuicao":
       return novidade.alvo?.pessoaId === quemLePessoaId ? "Atribuída a você" : "Novo responsável";
     case "compartilhamento":

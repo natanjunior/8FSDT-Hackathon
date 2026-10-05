@@ -88,14 +88,20 @@ export const MENSAGENS_DE_CAMPO = {
 /** As frases de T-04 no `inventario-de-telas.md` §7. Nenhuma nasce aqui. */
 export const FRASES_DO_SERVIDOR: Readonly<Record<string, string>> = {
   ANEXO_NAO_RECONHECIDO:
-    "A foto não chegou ou a autorização expirou. Escolha a foto de novo — o resto do que você escreveu está aqui.",
-  ANEXO_ACIMA_DO_LIMITE:
-    "A foto ficou grande demais depois da compressão. Tente uma foto com menos detalhe.",
+    "A foto não chegou. Escolha a foto de novo; o resto do que você escreveu continua aqui.",
+  ANEXO_ACIMA_DO_LIMITE: "A foto ficou grande demais. Escolha outra.",
   LIMITE_DE_AUTORIZACOES_DE_UPLOAD:
     "Muitas fotos enviadas na última hora. Espere um pouco antes de anexar outra.",
   CATEGORIA_INVALIDA: "Esta categoria não está mais disponível. Escolha outra.",
   AREA_INVALIDA: "Esta área não está mais disponível. Escolha outra.",
 };
+
+/**
+ * A recusa **antes** de comprimir, quando a foto escolhida passa do teto do seletor
+ * (`LIMITE_DO_SELETOR_EM_BYTES`). É outro momento que o de `ANEXO_ACIMA_DO_LIMITE`, que vem do servidor
+ * depois da compressão, e por isso é outra frase.
+ */
+export const FOTO_ACIMA_DO_SELETOR = "Esta foto passa de 10 MB. Escolha outra.";
 
 /** Os dois códigos que são erro **da foto**, e por isso remontam o controle em vez de falar do formulário. */
 export const CODIGOS_DO_ANEXO: readonly string[] = ["ANEXO_NAO_RECONHECIDO", "ANEXO_ACIMA_DO_LIMITE"];

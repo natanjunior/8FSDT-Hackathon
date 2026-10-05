@@ -313,7 +313,7 @@ export function FormularioDePedidoDeEntrada({
             id="codigo"
             rotulo="Código da organização"
             obrigatorio
-            ajuda="Está no cartaz do elevador ou na mensagem do grupo."
+            ajuda="Costuma estar num cartaz ou na mensagem do grupo."
             erro={formulario.erroDe("codigo", estado.erros)}
           >
             {(controle) => (

@@ -25,7 +25,7 @@ export const TEXTOS_DO_QR = {
     contexto: "Entre para registrar uma ocorrência neste lugar.",
     principal: "Entrar",
     apoio: "Ainda não participa? Peça para entrar. Um Gestor decide.",
-    secundario: "Entrar na organização",
+    secundario: "Pedir para entrar",
   },
   areaIndisponivel: "Esta área não está mais disponível. Escolha onde é.",
   trocando: "Abrindo o registro…",

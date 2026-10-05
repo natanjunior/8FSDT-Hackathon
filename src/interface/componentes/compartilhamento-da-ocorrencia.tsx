@@ -228,7 +228,9 @@ function PainelDeCompartilhar({
           });
       if (!resposta.ok) {
         // A linha volta ao estado anterior, com a frase da resposta embaixo dela. O painel não fecha.
-        const mensagem = mensagemDoProblema(await resposta.json().catch(() => null));
+        const mensagem = mensagemDoProblema(await resposta.json().catch(() => null), {
+          OCORRENCIA_NAO_ENCONTRADA: "Não foi possível compartilhar com esta pessoa. Ela pode não participar mais da organização.",
+        });
         setErroDaLinha((atual) => ({ ...atual, [pessoa.pessoaId]: mensagem }));
         return;
       }

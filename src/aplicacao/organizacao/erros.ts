@@ -138,7 +138,7 @@ export class VinculoNaoEncontrado extends ErroDeDominio {
     super(
       "VINCULO_NAO_ENCONTRADO",
       "Vínculo não encontrado",
-      "Não há vínculo com esta pessoa nesta organização.",
+      "Esta pessoa não participa mais desta organização.",
     );
   }
 }
