@@ -1,3 +1,4 @@
+import { FRASES_DE_ESPERA } from "@/interface/componentes/frases-de-espera";
 import { EsperaDaMolduraDeConta } from "@/interface/componentes/moldura-de-conta";
 
 /**
@@ -8,7 +9,7 @@ import { EsperaDaMolduraDeConta } from "@/interface/componentes/moldura-de-conta
  * **O `loading.tsx` da raiz vale para todo filho que não tenha o seu** (`loading.md:76`). As telas da
  * casca têm o delas, e as quatro de conta passaram a ter no mesmo item.
  *
- * A frase e o atraso de 2 s em CSS são os de `app/organizacao/loading.tsx`, pela mesma razão: nesta tela
+ * O atraso de 2 s em CSS é o de `app/organizacao/loading.tsx`, pela mesma razão: nesta tela
  * não há JavaScript nosso rodando ainda.
  */
 export default function EsperandoARaiz() {
@@ -18,7 +19,7 @@ export default function EsperandoARaiz() {
         role="status"
         className="text-tinta-suave text-interface animate-in fade-in text-center opacity-0 [animation-delay:2s] [animation-duration:300ms] [animation-fill-mode:forwards]"
       >
-        Acordando o servidor — a primeira abertura do dia é mais lenta.
+        {FRASES_DE_ESPERA.porta}
       </p>
     </EsperaDaMolduraDeConta>
   );

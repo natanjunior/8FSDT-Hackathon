@@ -59,7 +59,7 @@ export type EntradaDePedidoDeEntrada = z.infer<typeof pedidoDeEntradaSchema>;
  *
  * **`areaId` é a unidade, e este é o único momento em que ela pode ser informada para quem tem conta:** o
  * `PATCH /vinculos/{pessoaId}` recusa Pessoa com Usuário, e o morador sempre tem uma. Opcional, e
- * `null` explícito é aceito — a tela manda `null` quando o Gestor escolhe *"Sem unidade"*.
+ * `null` explícito é aceito — a tela manda `null` quando o Gestor escolhe *"Sem área"*.
  *
  * **Área que não é desta organização, ou inativa, é `422 AREA_INVALIDA`** — recusa de domínio, não de
  * forma: o schema só confere que é um `uuid`.

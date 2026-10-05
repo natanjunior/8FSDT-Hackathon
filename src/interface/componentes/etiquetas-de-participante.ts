@@ -95,8 +95,8 @@ export function tituloDoApagar(nome: string): string {
 
 export function textoDoApagar(quantas: number): string {
   if (quantas === 0) return "Não está em ninguém.";
-  if (quantas === 1) return "Está em 1 pessoa e sai dela.";
-  return `Está em ${String(quantas)} pessoas e sai de todas.`;
+  if (quantas === 1) return "Está em 1 participante e sai dele.";
+  return `Está em ${String(quantas)} participantes e sai de todos.`;
 }
 
 /** **A palavra, nunca só o número** (compromisso A-5): a contagem ao lado de cada etiqueta (item 120). */

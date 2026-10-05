@@ -64,7 +64,7 @@ export function CodigoDaOrganizacao({ codigo }: { codigo: string }) {
               </span>
             </>
           ) : (
-            "É o código do cartaz do elevador. Quem o digita abre um pedido de entrada, que você decide em Participantes. Ele não muda."
+            "Quem digita este código pede para entrar, e você decide em Participantes. Ele não muda."
           )}
         </p>
       </dd>

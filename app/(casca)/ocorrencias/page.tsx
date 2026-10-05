@@ -694,8 +694,7 @@ function AlemDoFim({ total, consultaAtual }: { total: number; consultaAtual: str
       <EmptyHeader>
         <EmptyTitle className="text-titulo-bloco text-tinta">{TEXTO_ALEM_DO_FIM.titulo}</EmptyTitle>
         <EmptyDescription className="text-corpo text-tinta-suave">
-          Este corte tem {total} {total === 1 ? "ocorrência" : "ocorrências"}, e nenhuma delas cai nesta
-          página.
+          Esta lista tem {total} {total === 1 ? "ocorrência" : "ocorrências"}, e nenhuma cai nesta página.
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>

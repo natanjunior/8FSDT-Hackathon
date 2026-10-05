@@ -14,9 +14,9 @@ export const FRASES_DE_FALHA = {
   conversa: "As mensagens não carregaram.",
   paginaTitulo: "Esta página não carregou.",
   paginaFrase: "Tente de novo em instantes.",
-  voltarAoInicio: "Voltar ao início",
+  voltarAoInicio: "Ir para o início",
   inexistenteTitulo: "Página não encontrada",
   inexistenteFrase: "Este endereço não leva a nenhuma página.",
-  abrirAplicacao: "Abrir a aplicação",
+  abrirAplicacao: "Abrir o Resolve Aí",
   lerDocumentacao: "Ler a documentação",
 } as const;

@@ -313,7 +313,7 @@ export function FormularioDePedidoDeEntrada({
             id="codigo"
             rotulo="Código da organização"
             obrigatorio
-            ajuda="Está no cartaz do elevador ou na mensagem do grupo."
+            ajuda="Costuma estar num cartaz ou na mensagem do grupo."
             erro={formulario.erroDe("codigo", estado.erros)}
           >
             {(controle) => (
@@ -332,7 +332,7 @@ export function FormularioDePedidoDeEntrada({
             <Campo
               id="nome"
               rotulo="Seu nome"
-              ajuda="É como você vai aparecer para os Gestores e no histórico das ocorrências."
+              ajuda="É como você vai aparecer nas organizações de que participar."
               erro={formulario.erroDe("nome", estado.erros)}
             >
               {(controle) => (
@@ -350,7 +350,7 @@ export function FormularioDePedidoDeEntrada({
             <Campo
               id="telefone"
               rotulo="Telefone (opcional)"
-              ajuda="Vai virar o seu primeiro contato na organização."
+              ajuda="O Gestor vê este número ao decidir o seu pedido."
               erro={formulario.erroDe("telefone", estado.erros)}
             >
               {(controle) => (

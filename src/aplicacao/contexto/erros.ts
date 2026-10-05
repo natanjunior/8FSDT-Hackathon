@@ -16,7 +16,7 @@ import { ErroDeDominio } from "@/dominio/erros";
 /** `401 NAO_AUTENTICADO` — sessão ausente, inválida ou expirada. */
 export class NaoAutenticado extends ErroDeDominio {
   constructor() {
-    super("NAO_AUTENTICADO", "Não autenticado", "Entre para continuar.");
+    super("NAO_AUTENTICADO", "Não autenticado", "Sua sessão terminou. Recarregue a página e entre de novo.");
   }
 }
 

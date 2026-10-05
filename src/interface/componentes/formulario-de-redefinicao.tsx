@@ -65,7 +65,7 @@ export function FormularioDeRedefinicao({ emailInicial = null }: { emailInicial?
         contexto={
           <>
             Se existe uma conta com <strong className="text-tinta font-semibold break-all">{enviadoPara}</strong>,
-            enviamos o link para ela. Confira também o spam.
+            o link foi para esse endereço. Confira também o spam.
           </>
         }
         temCorpo={false}

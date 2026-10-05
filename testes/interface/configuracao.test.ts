@@ -440,7 +440,7 @@ describe("regras-do-codigo — o campo de oito casas (critério 65.2)", () => {
   });
 });
 
-describe("erroDoNome — o campo do modal Editar organização (critérios 44i.2 e 44i.8)", () => {
+describe("erroDoNome — o campo do modal Renomear organização (critérios 44i.2 e 44i.8)", () => {
   const ATUAL = "Condomínio Recanto Azul";
 
   it("vazio e só espaços pedem o nome, com a frase do schema da rota", () => {
@@ -619,7 +619,7 @@ describe("ordem-da-lista — as regras das listas de ordem manual (item 44k)", (
 describe("frases-da-configuracao — o texto das duas telas (item 44k)", () => {
   it("avisoDaMudancaDeTipo: zero é sucesso, e a atenção só aparece com contagem", () => {
     expect(avisoDaMudancaDeTipo("Garagem", "privativa", 0)).toEqual({
-      titulo: "Garagem passou a ser Unidade privativa.",
+      titulo: "Garagem passou a ser Unidade privativa",
     });
     expect(avisoDaMudancaDeTipo("Garagem", "comum", 1)).toEqual({
       forma: "atencao",
@@ -897,7 +897,7 @@ describe("as palavras da configuração — item 99", () => {
   it("a frase da mudança diz a regra e os dois valores", () => {
     expect(
       fraseDaMudanca({ chave: "exigir_solucao_ao_resolver", valorAnterior: "false", valorNovo: "true" }),
-    ).toBe("Exigir a solução ao resolver: de Não para Sim");
+    ).toBe("Exigir a solução aplicada ao resolver: de Não para Sim");
     expect(
       fraseDaMudanca({
         chave: "limite_cancelamento_solicitante",
@@ -1025,7 +1025,7 @@ describe("os dias para parada na trilha — item 101", () => {
   it("as frases das duas regras do item 99 não mudaram", () => {
     expect(
       fraseDaMudanca({ chave: "exigir_solucao_ao_resolver", valorAnterior: "false", valorNovo: "true" }),
-    ).toBe("Exigir a solução ao resolver: de Não para Sim");
+    ).toBe("Exigir a solução aplicada ao resolver: de Não para Sim");
   });
 });
 

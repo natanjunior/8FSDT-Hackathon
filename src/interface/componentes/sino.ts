@@ -41,7 +41,7 @@ export function textoDoTipo(novidade: NovidadeNaTela, quemLePessoaId: string, st
     case "status":
       return status ?? "Mudança de status";
     case "comentario":
-      return "Comentário";
+      return "Mensagem nova";
     case "atribuicao":
       return novidade.alvo?.pessoaId === quemLePessoaId ? "Atribuída a você" : "Novo responsável";
     case "compartilhamento":
@@ -49,13 +49,6 @@ export function textoDoTipo(novidade: NovidadeNaTela, quemLePessoaId: string, st
         ? "Compartilhada com você"
         : `Compartilhada com ${novidade.alvo.nome}`;
   }
-}
-
-/** O pé da lista, quando o limite deixou não lidas de fora (spec §3.11). */
-export function foraDaLista(quantas: number): string {
-  return quantas === 1
-    ? "Mais 1 não lida fora desta lista."
-    : `Mais ${String(quantas)} não lidas fora desta lista.`;
 }
 
 export type LinhaDoSino = {

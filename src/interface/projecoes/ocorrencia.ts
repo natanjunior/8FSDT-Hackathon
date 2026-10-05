@@ -49,6 +49,14 @@ const ROTULO_DE_PAUSA: Readonly<Record<MotivoPausa, string>> = {
   aguardando_terceiro: "Parada — esperando um terceiro",
 };
 
+/**
+ * **A espera pelo autor, lida por quem não é o autor** (item 126, escolha 13). Quem recebeu um
+ * compartilhamento, ou qualquer leitor sem `ocorrencia.ler_todas` que não registrou a ocorrência, não tem
+ * campo para responder: a frase de `ROTULO_DE_PAUSA` mandaria a pessoa fazer o que ela não pode. É
+ * frase inteira, e não molde (regra 2 do glossário).
+ */
+const ROTULO_DE_ESPERA_PARA_QUEM_NAO_REGISTROU = "Parada — esperando quem registrou responder";
+
 const ROTULO_DE_STATUS: Readonly<Record<Exclude<StatusOcorrencia, "pausada">, string>> = {
   aberta: "Recebida — aguardando análise",
   em_analise: "Em análise",
@@ -96,7 +104,16 @@ const ROTULO_DE_STATUS: Readonly<Record<Exclude<StatusOcorrencia, "pausada">, st
  */
 export type LenteDeRotulo =
   | { readonly leitor: "gestor" }
-  | { readonly leitor: "solicitante"; readonly rotulos: RotulosDaOrganizacao };
+  | {
+      readonly leitor: "solicitante";
+      readonly rotulos: RotulosDaOrganizacao;
+      /**
+       * **Quem lê** (item 126, escolha 13). É o que separa o autor de quem recebeu um compartilhamento:
+       * a espera por informação do Solicitante só diz *"você"* para quem registrou. `null` é *"não sei
+       * quem lê"*, e aí vale a frase do autor, que era o comportamento de antes.
+       */
+      readonly pessoaId: string | null;
+    };
 
 /** O que a organização customizou. Estado ausente é *"vale o padrão"* — não há linha para o padrão. */
 export type RotulosDaOrganizacao = Readonly<Partial<Record<StatusOcorrencia, string>>>;
@@ -104,15 +121,21 @@ export type RotulosDaOrganizacao = Readonly<Partial<Record<StatusOcorrencia, str
 export const LENTE_DO_GESTOR: LenteDeRotulo = { leitor: "gestor" };
 
 /** A lente do Solicitante **não existe sem os rótulos**: é a assinatura que cobra, não o revisor. */
-export function lenteDoSolicitante(rotulos: RotulosDaOrganizacao): LenteDeRotulo {
-  return { leitor: "solicitante", rotulos };
+export function lenteDoSolicitante(
+  rotulos: RotulosDaOrganizacao,
+  pessoaId: string | null = null,
+): LenteDeRotulo {
+  return { leitor: "solicitante", rotulos, pessoaId };
 }
 
 export function lenteDeRotulo(
   permissoes: readonly string[],
   rotulos: RotulosDaOrganizacao,
+  pessoaId: string | null = null,
 ): LenteDeRotulo {
-  return permissoes.includes("ocorrencia.ler_todas") ? LENTE_DO_GESTOR : lenteDoSolicitante(rotulos);
+  return permissoes.includes("ocorrencia.ler_todas")
+    ? LENTE_DO_GESTOR
+    : lenteDoSolicitante(rotulos, pessoaId);
 }
 
 /**
@@ -141,6 +164,11 @@ export function rotuloDeStatus(
   status: StatusOcorrencia,
   motivoPausa: MotivoPausa | null,
   lente: LenteDeRotulo,
+  /**
+   * Quem registrou a ocorrência, quando quem chama sabe (item 126, escolha 13). Sem ele, a espera por
+   * informação do Solicitante sai na frase do autor.
+   */
+  autorPessoaId?: string,
 ): string {
   if (lente.leitor === "gestor") return NOME_DO_STATUS[status];
   // **O texto da organização vence o padrão** (item 100), e em `pausada` ele vence também as quatro
@@ -149,6 +177,15 @@ export function rotuloDeStatus(
   // justamente porque os dois textos passam a divergir, na lista e na nota da régua do ciclo.
   const daOrganizacao = lente.rotulos[status];
   if (daOrganizacao !== undefined) return daOrganizacao;
+  if (
+    status === "pausada" &&
+    motivoPausa === "aguardando_informacao_solicitante" &&
+    autorPessoaId !== undefined &&
+    lente.pessoaId !== null &&
+    lente.pessoaId !== autorPessoaId
+  ) {
+    return ROTULO_DE_ESPERA_PARA_QUEM_NAO_REGISTROU;
+  }
   return rotuloPadraoDoSolicitante(status, motivoPausa);
 }
 
@@ -173,16 +210,13 @@ export function rotuloPadraoDoSolicitante(
 }
 
 /**
- * O motivo da pausa **em palavras**, para a segunda linha do item na lista do Gestor (critério 14.3).
+ * O motivo da pausa **na frase do Solicitante** — a mesma tabela do rótulo, sem segunda cópia.
  *
- * **Reusa a mesma tabela do rótulo — não há segundo vocabulário.** A regra 2 do glossário proíbe frase
- * montada em tempo de execução, e inventar uma forma curta aqui criaria exatamente o segundo texto que a
- * tabela existe para impedir.
- *
- * **Alcançável desde o item 23**, que é quem torna `pausada` um estado real. Entre o 23 e o 31 o rótulo
- * do Solicitante — que é o de todo mundo até lá — **já traz o motivo dentro dele**, e por isso a segunda
- * linha de T-03 não sai: quem decide é `segundaLinhaDeMotivo`, logo abaixo, e ela volta sozinha quando o
- * **31** trocar o rótulo do Gestor para *"Pausada"*. É o critério **23.6**.
+ * **Desde o item 126 ela não serve mais à lente do Gestor.** Lá o rótulo colapsa em *"Pausada"*, e a
+ * segunda linha passa a ser o nome do motivo (`nomeDoMotivoPausa`), o mesmo do modal de pausa: escrever
+ * *"Parada —"* sob *"Pausada"* confundia a pausa com a ocorrência parada, que o glossário separa. Esta
+ * função continua sendo a segunda linha do Solicitante quando a organização customizou o texto de
+ * `pausada`, e é a fonte de `rotuloDeStatus` para os quatro motivos.
  */
 export function rotuloDeMotivoPausa(motivo: MotivoPausa): string {
   return ROTULO_DE_PAUSA[motivo];
@@ -210,7 +244,7 @@ export function rotuloDeMotivoPausa(motivo: MotivoPausa): string {
  * `docs/prototipo/telas.html:2405-2423`, e batem com a definição de `Pausada` no glossário §4.
  */
 const NOME_DO_MOTIVO_PAUSA: Readonly<Record<MotivoPausa, string>> = {
-  aguardando_informacao_solicitante: "Aguardando informação do solicitante",
+  aguardando_informacao_solicitante: "Aguardando informação do Solicitante",
   aguardando_peca: "Aguardando peça",
   aguardando_autorizacao: "Aguardando autorização",
   aguardando_terceiro: "Aguardando um terceiro",
@@ -330,6 +364,10 @@ export function segundaLinhaDeMotivo(
   statusRotulo: string,
 ): string | null {
   if (motivo === null) return null;
+  // Na lente do Gestor o rótulo colapsa em "Pausada": a segunda linha é o nome do motivo, o mesmo do modal de pausa.
+  if (statusRotulo === NOME_DO_STATUS.pausada) return nomeDoMotivoPausa(motivo);
+  // A frase de quem não registrou já traz o motivo dentro dela (item 126, escolha 13).
+  if (statusRotulo === ROTULO_DE_ESPERA_PARA_QUEM_NAO_REGISTROU) return null;
   const rotulo = rotuloDeMotivoPausa(motivo);
   return rotulo === statusRotulo ? null : rotulo;
 }
@@ -486,7 +524,7 @@ export function descricaoDoRecorte(
     clausulas.push(
       diasParaParada === null
         ? "Paradas, sem contar as pausadas"
-        : `Paradas há mais de ${String(diasParaParada)} dias, sem contar as pausadas`,
+        : `Paradas há ${String(diasParaParada)} dias ou mais, sem contar as pausadas`,
     );
   }
 
@@ -579,7 +617,12 @@ export function projetarTransicao(lida: TransicaoLida) {
  * duplicação é intencional, não defeito a corrigir: a linha do tempo diz *o que aconteceu*, a conversa é
  * *onde se escreve* (critério 30.8).
  */
-export function projetarEventoDaLinhaDoTempo(evento: EventoLido, lente: LenteDeRotulo) {
+export function projetarEventoDaLinhaDoTempo(
+  evento: EventoLido,
+  lente: LenteDeRotulo,
+  /** Quem registrou a ocorrência, quando quem chama sabe (item 126, escolha 13); vai para `rotuloDeStatus`. */
+  autorPessoaId?: string,
+) {
   if (evento.tipo === "atribuicao") {
     return {
       tipo: "atribuicao" as const,
@@ -609,7 +652,7 @@ export function projetarEventoDaLinhaDoTempo(evento: EventoLido, lente: LenteDeR
     tipo: "transicao" as const,
     ocorridoEm: evento.ocorridoEm,
     autor: transicao.autor,
-    rotulo: rotuloDeStatus(transicao.statusNovo, transicao.motivoPausa, lente),
+    rotulo: rotuloDeStatus(transicao.statusNovo, transicao.motivoPausa, lente, autorPessoaId),
     statusAnterior: transicao.statusAnterior,
     statusNovo: transicao.statusNovo,
     // Os três são **visíveis ao Solicitante** por decisão do hub (Q-API-3, resposta (a)) — critério 29.2.
@@ -652,7 +695,7 @@ export function projetarOcorrenciaDetalhe(lida: OcorrenciaLida, quemLe: QuemLe, 
     id: lida.id,
     titulo: lida.titulo,
     status: lida.status,
-    statusRotulo: rotuloDeStatus(lida.status, lida.motivoPausa, lente),
+    statusRotulo: rotuloDeStatus(lida.status, lida.motivoPausa, lente, lida.autor.pessoaId),
     motivoPausa: lida.motivoPausa,
     prioridade: lida.prioridade,
     categoria: { id: lida.categoria.id, nome: lida.categoria.nome, icone: lida.categoria.icone },
@@ -771,7 +814,7 @@ export function projetarOcorrenciaResumo(lida: OcorrenciaResumoLida, lente: Lent
     id: lida.id,
     titulo: lida.titulo,
     status: lida.status,
-    statusRotulo: rotuloDeStatus(lida.status, lida.motivoPausa, lente),
+    statusRotulo: rotuloDeStatus(lida.status, lida.motivoPausa, lente, lida.autor.pessoaId),
     motivoPausa: lida.status === "pausada" ? lida.motivoPausa : null,
     prioridade: lida.prioridade,
     categoria: { id: lida.categoria.id, nome: lida.categoria.nome },

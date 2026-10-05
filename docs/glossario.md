@@ -16,17 +16,17 @@ Atores são nomeados por função, e nunca por nome próprio.
 | Termo | Definição | Não confundir com |
 |---|---|---|
 | Pessoa | O ser humano no sistema: nome e contato. Existe mesmo sem conseguir entrar | Usuário |
-| Usuário | A credencial de acesso de uma Pessoa. Uma Pessoa tem zero ou um | Pessoa |
+| Usuário | A credencial de acesso de uma Pessoa. Uma Pessoa tem zero ou um. Na tela, *conta* | Pessoa |
 | Vínculo | A ligação entre uma Pessoa, um Papel e uma Organização. A mesma Pessoa pode ter vários, com papéis diferentes | Papel, que o vínculo carrega |
 | Participante | A Pessoa com vínculo ativo numa Organização, de qualquer papel, com conta ou sem | Pessoa, que existe sem vínculo; Encarregado, que é um dos papéis |
 | Papel | O que a Pessoa é dentro de uma Organização: Solicitante, Gestor ou Encarregado | Permissão, que é o que o papel autoriza |
-| Etiqueta | Rótulo livre que o Gestor dá a um participante: eletricista, contratado, prestador de serviço. Só quem gere participantes vê | Papel, que define permissão; Categoria, que tipifica a ocorrência |
+| Etiqueta | Marcador livre que o Gestor dá a um participante: eletricista, contratado, prestador de serviço. Só quem gere participantes vê | Papel, que define permissão; Categoria, que tipifica a ocorrência |
 | Solicitante | Papel de quem registra e acompanha ocorrências | — |
 | Gestor | Papel de quem tria, conduz e encerra as ocorrências da Organização | Encarregado |
-| Encarregado | Papel de quem executa o trabalho: zelador, técnico, prestador. Nesta versão existe como cadastro, sem acesso próprio | Responsável, que é a atribuição e não o papel |
+| Encarregado | Papel de quem executa o trabalho: zelador, técnico, prestador. Nesta versão não tem acesso próprio, mesmo quando tem conta | Responsável, que é a atribuição e não o papel |
 | Responsável | A Pessoa designada para resolver uma ocorrência. É uma relação, e alcança qualquer Pessoa com vínculo | Encarregado; e o autor da transição, que é quem executou o comando |
 | Pedido de entrada | A solicitação de uma Pessoa para se vincular a uma Organização, apresentando o Código, e que aguarda decisão do Gestor | Vínculo, que só passa a existir depois da aprovação |
-| Remover vínculo | Apagar o vínculo de quem ainda não deixou rastro na Organização. A Pessoa continua existindo, e pode pedir entrada de novo se tiver conta | Revogar vínculo |
+| Remover vínculo | Apagar o vínculo de quem ainda não deixou rastro na Organização. A Pessoa continua existindo, e pode pedir entrada de novo se tiver conta. Na tela, *remover da organização* | Revogar vínculo |
 | Revogar vínculo | Encerrar o acesso de quem já deixou rastro, sem apagar nada. O vínculo fica, e o nome continua na trilha. Na tela, é *encerrar o acesso* | Remover vínculo, que apaga |
 
 ## O lugar
@@ -36,7 +36,7 @@ Atores são nomeados por função, e nunca por nome próprio.
 | Organização | O condomínio, a empresa ou o bairro que usa o produto. É o limite de isolamento de dados | Área |
 | Organização ativa | A Organização pela qual a sessão está enxergando agora. Quem tem vários vínculos tem uma de cada vez, e trocar é operação explícita | Vínculo, que é o conjunto de todas |
 | Mudança de configuração | Cada alteração de uma regra da Organização, com o valor anterior, o novo, quem mudou e quando. O banco não deixa alterá-la nem apagá-la | Trilha de auditoria, que é da ocorrência |
-| Código da Organização | Identificador público que permite pedir entrada. Vive em cartaz, mensagem ou etiqueta | Convite, que é o link com o código dentro |
+| Código da Organização | Identificador público que permite pedir entrada. Vive em cartaz, mensagem ou adesivo | Convite, que é o link com o código dentro |
 | Convite | O link que leva o Código da Organização pronto, e o QR do mesmo link. Quem o abre pede entrada com um toque, e o pedido passa pela aprovação do Gestor como qualquer outro | Código da Organização, que o convite carrega; Convite pessoal, que dispensa a aprovação |
 | Convite pessoal | O link de uma pessoa que o Gestor cadastrou sem conta. Quem o abre liga a própria conta ao vínculo que o Gestor já aprovou, sem pedido de entrada | Convite, que leva à Organização e passa pela aprovação |
 | QR da área | O QR colado no próprio lugar. Leva quem participa ao registro com a Área já escolhida, e quem não participa ao pedido de entrada. Carrega o Código da Organização | Convite, que leva só à Organização |
@@ -53,7 +53,7 @@ Atores são nomeados por função, e nunca por nome próprio.
 | Prioridade | O quanto a ocorrência corre, definida pelo Gestor. Nasce normal, e muda enquanto a ocorrência não terminou | Categoria |
 | Solução aplicada | O registro do que foi feito para resolver, escrito pelo Gestor | Observação, que justifica uma mudança de estado |
 | Avaliação | A nota de 1 a 5 que o autor dá à resolução, depois de a ocorrência estar `Resolvida`. Não é um estado | `Em análise`, que é o estado em que o Gestor avalia a ocorrência |
-| Comentário | A conversa dentro da ocorrência, entre quem abriu e quem gere | Observação; Solução aplicada |
+| Comentário | A conversa dentro da ocorrência, entre quem abriu e quem gere. Na tela, *mensagem* | Observação; Solução aplicada; o texto opcional da avaliação |
 | Compartilhamento | Abrir uma ocorrência, só para leitura, a uma pessoa da mesma organização. Quem recebe vê tudo e não age | Atribuição, que dá trabalho e não leitura; Permissão, que é do papel |
 
 ## O ciclo de vida
@@ -74,17 +74,17 @@ Atores são nomeados por função, e nunca por nome próprio.
 | Trilha de auditoria | A sequência completa e imutável dos registros de transição de uma ocorrência | Linha do tempo |
 | Linha do tempo | A leitura que quem abriu consulta ao acompanhar: transições, atribuições e mensagens, em linguagem de gente | Trilha de auditoria, que é a fonte e mostra os campos crus |
 | Rótulo | O texto mostrado para um status, que depende de quem lê. Calculado no servidor | Os nomes dos estados, que não mudam |
-| Texto do Solicitante | O rótulo que a Organização definiu para um status. Vale só para quem abriu a ocorrência, e substitui o padrão | Nome do status, que é como o sistema o identifica e não muda |
+| Texto do Solicitante | O rótulo que a Organização definiu para um status. Vale para todo leitor que não lê todas as ocorrências, inclusive quem recebeu um compartilhamento, e substitui o padrão | Nome do status, que é como o sistema o identifica e não muda |
 
-Quando a Organização define o texto de um status, ele substitui a frase desta tabela para quem abriu, e
+Quando a Organização define o texto de um status, ele substitui a frase desta tabela para quem não gere, e
 em `Pausada` substitui as quatro — o motivo passa a aparecer na linha de baixo.
 
-| Status | O que quem abriu lê |
+| Status | O que lê quem não gere |
 |---|---|
 | `Aberta` | Recebida — aguardando análise |
 | `Em análise` | Em análise |
 | `Em atendimento` | Em execução |
-| `Pausada` | Parada, e o motivo em seguida: *Parada — esperando você responder*, *Parada — esperando material chegar*, *Parada — esperando autorização*, *Parada — esperando um terceiro* |
+| `Pausada` | Parada, e o motivo em seguida: *Parada — esperando você responder*, *Parada — esperando material chegar*, *Parada — esperando autorização*, *Parada — esperando um terceiro*. Quem recebeu um compartilhamento lê *Parada — esperando quem registrou responder* no lugar da primeira |
 | `Resolvida` | Resolvida |
 | `Cancelada` | Cancelada |
 

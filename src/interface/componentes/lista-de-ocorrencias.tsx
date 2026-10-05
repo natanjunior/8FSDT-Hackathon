@@ -84,7 +84,7 @@ function encerrada(status: string): boolean {
  * linha do celular, que serve a qualquer largura. O contêiner do `Table` do catálogo já rola na horizontal
  * (`ui/table.tsx`), e é ele que segura o conteúdo extremo entre 1024 e ~1280 px.
  *
- * **Desde o item 88, na aba *Compartilhadas comigo* a faixa de selos leva *Não vista* ao lado do status.**
+ * **Desde o item 88, na aba *Compartilhadas comigo* a faixa de selos leva *Não lida* ao lado do status.**
  * A faixa do celular passou a quebrar (`flex-wrap`) para caber com o status mais longo do Solicitante.
  *
  * **Até o item 76 havia um terceiro desenho**, o cartão alto do recorte A (44c), para *Minhas
@@ -390,7 +390,7 @@ function TabelaDeTriagem({
           <TableRow className="border-linha-suave hover:bg-transparent">
             {cabeca("status", "Status")}
             {cabeca("titulo", "Título")}
-            {cabeca("area", "Onde")}
+            {cabeca("area", "Área")}
             {mostrarPrioridade && cabeca("prioridade", "Prioridade")}
             {cabeca("responsavel", "Responsável")}
             {cabeca("atualizacao", "Tempo")}
@@ -441,7 +441,7 @@ function TabelaDeTriagem({
                     {item.quantidadeDeAnexos > 0 && ` · ${String(item.quantidadeDeAnexos)} foto`}
                   </span>
                 </TableCell>
-                {/* **Teto de 180 px e quebra** (critério 102.3). `Onde` e `Responsável` herdavam o
+                {/* **Teto de 180 px e quebra** (critério 102.3). `Área` e `Responsável` herdavam o
                     `whitespace-nowrap` do `TableCell` do catálogo e nunca quebravam: com uma área de 41 letras
                     e um nome de 37 elas tomavam 616 px e cortavam a coluna Tempo. **O teto é da caixa de
                     dentro**, porque `max-width` numa célula de tabela automática não é garantido. `*:items-start`

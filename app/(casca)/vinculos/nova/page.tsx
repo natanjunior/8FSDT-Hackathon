@@ -38,7 +38,7 @@ export default async function CadastrarParticipante() {
       <CaminhoDaPagina anterior={{ rotulo: "Participantes", href: "/vinculos" }} atual="Cadastrar participante" />
       <CabecalhoDaPagina
         titulo="Cadastrar participante"
-        fato="Para quem participa da organização e ainda não usa o aplicativo, como o zelador, o eletricista terceirizado ou um morador sem conta."
+        fato="Para quem participa da organização e ainda não usa o aplicativo, como o zelador, o eletricista terceirizado ou alguém sem conta."
       />
       <FormularioDeVinculo
         modo={{ tipo: "cadastro" }}

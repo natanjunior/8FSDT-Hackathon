@@ -350,7 +350,7 @@ export function contatoEmLeitura(contato: ContatoDaApi): {
 }
 
 /**
- * **O `Select` do catálogo recusa valor vazio**, então *Sem unidade* viaja como sentinela e vira `null`
+ * **O `Select` do catálogo recusa valor vazio**, então *Sem área* viaja como sentinela e vira `null`
  * no corpo.
  */
 export const SEM_UNIDADE = "sem-unidade";

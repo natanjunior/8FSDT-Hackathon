@@ -688,8 +688,7 @@ function PeriodoInvalido() {
     <div className="flex flex-col gap-5">
       <h1 className="text-tinta text-titulo-pagina">Painel</h1>
       <p role="alert" className="text-tinta text-corpo">
-        O período pedido não é válido, e por isso a consulta não correu — os números abaixo não existem, e
-        não são zeros.
+        Este link tem um período que não existe.
       </p>
       <Link
         href="/dashboard"

@@ -29,7 +29,7 @@ export const COLUNAS_DE_OCORRENCIAS: readonly ColunaDoArquivo<OcorrenciaExportad
   { titulo: "Área", celula: (o) => o.area.nome },
   // O tipo **congelado no registro**, o mesmo do resumo, e não o vigente da Área.
   { titulo: "Tipo da área", celula: (o) => rotuloDoTipo(o.area.tipo) },
-  { titulo: "Solicitante", celula: (o) => o.autor.nome },
+  { titulo: "Registrada por", celula: (o) => o.autor.nome },
   { titulo: "Responsável", celula: (o) => o.responsavel?.nome ?? null },
   { titulo: "Motivo da pausa", celula: (o) => (o.motivoPausa === null ? null : nomeDoMotivoPausa(o.motivoPausa)) },
   { titulo: "Solução aplicada", celula: (o) => o.solucaoAplicada },

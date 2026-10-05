@@ -51,10 +51,10 @@ export const EDICAO_DE_NOME: Readonly<Record<AlvoDoNome, EdicaoDoAlvo>> = {
   organizacao: {
     endpoint: "/api/organizacoes",
     schema: nomeDeOrganizacao,
-    titulo: "Editar organização",
+    titulo: "Renomear organização",
     descricao: "O código não muda junto com o nome.",
     rotulo: "Nome da organização",
-    ajuda: "Aparece para quem pede entrada, no seletor de organização e no título do pedido pendente.",
+    ajuda: "Aparece para todos os participantes e para quem pede entrada.",
     falha: "Não foi possível renomear a organização",
     sucesso: (nome) => ({
       titulo: "Organização renomeada",
@@ -68,7 +68,7 @@ export const EDICAO_DE_NOME: Readonly<Record<AlvoDoNome, EdicaoDoAlvo>> = {
     descricao: "Vale em todas as suas organizações.",
     rotulo: "Nome",
     ajuda:
-      "Aparece na lista de participantes, nos seus pedidos de entrada e em cada transição que você já registrou. A trilha guarda quem agiu e mostra o nome de agora.",
+      "É como você aparece nas suas organizações, inclusive no que já fez nas ocorrências.",
     falha: "Não foi possível salvar o seu nome",
     // **A frase carrega o alcance**, que o item 49 fez questão de dizer (Persona 1B).
     sucesso: (nome) => ({

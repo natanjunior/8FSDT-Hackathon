@@ -1,3 +1,5 @@
+import { FRASES_DE_ESPERA } from "@/interface/componentes/frases-de-espera";
+
 /**
  * O cold start de *Editar participante* (RNF5). **O título é o mesmo da página e o do estado sem
  * acesso**, e o esqueleto tem a forma dos dois cartões. O caminho do topo não entra no esqueleto: ele é
@@ -25,7 +27,7 @@ export default function EsperandoAEdicao() {
         role="status"
         className="text-tinta-suave text-interface animate-in fade-in opacity-0 [animation-delay:2s] [animation-duration:300ms] [animation-fill-mode:forwards]"
       >
-        Acordando o servidor — a primeira abertura do dia é mais lenta.
+        {FRASES_DE_ESPERA.dentro}
       </p>
     </div>
   );

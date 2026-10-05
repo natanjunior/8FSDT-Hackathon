@@ -368,7 +368,7 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   await expect(helena.getByText(/oito vazamentos/iu)).toHaveCount(0);
 
   const emAbertoPorIdade = quadro(helena, "Em aberto por idade");
-  const rodapeDaIdade = await emAbertoPorIdade.getByText(/ao todo, nos quatro status/u).innerText();
+  const rodapeDaIdade = await emAbertoPorIdade.getByText(/ao todo, entre Aberta, Em análise, Em atendimento e Pausada\./u).innerText();
   const totalEmAberto = Number(/: (\d+) ao todo/u.exec(rodapeDaIdade)?.[1] ?? Number.NaN);
   expect(Number.isInteger(totalEmAberto), `rodapé do quadro 2: ${rodapeDaIdade}`).toBe(true);
 
@@ -678,7 +678,8 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
 
   const navegacaoDePaginas = helena.getByRole("navigation", { name: "Navegação entre páginas" });
   await expect(navegacaoDePaginas).toBeVisible();
-  await expect(helena.getByText(/Página 1 de \d+ · \d+ ocorrências no corte/u)).toBeVisible();
+  await expect(helena.getByText(/Página 1 de \d+ · \d+ ocorrências/u)).toBeVisible();
+  await expect(helena.getByText("no corte", { exact: false })).toHaveCount(0);
   await expect(helena.locator("tbody tr")).toHaveCount(POR_PAGINA);
 
   // -------------------------------------------------------------------------

@@ -151,7 +151,7 @@ const OBSERVACAO_DE_C = "Abri no prédio errado; a escada que pisca é a do bloc
 const MOTIVOS_DO_AUTOR = 4;
 
 /** As seis colunas do recorte B de T-03, na ordem em que `TabelaDeTriagem` as escreve. */
-const COLUNAS_DA_TRIAGEM = ["Status", "Título", "Onde", "Prioridade", "Responsável", "Tempo"];
+const COLUNAS_DA_TRIAGEM = ["Status", "Título", "Área", "Prioridade", "Responsável", "Tempo"];
 
 /**
  * A linha do desfazer do seletor de prioridade — critério 17.7.
@@ -323,7 +323,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   });
   await helena.getByLabel("Título").pressSequentially(TITULO_A, { delay: 20 });
   await expect(helena.getByLabel("Descrição")).not.toHaveAttribute("aria-invalid", "true");
-  await expect(helena.getByText("Descreva o que aconteceu, em uma frase.")).toHaveCount(0);
+  await expect(helena.getByText("Descreva o que aconteceu.")).toHaveCount(0);
   await helena.getByLabel("Descrição").fill(DESCRICAO_A);
 
   await expect(helena.getByText("Foto pronta")).toBeVisible({ timeout: 30_000 });
@@ -748,7 +748,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   // -------------------------------------------------------------------------
   await marcos.getByRole("button", { name: "Analisar" }).click();
   const modalDeAnalise = marcos.getByRole("dialog", { name: "Analisar" });
-  await expect(modalDeAnalise.getByText("A ocorrência passa a Em análise.")).toBeVisible();
+  await expect(modalDeAnalise.getByText("O status passa a ser Em análise.")).toBeVisible();
   await marcos.keyboard.press("Escape");
   await expect(modalDeAnalise).toHaveCount(0);
   await esperarSituacao(marcos, "Aberta");
@@ -802,7 +802,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   await expect(
     modalDeAtribuicao.getByRole("option", { name: SOLICITANTE_DO_AURORA }),
   ).toBeVisible();
-  await expect(modalDeAtribuicao.getByRole("button", { name: "Cancelar" })).toBeVisible();
+  await expect(modalDeAtribuicao.getByRole("button", { name: "Voltar" })).toBeVisible();
   await expect(modalDeAtribuicao.getByRole("button", { name: "Atribuir" })).toBeVisible();
   cobre(test.info(), "4.3 · 31", {
     falta: "a frase Quem vai cuidar desta ocorrência. e a ordem dos blocos dentro da janela",
@@ -889,7 +889,7 @@ test("a triagem pelas bordas: o formulário, o recorte, os filtros, a prioridade
   cobre(test.info(), "4.3 · 35", { criterio: "20.6" });
 
   // Reabrir zera o formulário — `aoAbrir` limpa a escolha e a busca.
-  await modalDeAtribuicao.getByRole("button", { name: "Cancelar" }).click();
+  await modalDeAtribuicao.getByRole("button", { name: "Voltar" }).click();
   await expect(marcos.getByRole("dialog")).toHaveCount(0);
   await marcos.getByRole("button", { name: "Atribuir" }).click();
   const modalReaberto = marcos.getByRole("dialog");
@@ -1061,7 +1061,7 @@ test.fixme(
  * estreitos que o conteúdo, e medir neles daria zero falso; a fonte muda a largura do nome no seletor.
  *
  * **E há dois `<main>` na árvore, por desenho.** O layout da casca é assíncrono, e numa navegação dura a
- * espera da raiz (`app/loading.tsx`, a moldura de conta com *"Acordando o servidor"*) chega antes dele, com
+ * espera da raiz (`app/loading.tsx`, a moldura de conta com *"Abrindo o Resolve Aí…"*) chega antes dele, com
  * um `<main>` próprio. Os dois convivem até a troca. Localizador de teste não pode supor um só: o
  * `locator("main")` que estava aqui recusou no modo estrito e derrubou a medida de 360 px (item 119).
  *
@@ -1359,7 +1359,7 @@ test("o código da organização cabe no celular, nas três telas que o exibem (
     await assentar(helena);
     // Escopado pelo conteúdo da casca: o streaming deixa uma cópia escondida da frase num `div[hidden]` do
     // `<body>` até a troca, e `getByText` não descarta o que está escondido (item 119).
-    const apoio = conteudoDaCasca(helena).getByText("É o código do cartaz do elevador.", { exact: false });
+    const apoio = conteudoDaCasca(helena).getByText("Quem digita este código pede para entrar", { exact: false });
     const caixa = await apoio.boundingBox();
     expect
       .soft((caixa?.x ?? 9999) + (caixa?.width ?? 0), `apoio de /configuracao a ${largura} px`)
@@ -1386,7 +1386,7 @@ const TITULO_LONGO =
   "Infiltração no teto da garagem do subsolo 2 voltou depois da chuva de sábado e está pingando sobre as vagas 41 a 47, com poça embaixo do quadro de luz".slice(0, 150);
 const AREA_LONGA = "Estacionamento de visitantes do subsolo 2";
 const PESSOA_LONGA = "Maria Aparecida Gonçalves de Oliveira";
-const MOTIVO_LONGO = "Parada — esperando material chegar";
+const MOTIVO_LONGO = "Aguardando informação do Solicitante";
 
 async function injetarPiorCaso(pagina: Page): Promise<{ linhas: number; comSelo: number }> {
   return pagina.evaluate(

@@ -73,7 +73,7 @@ export function textoDoEncerramento(dados: {
   ehMeuProprioVinculo: boolean;
   responsavelEmAberto: number;
 }): readonly string[] {
-  const rastro = `${dados.nome} já deixou rastro nesta organização, então o vínculo não é apagado: as ocorrências, as mensagens e o nome na trilha continuam.`;
+  const rastro = `${dados.nome} já deixou rastro nesta organização, então nada é apagado: as ocorrências, as mensagens e o nome no histórico continuam.`;
   const primeira = dados.temConta
     ? `${rastro} ${dados.nome} deixa de entrar na organização, e pode pedir entrada de novo.`
     : `${rastro} Sem conta, a pessoa não pede entrada: para voltar, precisa ser cadastrada de novo, com os contatos.`;
@@ -81,7 +81,7 @@ export function textoDoEncerramento(dados: {
   const linhas = [primeira];
   if (dados.responsavelEmAberto > 0) linhas.push(fraseDoResponsavel(dados.nome, dados.responsavelEmAberto));
   if (dados.ehMeuProprioVinculo) {
-    linhas.push("Este é o seu próprio vínculo. Ao encerrar, você perde o acesso a esta organização.");
+    linhas.push("Este é você. Ao encerrar, você perde o acesso a esta organização.");
   }
   return linhas;
 }
@@ -118,7 +118,7 @@ export function razaoDoImpedimento(nome: string, impedimento: ImpedimentoNaTela)
   if (impedimento === "ultimo-gestor") {
     return "Esta é a única pessoa com poder de gestão nesta organização. Removê-la deixaria a organização sem ninguém que possa aprovar entradas.";
   }
-  return `${nome} já deixou rastro nesta organização: ocorrência, mensagem, atribuição, etiqueta, decisão de entrada ou configuração. Um vínculo com histórico não pode ser removido — o histórico não se apaga.`;
+  return `${nome} já deixou rastro nesta organização: ocorrência, mensagem, atribuição, etiqueta, decisão de entrada ou configuração. Por isso não dá para remover, só encerrar o acesso.`;
 }
 
 /**
@@ -143,11 +143,11 @@ export function textoDaConfirmacao(dados: {
   ehMeuProprioVinculo: boolean;
 }): readonly string[] {
   const primeira = dados.temConta
-    ? `Remover o vínculo de ${dados.nome}. O cadastro da pessoa não é apagado, e ela pode pedir entrada de novo.`
-    : `Remover o vínculo de ${dados.nome}. O cadastro da pessoa não é apagado, mas ela não tem conta e não pode pedir entrada: para voltar, precisa ser cadastrada de novo, com os contatos.`;
+    ? `${dados.nome} sai da organização. O cadastro não é apagado, e a pessoa pode pedir entrada de novo.`
+    : `${dados.nome} sai da organização. O cadastro não é apagado, mas a pessoa não tem conta e não pode pedir entrada: para voltar, precisa ser cadastrada de novo, com os contatos.`;
 
   return dados.ehMeuProprioVinculo
-    ? [primeira, "Este é o seu próprio vínculo. Ao remover, você perde o acesso a esta organização."]
+    ? [primeira, "Este é você. Ao remover, você perde o acesso a esta organização."]
     : [primeira];
 }
 
@@ -175,6 +175,6 @@ export function textoDaRecusa(corpo: unknown, nome: string): string {
   return mensagemDoProblema(corpo, {
     VINCULO_COM_HISTORICO: razaoDoImpedimento(nome, "historico"),
     ULTIMO_GESTOR: razaoDoImpedimento(nome, "ultimo-gestor"),
-    VINCULO_NAO_ENCONTRADO: "Este vínculo não existe mais.",
+    VINCULO_NAO_ENCONTRADO: "Esta pessoa não participa mais desta organização.",
   });
 }

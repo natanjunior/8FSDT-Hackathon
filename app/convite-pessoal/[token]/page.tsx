@@ -36,7 +36,7 @@ import { projetarContexto, type ContextoProjetado } from "@/interface/projecoes"
  * |---|---|
  * | não vale | *Este convite não vale mais.*, sem dizer por quê |
  * | `sem-sessao` | o nome da pessoa, e o formulário de criar conta com o nome preenchido e o token oculto |
- * | `pode-aceitar` | *Entrar no {organização} como {papel}?*, com a conta em uso e o caminho de sair |
+ * | `pode-aceitar` | *Entrar em {organização} como {papel}?*, com a conta em uso e o caminho de sair |
  * | `ja-participa` | a organização, para entrar nela |
  *
  * **O formulário de criar conta mora aqui**, e não em `/criar-conta`: para preencher o nome lá, a outra

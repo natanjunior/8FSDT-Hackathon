@@ -80,7 +80,7 @@ export function ReguaDoCiclo({
           <span className="text-interface text-tinta font-medium">{rotuloDaSaida}</span>
           <span className="text-tinta-suave text-meta">
             {foraDaLinha.status === "pausada"
-              ? (notaDaSaida ?? "O atendimento está parado; o ciclo não recua.")
+              ? (notaDaSaida ?? "Ao retomar, volta ao ponto em que parou.")
               : "O ciclo não continua."}
           </span>
         </span>

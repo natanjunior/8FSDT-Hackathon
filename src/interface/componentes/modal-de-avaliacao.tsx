@@ -129,8 +129,8 @@ export function ModalDeAvaliacao({
       titulo="Avaliar"
       /* **Frase nova de produto**, declarada no achado A-2 da spec para o hub confirmar ou trocar;
          trocá-la não muda uma linha de estrutura. */
-      descricao="Como foi a resolução?"
-      /* **A nota fica**, e é o único dos cinco em que ela fica: *Comentário (opcional)* existe, então
+      descricao="Como foi o atendimento?"
+      /* **A nota fica**, e é o único dos cinco em que ela fica: *Quer contar mais? (opcional)* existe, então
          nem todo campo é obrigatório (critério 44p.11). */
       obrigatorios={1}
       aoEnviar={(evento) => {
@@ -204,7 +204,7 @@ export function ModalDeAvaliacao({
       {/* **Sem aviso de visibilidade, e a ausência é decisão:** a restrição herdada nº 1 do inventário
           enumera *"modais que têm campo `observacao`"*, e este tem `comentario`. Inventar a frase aqui
           seria escrever texto de produto num componente. */}
-      <Campo id={campoComentarioId} rotulo="Comentário (opcional)">
+      <Campo id={campoComentarioId} rotulo="Quer contar mais? (opcional)">
         {(controle) => (
           <Textarea
             {...controle}

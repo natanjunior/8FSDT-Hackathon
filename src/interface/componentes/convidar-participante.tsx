@@ -22,7 +22,7 @@ import {
   reciboDoEnvio,
   vaiPara,
 } from "@/interface/componentes/envio-de-convite";
-import { avisarSucesso, mensagemDoProblema } from "@/interface/componentes/retorno-de-acao";
+import { MENSAGEM_SEM_CONEXAO, avisarSucesso, mensagemDoProblema } from "@/interface/componentes/retorno-de-acao";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -102,7 +102,7 @@ export function ConvidarParticipante({
       if (resposta.ok) setConvite(corpo as ConviteDoGestorProjetado);
       else setErro(mensagemDoProblema(corpo));
     } catch {
-      setErro(mensagemDoProblema(null));
+      setErro(MENSAGEM_SEM_CONEXAO);
     }
   }
 

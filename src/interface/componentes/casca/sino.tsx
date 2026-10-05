@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useId, useState, type ReactNode } from "react";
 
 import {
-  foraDaLista,
   nomeDoSino,
   numeroDoSino,
   type LinhaDoSino,
@@ -164,9 +163,6 @@ export function ListaDoSino({
           acao={acoes.marcarComoLida}
           aoNavegar={aoNavegar}
         />
-      )}
-      {sino.foraDaLista > 0 && (
-        <p className="text-meta text-tinta-suave px-4 py-2">{foraDaLista(sino.foraDaLista)}</p>
       )}
       {sino.lidas.length > 0 && (
         <Faixa

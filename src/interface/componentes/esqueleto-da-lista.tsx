@@ -1,3 +1,4 @@
+import { FRASES_DE_ESPERA } from "@/interface/componentes/frases-de-espera";
 import { Skeleton } from "@/interface/componentes/ui/skeleton";
 
 /**
@@ -102,7 +103,7 @@ export function EsqueletoDaLista({
         role="status"
         className="text-tinta-suave animate-in fade-in text-interface opacity-0 [animation-delay:2s] [animation-duration:300ms] [animation-fill-mode:forwards]"
       >
-        Acordando o servidor — a primeira abertura do dia é mais lenta.
+        {FRASES_DE_ESPERA.dentro}
       </p>
     </div>
   );

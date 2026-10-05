@@ -557,7 +557,7 @@ describe("o sino — item 117", () => {
     };
     expect(textoDoTipo({ ...base, tipo: "criacao", alvo: null }, "x", null)).toBe("Nova ocorrência");
     expect(textoDoTipo({ ...base, tipo: "status", alvo: null }, "x", "Em análise")).toBe("Em análise");
-    expect(textoDoTipo({ ...base, tipo: "comentario", alvo: null }, "x", null)).toBe("Comentário");
+    expect(textoDoTipo({ ...base, tipo: "comentario", alvo: null }, "x", null)).toBe("Mensagem nova");
     expect(textoDoTipo({ ...base, tipo: "atribuicao", alvo: { pessoaId: "x", nome: "X" } }, "x", null)).toBe(
       "Atribuída a você",
     );
@@ -586,7 +586,7 @@ describe("o sino — item 117", () => {
     });
     const tela = projetarSino(
       { novidades: [novidade("a", true), novidade("b", false)], naoLidas: 4 },
-      { pessoaId: "s", lente: { leitor: "solicitante", rotulos: {} } },
+      { pessoaId: "s", lente: { leitor: "solicitante", rotulos: {}, pessoaId: "s" } },
       Date.parse("2026-10-03T12:00:00.000Z"),
     );
     expect(tela.naoLidasNaLista.map((l) => l.ocorrenciaId)).toStrictEqual(["a"]);
@@ -620,12 +620,12 @@ describe("o sino — item 117", () => {
     );
   });
 
-  it("a lista: faixas com cabeçalho, título como link, marcar em botão de ícone com nome e descrição, vazio e pé", () => {
+  it("a lista: faixas com cabeçalho, título como link, marcar em botão de ícone com nome e descrição, vazio e sem pé", () => {
     const linha = {
       ocorrenciaId: "a",
       href: "/ocorrencias/a",
       titulo: "Vazamento",
-      tipo: "Comentário",
+      tipo: "Mensagem nova",
       por: "Gestora",
       quando: "há 2 horas",
     };
@@ -668,7 +668,8 @@ describe("o sino — item 117", () => {
     expect(new Set(descricoes).size).toBe(descricoes.length);
     expect(descricoes).toHaveLength(3);
     for (const id of descricoes) expect(cheia).toContain(`id="${id}"`);
-    expect(cheia).toContain("Mais 4 não lidas fora desta lista.");
+    // **Sem pé** (item 126, sugestão 66): a frase do teto da lista confessava um limite do produto (P9).
+    expect(cheia).not.toContain("fora desta lista");
     const vazia = render(telaCom(0));
     expect(vazia).toContain("Nada novo por aqui.");
     expect(vazia).not.toContain("<h3");

@@ -195,7 +195,7 @@ describe("a página do convite com ?area= — critérios 4, 5 e 6 na fonte", () 
     expect(fonte).toContain("destinoDoQr(");
   });
 
-  it("a face do QR tem Entrar, o ou, o apoio e Entrar na organização, e não mostra o código", () => {
+  it("a face do QR tem Entrar, o ou, o apoio e Pedir para entrar, e não mostra o código", () => {
     const face = faceDoQr();
     expect(face).toContain("/entrar?destino=");
     expect(face).toContain("<ReguaDoOu deitada");

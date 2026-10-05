@@ -96,7 +96,7 @@ const SENHA_NOVA = "ResolveAi!2026-depois";
  * (critério 8), para quem errou a digitação conferir, e a forma continua a mesma nos dois casos.
  */
 const fraseDoEnvio = (email: string) =>
-  `Se existe uma conta com ${email}, enviamos o link para ela. Confira também o spam.`;
+  `Se existe uma conta com ${email}, o link foi para esse endereço. Confira também o spam.`;
 
 interface ResumoDaCaixa {
   readonly messages: ReadonlyArray<{ readonly ID: string }>;
@@ -263,7 +263,7 @@ test("a recuperação de senha, do pedido ao e-mail e à senha nova, com o link 
 
   await pagina.waitForURL(/\/entrar$/u);
   // O aviso mora no layout raiz e sobrevive à navegação — é o que o guia §7 pede de um desfecho.
-  await expect(pagina.getByText("Senha alterada")).toBeVisible();
+  await expect(pagina.getByText("Senha redefinida")).toBeVisible();
 
   // -------------------------------------------------------------------------
   // 8 · O botão voltar não reencontra o formulário — o critério 6b.4
@@ -284,7 +284,7 @@ test("a recuperação de senha, do pedido ao e-mail e à senha nova, com o link 
   // -------------------------------------------------------------------------
   // 9 · E ela entra com a senha nova
   //
-  // **Sem esta asserção o percurso inteiro poderia ter gravado nada.** A tela dizer "Senha alterada" é
+  // **Sem esta asserção o percurso inteiro poderia ter gravado nada.** A tela dizer "Senha redefinida" é
   // afirmação da interface; entrar com a senha nova é o provedor concordando.
   //
   // **E o erro de campo segue a regra do item 75, digitado letra a letra.** Com `fill`, o valor entra

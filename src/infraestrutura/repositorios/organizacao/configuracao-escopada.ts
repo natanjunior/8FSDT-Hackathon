@@ -11,7 +11,7 @@ import type { LimiteDeCancelamentoDoSolicitante, StatusOcorrencia } from "@/domi
 import type { ConsultaEscopada, TransacaoEscopada } from "@/infraestrutura/contexto";
 
 /**
- * `GET` e `PATCH /configuracao` — as regras da organização ativa, os textos que quem abriu lê, e a
+ * `GET` e `PATCH /configuracao` — as regras da organização ativa, os textos do Solicitante, e a
  * trilha das duas coisas (itens 99 e 100).
  *
  * **O `where` é `id = $1` em `organizacoes` e `organizacao_id = $1` nas outras duas**, e `$1` é injetado

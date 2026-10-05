@@ -80,7 +80,7 @@ export const TEXTOS_DO_REGISTRO = {
 
 export const MENSAGENS_DE_CAMPO = {
   titulo: "Dê um título à ocorrência.",
-  descricao: "Descreva o que aconteceu, em uma frase.",
+  descricao: "Descreva o que aconteceu.",
   categoriaId: "Escolha uma categoria.",
   areaId: "Escolha onde aconteceu.",
 } as const;
@@ -88,14 +88,21 @@ export const MENSAGENS_DE_CAMPO = {
 /** As frases de T-04 no `inventario-de-telas.md` §7. Nenhuma nasce aqui. */
 export const FRASES_DO_SERVIDOR: Readonly<Record<string, string>> = {
   ANEXO_NAO_RECONHECIDO:
-    "A foto não chegou ou a autorização expirou. Escolha a foto de novo — o resto do que você escreveu está aqui.",
-  ANEXO_ACIMA_DO_LIMITE:
-    "A foto ficou grande demais depois da compressão. Tente uma foto com menos detalhe.",
+    "A foto não chegou. Escolha a foto de novo; o resto do que você escreveu continua aqui.",
+  ANEXO_ACIMA_DO_LIMITE: "A foto ficou grande demais. Escolha outra.",
   LIMITE_DE_AUTORIZACOES_DE_UPLOAD:
     "Muitas fotos enviadas na última hora. Espere um pouco antes de anexar outra.",
   CATEGORIA_INVALIDA: "Esta categoria não está mais disponível. Escolha outra.",
   AREA_INVALIDA: "Esta área não está mais disponível. Escolha outra.",
+  SEM_VINCULO_NA_ORGANIZACAO: "Você não tem mais acesso a esta organização.",
 };
+
+/**
+ * A recusa **antes** de comprimir, quando a foto escolhida passa do teto do seletor
+ * (`LIMITE_DO_SELETOR_EM_BYTES`). É outro momento que o de `ANEXO_ACIMA_DO_LIMITE`, que vem do servidor
+ * depois da compressão, e por isso é outra frase.
+ */
+export const FOTO_ACIMA_DO_SELETOR = "Esta foto passa de 10 MB. Escolha outra.";
 
 /** Os dois códigos que são erro **da foto**, e por isso remontam o controle em vez de falar do formulário. */
 export const CODIGOS_DO_ANEXO: readonly string[] = ["ANEXO_NAO_RECONHECIDO", "ANEXO_ACIMA_DO_LIMITE"];
@@ -240,7 +247,8 @@ export const DEPOIS_DE_REGISTRAR = {
 /** O descarte (critério 9). *"Descartar"* veste `destructive`: é a ação que perde trabalho (guia §7). */
 export const DESCARTE = {
   titulo: "Descartar o que você escreveu?",
-  corpo: "O que está no formulário não é guardado, e a foto anexada é descartada junto.",
+  corpoSemFoto: "O que você escreveu se perde.",
+  corpoComFoto: "O que você escreveu se perde, e a foto também.",
   continuar: "Continuar escrevendo",
   descartar: "Descartar",
 } as const;

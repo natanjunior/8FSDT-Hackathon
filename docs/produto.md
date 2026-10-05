@@ -41,7 +41,7 @@ organização sem sair da sessão. Uma organização nunca vê o dado da outra.
 | Registra a ocorrência com título, descrição, categoria, área e foto | Vê todas as ocorrências e filtra por categoria, estado e prioridade |
 | Acompanha as próprias ocorrências e a linha do tempo de cada uma | Analisa, define prioridade e atribui um responsável |
 | Conversa com o Gestor, dentro da ocorrência | Inicia o atendimento, pausa com motivo e retoma |
-| Avalia a resolução, com nota e comentário | Registra a solução aplicada e resolve |
+| Avalia o atendimento, com nota e um texto opcional | Registra a solução aplicada e resolve |
 | | Cancela com motivo, e aprova quem pede para entrar |
 | | Lê os indicadores no painel |
 
@@ -62,7 +62,7 @@ O que governa esse caminho:
   estava antes da pausa.
 - **Cancelar exige observação escrita**, e fica registrado como coisa diferente de resolver.
 - **A avaliação é uma ação do Solicitante** sobre uma ocorrência já resolvida, com nota de 1 a 5 e
-  comentário opcional. Ela não é uma etapa do caminho.
+  um texto opcional. Ela não é uma etapa do caminho.
 - **Toda mudança de estado grava um registro** com o estado anterior, o novo, a data e a hora, quem fez e a
   observação. O registro não se altera nem se apaga.
 - **Não existe reabrir.** Problema que volta é ocorrência nova, ligada à original.

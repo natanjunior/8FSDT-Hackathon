@@ -34,7 +34,7 @@ function iniciaisDe(nome: string): string {
  * ***Meus dados* é item com ícone**, e é o caminho até T-16. Até o item 44i o item imprimia o nome, com
  * *Meus dados* embaixo; com o nome no cabeçalho, o item diz só o destino.
  *
- * ***Entrar em outra organização* mora aqui desde o item 44o** (critério 44o.14), e é a porta da face E
+ * ***Pedir entrada em outra organização* mora aqui desde o item 44o** (critério 44o.14), e é a porta da face E
  * de T-02 para quem está dentro da casca. Ela morava no menu de organização da barra superior, que virou
  * `select` no 44b (critério 44b.4) e não podia carregar uma opção que não é um valor; desde então a face E
  * só era alcançável por quem caía em T-10. O menu de pessoa guarda as ações da **pessoa**, e entrar em
@@ -94,7 +94,7 @@ export function MenuDePessoa({
         <DropdownMenuItem asChild className="text-interface min-h-11">
           <Link href="/organizacao?entrar-em-outra=true">
             <Building2 aria-hidden="true" />
-            Entrar em outra organização
+            Pedir entrada em outra organização
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />

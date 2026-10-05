@@ -15,6 +15,7 @@ import {
   avisarErro,
   avisarSucesso,
   MENSAGEM_GENERICA,
+  MENSAGEM_SEM_CONEXAO,
   mensagemDoProblema,
 } from "@/interface/componentes/retorno-de-acao";
 import { cicloDoModal, MODAL_FECHADO } from "@/interface/ganchos/use-envio-do-modal";
@@ -111,7 +112,12 @@ describe("mensagemDoProblema — a regra da §4.3 da spec, em três passos", () 
   });
 
   it("a frase genérica é a do guia, palavra por palavra", () => {
-    expect(MENSAGEM_GENERICA).toBe("Não foi possível realizar a ação.");
+    expect(MENSAGEM_GENERICA).toBe("Não foi possível concluir agora. Tente de novo em instantes.");
+  });
+
+  it("a rede caída tem frase própria, que diz o que fazer (item 126, sugestão 30)", () => {
+    expect(MENSAGEM_SEM_CONEXAO).toBe("Sem conexão. Verifique a internet e tente de novo.");
+    expect(MENSAGEM_SEM_CONEXAO).not.toBe(MENSAGEM_GENERICA);
   });
 });
 
@@ -119,10 +125,10 @@ describe("as três formas do aviso — guia §7", () => {
   it("sucesso e erro usam a duração do pacote, e só levam descrição quando há uma", () => {
     avisarSucesso("Conta criada");
     avisarErro("Não foi possível entrar");
-    avisarSucesso("Senha alterada", "Entre com ela.");
+    avisarSucesso("Senha redefinida", "Entre com ela.");
     expect(vi.mocked(toast.success)).toHaveBeenCalledWith("Conta criada", {});
     expect(vi.mocked(toast.error)).toHaveBeenCalledWith("Não foi possível entrar", {});
-    expect(vi.mocked(toast.success)).toHaveBeenCalledWith("Senha alterada", { description: "Entre com ela." });
+    expect(vi.mocked(toast.success)).toHaveBeenCalledWith("Senha redefinida", { description: "Entre com ela." });
   });
 
   it("a atenção fica até ser fechada, porque existe para ser lida", () => {
@@ -363,7 +369,7 @@ describe("o alcance do 44g — critérios 6 e 9", () => {
 
   it("a frase genérica existe uma vez só no produto", () => {
     const comAFrase = [...arquivosDe("app"), ...arquivosDe("src")].filter((caminho) =>
-      ler(caminho).includes('"Não foi possível realizar a ação."'),
+      ler(caminho).includes('"Não foi possível concluir agora. Tente de novo em instantes."'),
     );
     expect(comAFrase).toStrictEqual(["src/interface/componentes/retorno-de-acao.ts"]);
   });
@@ -633,7 +639,7 @@ describe("o alcance do 44j — as peças da tabela e da ordem manual", () => {
     expect(espera).toContain(`<h1 className="text-titulo-pagina text-tinta">${titulo ?? "?"}</h1>`);
     // A frase de apoio nomeia quem a tela cadastra: qualquer papel, desde que sem conta (critério 120.28).
     expect(pagina).toContain(
-      'fato="Para quem participa da organização e ainda não usa o aplicativo, como o zelador, o eletricista terceirizado ou um morador sem conta."',
+      'fato="Para quem participa da organização e ainda não usa o aplicativo, como o zelador, o eletricista terceirizado ou alguém sem conta."',
     );
     // E o nome antigo não sobra em lugar nenhum da tela, nem em comentário.
     for (const fonte of [pagina, espera, lista, ler("src/interface/componentes/formulario-de-vinculo.tsx")]) {
@@ -1399,7 +1405,9 @@ describe("o alcance do 44o — T-02, T-10 e a tela de criar", () => {
     const fonte = ler("app/page.tsx");
     expect(fonte).not.toContain("evolução prevista");
     expect(fonte).not.toContain("o contrato declara");
-    expect(fonte).toMatch(/ainda não abre nenhuma tela\.\s+Quando abrir, ela aparece aqui\./u);
+    // P9 (item 126, sugestão 61): a tela não promete uma funcionalidade que falta; diz o que a pessoa faz.
+    expect(fonte).toMatch(/não abre nenhuma tela\. Se precisar\s+de outro papel, fale com um Gestor\./u);
+    expect(fonte).not.toContain("Quando abrir");
     // A tela existe pela **ausência de permissão**, e não pelo nome do papel: a palavra é lida do contexto.
     expect(fonte).toContain("rotuloDoPapel(contexto.papel)");
   });
@@ -1432,7 +1440,7 @@ describe("o alcance do 44o — T-02, T-10 e a tela de criar", () => {
     expect(pagina).toContain("Pedir entrada em outra não tira você das organizações em que já participa.");
     // O seletor é `select` pelo critério 44b.4, e uma opção que não é um valor desfaria aquela decisão.
     expect(ler("src/interface/componentes/casca/seletor-de-organizacao.tsx")).not.toContain(
-      "Entrar em outra organização",
+      "Pedir entrada em outra organização",
     );
     expect(ler("src/interface/componentes/casca/menu-de-pessoa.tsx")).toContain("<Building2");
   });
@@ -1472,9 +1480,9 @@ describe("o alcance do 44o — T-02, T-10 e a tela de criar", () => {
       'titulo="Pedido enviado"',
       "Um Gestor decide, e a resposta aparece aqui.",
       'titulo="Pedido não aprovado"',
-      'titulo="Em qual organização você quer trabalhar?"',
+      'titulo="Qual organização você quer abrir?"',
       "Dá para trocar depois, pelo nome no alto da tela.",
-      'titulo="Entrar em outra organização"',
+      'titulo="Pedir entrada em outra organização"',
     ]) {
       expect(fonte, trecho).toContain(trecho);
     }
@@ -1507,7 +1515,7 @@ describe("o alcance do 44o — T-02, T-10 e a tela de criar", () => {
   it("a espera de T-02 é a da moldura, com a mesma frase (critério 44o.1)", () => {
     const fonte = ler("app/organizacao/loading.tsx");
     expect(fonte).toContain("<EsperaDaMolduraDeConta>");
-    expect(fonte).toContain("Acordando o servidor — a primeira abertura do dia é mais lenta.");
+    expect(fonte).toContain("{FRASES_DE_ESPERA.dentro}");
   });
 
   it("a moldura antiga saiu do produto, nem em comentário (critério 44o.2)", () => {
@@ -1555,10 +1563,10 @@ describe("o alcance do 44o — T-02, T-10 e a tela de criar", () => {
     // **Conferido por leitura, e não por execução:** o teste não roda na pilha que o critério dele
     // autoriza (achado A-10). O relatório não afirma execução verde.
     const e2e = ler("testes/ponta-a-ponta/caminho-critico.spec.ts");
-    expect(e2e).toContain('getByRole("heading", { name: "Em qual organização você quer trabalhar?" })');
+    expect(e2e).toContain('getByRole("heading", { name: "Qual organização você quer abrir?" })');
     expect(e2e).toContain('getByRole("button", { name: AURORA })');
     // O título é o `<h1>` da moldura, e a linha é o `Button` do catálogo, que renderiza `<button>`.
-    expect(ler("app/organizacao/page.tsx")).toContain('titulo="Em qual organização você quer trabalhar?"');
+    expect(ler("app/organizacao/page.tsx")).toContain('titulo="Qual organização você quer abrir?"');
     expect(ler(MOLDURA_DE_CONTA)).toContain("<h1 id={ID_DO_TITULO}");
     expect(ler(ESCOLHA_DE_ORGANIZACAO)).toContain("<Button");
   });
@@ -1825,9 +1833,12 @@ describe("o alcance do 44p — a validação do lote 11", () => {
       // A cor: o `BotaoDeConfirmar` é `variant="marca"` por padrão, então o critério 15 vem junto.
       expect(fonte).toContain("<BotaoDeConfirmar");
       expect(fonte).toContain("<BotaoDeCancelar");
-      // E "Fechar" some: o secundário do rodapé compartilhado escreve "Cancelar".
+      // E "Fechar" some: o secundário do rodapé compartilhado escreve "Voltar".
       expect(fonte).not.toContain("Fechar");
     }
+    // **"Voltar" em todos os modais** (item 126, escolha 7): ao lado de "Cancelar a ocorrência", um
+    // "Cancelar" que só fecha levava quem queria desistir a tocar no que cancela.
+    expect(ler("src/interface/componentes/modal.tsx")).toMatch(/<Button[^>]*>\s*Voltar\s*<\/Button>/u);
   });
 
   it("a nota de obrigatório só aparece onde há campo opcional (critério 44p.11)", () => {
@@ -1844,7 +1855,7 @@ describe("o alcance do 44p — a validação do lote 11", () => {
     // O `Modal` precisa deixar a propriedade atravessar: três dos seis só o alcançam por ele.
     expect(ler("src/interface/componentes/modal.tsx")).toContain("todosObrigatorios");
 
-    // E onde há campo opcional a nota FICA — a avaliação tem "Comentário (opcional)".
+    // E onde há campo opcional a nota FICA — a avaliação tem "Quer contar mais? (opcional)".
     expect(ler("src/interface/componentes/modal-de-avaliacao.tsx")).not.toContain("todosObrigatorios");
   });
 
@@ -2041,7 +2052,7 @@ describe("o alcance do 44q — a estilização da prancheta", () => {
       expect(pagina, titulo).toMatch(new RegExp(`className=\\{TITULO_DA_FAIXA\\}[^>]*>\\s*${titulo}`, "u"));
     }
     // O título da avaliação continua o que o teste de ponta a ponta afirma (desvio D3).
-    expect(pagina).toContain('{ehAutor ? "Sua avaliação" : "Avaliação do solicitante"}');
+    expect(pagina).toContain('{ehAutor ? "Sua avaliação" : "Avaliação do Solicitante"}');
     // `0 fotos` não se escreve — e sem foto o `dado` é `undefined`, não `false`, para a faixa não montar
     // o invólucro da direita vazio.
     expect(pagina).toMatch(/detalhe\.anexos\.length > 0\s*\?/u);
@@ -2475,7 +2486,7 @@ describe("o alcance do 65 — as duas portas de entrada", () => {
     const fonte = ler(PEDIDO_DE_ENTRADA);
     expect(fonte).toContain("<EntradaDeCodigo");
     expect(fonte).toContain("erroDoCodigo(codigoDigitado(dados))");
-    expect(fonte).toContain('ajuda="Está no cartaz do elevador ou na mensagem do grupo."');
+    expect(fonte).toContain('ajuda="Costuma estar num cartaz ou na mensagem do grupo."');
     expect(fonte).not.toContain("Seis a doze");
     expect(fonte).not.toContain("maxLength={12}");
     expect(fonte).not.toContain("codigoPublico.safeParse");
@@ -2693,7 +2704,7 @@ describe("o alcance do 91 — os 44 px", () => {
     expect(ler("src/interface/componentes/formulario-de-redefinicao.tsx")).toContain(
       "defaultValue={emailInicial ?? undefined}",
     );
-    expect(ler("app/(casca)/meus-dados/page.tsx")).toContain("Receber link para trocar a senha");
+    expect(ler("app/(casca)/meus-dados/page.tsx")).toContain("Receber link para redefinir a senha");
   });
 
   it("Limpar filtros tem a altura dos chips vizinhos (critério 91.4)", () => {
@@ -2793,7 +2804,7 @@ describe("o alcance do 91 — os 44 px", () => {
  */
 describe("88.5 · as palavras e as peças do contador", () => {
   it("o selo carrega a palavra, e não só a cor — compromisso A-5", () => {
-    expect(SELO_NAO_VISTA).toBe("Não vista");
+    expect(SELO_NAO_VISTA).toBe("Não lida");
   });
 
   it("o selo da linha é de contorno: o cheio da linha é o status", () => {
@@ -2850,11 +2861,16 @@ describe("o item 95 — o portão se declara por uma linha", () => {
 //  O recibo de cada ação — item 103
 // ---------------------------------------------------------------------------
 
-/** A frase de espera de toda tela, copiada de `app/organizacao/loading.tsx`. */
-const FRASE_DE_ESPERA = "Acordando o servidor — a primeira abertura do dia é mais lenta.";
+/**
+ * **As esperas usam a constante, e não uma cópia da frase** (item 126, critério 5). A porta (a raiz e
+ * T-01) diz o nome do produto; as outras, já dentro dele, só dizem que está carregando (padrão P9).
+ */
+const ESPERA_DA_PORTA = "{FRASES_DE_ESPERA.porta}";
+const ESPERA_DE_DENTRO = "{FRASES_DE_ESPERA.dentro}";
+const PORTAS = new Set(["app/loading.tsx", "app/entrar/loading.tsx"]);
 
 describe("o recibo de cada ação — item 103", () => {
-  it("as quatro telas de conta e a raiz têm espera, com a frase de sempre (critério 103.4)", () => {
+  it("as quatro telas de conta e a raiz têm espera, com a frase da constante (critérios 103.4 e 126.5)", () => {
     for (const caminho of [
       "app/loading.tsx",
       "app/entrar/loading.tsx",
@@ -2865,7 +2881,7 @@ describe("o recibo de cada ação — item 103", () => {
       expect(existsSync(RAIZ + caminho), caminho).toBe(true);
       const fonte = ler(caminho);
       expect(fonte, caminho).toContain("<EsperaDaMolduraDeConta");
-      expect(fonte, caminho).toContain(FRASE_DE_ESPERA);
+      expect(fonte, caminho).toContain(PORTAS.has(caminho) ? ESPERA_DA_PORTA : ESPERA_DE_DENTRO);
       expect(fonte, caminho).toContain('role="status"');
       expect(fonte, caminho).toContain("[animation-delay:2s]");
     }
@@ -2876,7 +2892,7 @@ describe("o recibo de cada ação — item 103", () => {
     expect(formulario).toContain("<CartaoDaTela");
     expect(formulario).toContain('titulo="Confira o seu e-mail"');
     expect(formulario).toContain("Se existe uma conta com");
-    expect(formulario).toContain("enviamos o link para ela. Confira também o spam.");
+    expect(formulario).toContain("o link foi para esse endereço. Confira também o spam.");
     // O endereço quebra em qualquer ponto: um e-mail longo não empurra a página no celular.
     expect(formulario).toMatch(/<strong className="[^"]*\bbreak-all\b[^"]*">\{enviadoPara\}<\/strong>/u);
     // Sem o corpo antigo, que repetia o título com um envelope.
@@ -2911,7 +2927,7 @@ describe("o recibo de cada ação — item 103", () => {
     expect(ler("app/entrar/loading.tsx")).toContain("<EsperaDaMolduraDeConta apresentacao>");
     const criar = ler("app/organizacao/criar/loading.tsx");
     expect(criar).toContain('convite={{ lado: "esquerda" }}');
-    expect(criar).toContain(FRASE_DE_ESPERA);
+    expect(criar).toContain(ESPERA_DE_DENTRO);
     // E a página de criar continua com o convite à esquerda: se ela mudar de lado, a espera mente.
     expect(ler("app/organizacao/criar/page.tsx")).toContain('lado: "esquerda"');
     expect(ler("app/entrar/page.tsx")).toMatch(/<MolduraDeConta\s[^>]*\bapresentacao\b/u);
@@ -3118,7 +3134,7 @@ describe("uma falha, uma mensagem — critério 116.9", () => {
       expect(ler(caminho), caminho).not.toContain("avisarErro(");
     }
     expect(ler("src/interface/componentes/formulario-de-cadastro.tsx")).toContain('avisarSucesso("Conta criada")');
-    expect(ler("src/interface/componentes/formulario-de-nova-senha.tsx")).toContain('avisarSucesso("Senha alterada"');
+    expect(ler("src/interface/componentes/formulario-de-nova-senha.tsx")).toContain('avisarSucesso("Senha redefinida"');
   });
 });
 
