@@ -1,0 +1,58 @@
+# Atualizações de dependência pelo Dependabot.
+#
+# O risco aqui é de volume. Sem configuração, o Dependabot abre um pedido de
+# mesclagem por dependência; por isso a cadência é semanal, as atualizações
+# chegam agrupadas num pedido por ecossistema e o teto de pedidos abertos é baixo.
+#
+# Atualização maior (semver-major) fica ignorada: a entrega é em 09/10/2026, e
+# uma troca de versão maior a poucos dias do prazo traz risco de quebra sem
+# retorno que compense. Depois da entrega, remova os blocos `ignore` abaixo.
+#
+# Correção de segurança não passa pelo teto nem pelo `ignore` de versão: o
+# GitHub a trata à parte.
+
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Sao_Paulo"
+    open-pull-requests-limit: 3
+    groups:
+      dependencias-npm:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # Versão maior ignorada até depois da entrega de 09/10/2026 (motivo no topo).
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Sao_Paulo"
+    open-pull-requests-limit: 2
+    groups:
+      acoes-do-github:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      # Versão maior ignorada até depois da entrega de 09/10/2026 (motivo no topo).
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
