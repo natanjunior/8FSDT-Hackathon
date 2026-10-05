@@ -1,0 +1,161 @@
+# =============================================================================
+#  A cópia de segurança do banco, pelo próprio Actions (item 129)
+#
+#  **O projeto de banco na franquia gratuita não tem cópia de segurança.** As
+#  migrações reconstroem o esquema, e nenhuma delas reconstrói o dado nem as
+#  contas do Auth. Este arquivo é a única cópia que existe: um `pg_dump` agendado
+#  que sobe o resultado como artefato da execução.
+#
+#  **Não entra credencial nova.** O `BANCO_URL` é o mesmo segredo que o
+#  `manter-o-banco-acordado.yml` já usa, e as duas lições daquele arquivo valem
+#  aqui igual: a string de consulta da URL é descartada, e a URL não se imprime.
+#
+#  **O alcance da verificação é limitado, e isto não finge o contrário.** O
+#  segredo só existe dentro do Actions. O teste em
+#  `testes/infraestrutura/copia-de-seguranca.test.ts` executa este roteiro com
+#  `docker` e `gh` simulados, sem segredo e sem banco; a primeira prova contra o
+#  banco publicado é a primeira execução agendada. A restauração NÃO foi
+#  ensaiada.
+# =============================================================================
+
+name: cópia de segurança do banco
+
+on:
+  schedule:
+    # ---------------------------------------------------------------------
+    #  Diário, 05:40 UTC — 02:40 em São Paulo, fora do horário de uso.
+    #
+    #  Diário porque o dado muda todo dia em que alguém usa o produto, e a
+    #  perda que importa é a do dia. O minuto quebrado é de propósito: o
+    #  agendador do GitHub é de melhor esforço, e a hora cheia é quando ele
+    #  mais atrasa e descarta execuções.
+    # ---------------------------------------------------------------------
+    - cron: "40 5 * * *"
+  workflow_dispatch:
+
+# O emprego só lê: o código não é baixado, e o token serve para uma consulta à
+# API do próprio repositório (a visibilidade, no passo da cópia).
+permissions:
+  contents: read
+
+# Duas cópias simultâneas não fazem mal ao banco, mas disputam o mesmo nome de
+# artefato no mesmo dia. Uma por vez.
+concurrency:
+  group: copia-de-seguranca-do-banco
+  cancel-in-progress: false
+
+jobs:
+  copiar:
+    name: Copiar o banco com o pg_dump 17
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # -----------------------------------------------------------------------
+      #  O roteiro inteiro mora num passo só, e o teste depende disso: ele
+      #  localiza este passo pelo nome e executa o `run` dele.
+      #
+      #  **O `pg_dump` vem da imagem `postgres:17-alpine`, e não do runner.**
+      #  O cliente instalado no `ubuntu-latest` é de versão anterior, e um
+      #  `pg_dump` mais velho que o servidor recusa copiá-lo — o mesmo gênero
+      #  de defeito que já derrubou o outro cron. Instalar o 17 por `apt`
+      #  exigiria o repositório da PGDG, que a imagem do runner não promete
+      #  manter. O Docker ela promete, e a mesma imagem `postgres:17-alpine` já
+      #  é o banco do emprego `verificar` do `entrega.yml`. A versão ainda é
+      #  conferida antes da cópia, porque a etiqueta fixa só a versão maior.
+      # -----------------------------------------------------------------------
+      - name: o pg_dump 17 copia o banco para um arquivo
+        id: copia
+        env:
+          BANCO_URL: ${{ secrets.BANCO_URL }}
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORIO: ${{ github.repository }}
+        run: |
+          IMAGEM="postgres:17-alpine"
+          ARQUIVO="copia-do-banco.dump"
+
+          if [ -z "$BANCO_URL" ]; then
+            echo "::error::BANCO_URL não está cadastrada. Sem ela não há cópia de segurança, e o banco" \
+                 "da franquia gratuita não tem outra."
+            exit 1
+          fi
+
+          # **A cópia leva as contas do Auth, com e-mail e hash de senha.** Num
+          # repositório público, o artefato pode ser baixado por qualquer conta
+          # do GitHub. Este passo prefere falhar alto a publicar o banco: quem
+          # tornar o repositório público decide o que fazer com a cópia.
+          if ! PRIVADO="$(gh api "repos/$REPOSITORIO" --jq .private)"; then
+            echo "::error::Não foi possível ler a visibilidade do repositório pela API. A cópia não sobe" \
+                 "sem saber quem poderá baixá-la."
+            exit 1
+          fi
+          if [ "$PRIVADO" != "true" ]; then
+            echo "::error::O repositório está público, e o artefato da cópia poderia ser baixado por" \
+                 "qualquer conta do GitHub, com as contas do Auth dentro. A cópia não foi feita."
+            exit 1
+          fi
+
+          VERSAO="$(docker run --rm "$IMAGEM" pg_dump --version)"
+          case "$VERSAO" in
+            "pg_dump (PostgreSQL) 17."*) echo "Cliente: $VERSAO" ;;
+            *)
+              echo "::error::O pg_dump da imagem $IMAGEM não é da versão 17 (respondeu '$VERSAO'). Um" \
+                   "cliente de versão diferente da do servidor recusa a cópia ou a faz incompleta."
+              exit 1
+              ;;
+          esac
+
+          # **A cadeia do provedor traz parâmetros que o `libpq` recusa.** O
+          # erro que derrubou o outro cron foi
+          # `invalid URI query parameter: "uselibpqcompat"`. A string de
+          # consulta sai inteira, e só o `sslmode` volta, declarado.
+          #
+          # **Não imprima a URL**: ela tem senha. O segredo original é mascarado
+          # pelo Actions; esta URL derivada é outra cadeia, e não seria.
+          URL_DO_DUMP="${BANCO_URL%%\?*}?sslmode=require"
+
+          # Formato `custom`: já sai comprimido, e o `pg_restore` escolhe na
+          # volta o que restaurar (só os dados, só uma tabela). Os dois
+          # esquemas são o que as migrações não reconstroem: `public` com o
+          # dado do produto, `auth` com as contas. `--network host` dá ao
+          # contêiner a mesma rede do runner, a que o `psql` do outro cron usa.
+          if ! docker run --rm --network host "$IMAGEM" pg_dump \
+                 --dbname="$URL_DO_DUMP" \
+                 --format=custom \
+                 --schema=public \
+                 --schema=auth \
+                 --no-owner \
+                 --no-privileges \
+                 > "$ARQUIVO"; then
+            echo "::error::O pg_dump falhou contra o banco publicado; a causa está na linha anterior." \
+                 "Se o projeto estiver pausado, o cron manter-o-banco-acordado também terá falhado."
+            exit 1
+          fi
+
+          if [ ! -s "$ARQUIVO" ]; then
+            echo "::error::O pg_dump terminou sem erro e a cópia saiu vazia. Nada foi guardado."
+            exit 1
+          fi
+          if [ "$(head -c 5 "$ARQUIVO")" != "PGDMP" ]; then
+            echo "::error::O arquivo da cópia não começa pela assinatura PGDMP do formato custom, e o" \
+                 "pg_restore não o leria."
+            exit 1
+          fi
+
+          echo "Cópia feita: $(wc -c < "$ARQUIVO") bytes."
+          echo "nome=copia-do-banco-$(date -u +%Y-%m-%d)-$GITHUB_RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: a cópia sobe como artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.copia.outputs.nome }}
+          path: copia-do-banco.dump
+          if-no-files-found: error
+          # O formato `custom` já sai comprimido; comprimir de novo só gasta tempo.
+          compression-level: 0
+          # Trinta dias, uma cópia por dia. Cobre a entrega e o período de
+          # avaliação que vem depois dela, e alcança um estrago percebido semanas
+          # depois do fato, como um dado apagado que ninguém olhou. O teto do
+          # Actions é 90, e mais que 30 só acumula cópias de um banco que, na
+          # escala do produto, cabe com folga na cota gratuita de artefatos.
+          retention-days: 30
