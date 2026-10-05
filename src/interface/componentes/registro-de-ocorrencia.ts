@@ -247,7 +247,8 @@ export const DEPOIS_DE_REGISTRAR = {
 /** O descarte (critério 9). *"Descartar"* veste `destructive`: é a ação que perde trabalho (guia §7). */
 export const DESCARTE = {
   titulo: "Descartar o que você escreveu?",
-  corpo: "O que está no formulário não é guardado, e a foto anexada é descartada junto.",
+  corpoSemFoto: "O que você escreveu se perde.",
+  corpoComFoto: "O que você escreveu se perde, e a foto também.",
   continuar: "Continuar escrevendo",
   descartar: "Descartar",
 } as const;

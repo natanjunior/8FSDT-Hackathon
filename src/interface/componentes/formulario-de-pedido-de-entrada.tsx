@@ -350,7 +350,7 @@ export function FormularioDePedidoDeEntrada({
             <Campo
               id="telefone"
               rotulo="Telefone (opcional)"
-              ajuda="Vai virar o seu primeiro contato na organização."
+              ajuda="O Gestor vê este número ao decidir o seu pedido."
               erro={formulario.erroDe("telefone", estado.erros)}
             >
               {(controle) => (

@@ -114,7 +114,7 @@ export const ROTULO_DO_FILTRO: Readonly<Record<Filtro, string>> = {
  * impossível abra um aviso, e o critério manda deixar alça e setas inertes. O critério vence, e a barra
  * do cartão escreve a razão.
  */
-export const FRASE_DO_INERTE = "A ordem se muda com a lista inteira: volte para Todas e limpe a busca.";
+export const FRASE_DO_INERTE = "Para mudar a ordem, volte para Todas e limpe a busca.";
 
 export function avisoDeSemAtivas(lista: Lista): string {
   return `Sem nenhuma ${TEXTOS_DA_LISTA[lista].substantivo} ativa, ninguém consegue registrar ocorrência.`;
@@ -192,7 +192,7 @@ export const ERRO_DO_TIPO = "Escolha o tipo da área.";
 
 /** O aviso dentro do modal, **sem número**, assim que o tipo escolhido difere do atual (critério 8). */
 export const AVISO_DE_TIPO_NO_MODAL =
-  "Mudar o tipo vale de agora em diante — o passado não muda. As ocorrências já registradas mantêm o tipo que a área tinha quando foram criadas.";
+  "Vale daqui em diante. As ocorrências já registradas mantêm o tipo antigo.";
 
 export type OpcaoDeTipo = {
   readonly valor: TipoDeArea;

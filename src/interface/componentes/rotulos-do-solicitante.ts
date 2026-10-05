@@ -41,7 +41,7 @@ export const NOME_DO_CICLO: Readonly<Record<EstadoDaTela, string>> = Object.from
 
 export const TITULO_DOS_ROTULOS = "Textos do Solicitante";
 export const APOIO_DO_CARTAO_DE_ROTULOS =
-  "O texto que o Solicitante lê em cada ponto do ciclo. O nome interno não muda.";
+  "O texto que o Solicitante lê em cada ponto do ciclo.";
 export const DESCRICAO_DOS_ROTULOS = "Seis textos, um por ponto do ciclo. Em branco, vale o padrão.";
 
 /** O apoio do campo de `Pausada`: a consequência de um rótulo só para os quatro motivos, em uma linha. */

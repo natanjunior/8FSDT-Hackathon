@@ -63,7 +63,7 @@ export function jaParticipa(organizacao: string): string {
 
 /** A conta em uso, antes de confirmar: o link pode ter sido aberto no celular de outra pessoa da família. */
 export function contaEmUso(nome: string): string {
-  return `Você está como ${nome}.`;
+  return `Você entrou como ${nome}.`;
 }
 
 /** O que o detalhe mostra no lugar do convite: o botão, ou a frase. */

@@ -15,7 +15,7 @@ import { FORMATO_DO_TOKEN } from "./convite-pessoal";
 export const nomeDePessoa = z
   .string()
   .trim()
-  .min(1, "Diga como você quer ser chamado.")
+  .min(1, "Informe o seu nome.")
   .max(120, "O nome cabe em 120 caracteres.");
 
 export const email = z

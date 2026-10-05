@@ -39,8 +39,8 @@ export default function PaginaDoGrupo() {
         </div>
         <h1 className="text-titulo-pagina text-tinta">Grupo 1</h1>
         <p className="text-corpo text-tinta-suave max-w-[60ch]">
-          Turma 8FSDT — FIAP PosTech. Cinco pessoas construindo o Resolve Aí, o livro de ocorrências digital
-          do prédio.
+          Turma 8FSDT — FIAP PosTech. Cinco pessoas construindo o Resolve Aí, o livro de ocorrências da sua
+          organização.
         </p>
       </header>
 

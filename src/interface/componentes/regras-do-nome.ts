@@ -51,10 +51,10 @@ export const EDICAO_DE_NOME: Readonly<Record<AlvoDoNome, EdicaoDoAlvo>> = {
   organizacao: {
     endpoint: "/api/organizacoes",
     schema: nomeDeOrganizacao,
-    titulo: "Editar organização",
+    titulo: "Renomear organização",
     descricao: "O código não muda junto com o nome.",
     rotulo: "Nome da organização",
-    ajuda: "Aparece para quem pede entrada, no seletor de organização e no título do pedido pendente.",
+    ajuda: "Aparece para todos os participantes e para quem pede entrada.",
     falha: "Não foi possível renomear a organização",
     sucesso: (nome) => ({
       titulo: "Organização renomeada",

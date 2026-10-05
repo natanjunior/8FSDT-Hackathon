@@ -524,7 +524,7 @@ export function descricaoDoRecorte(
     clausulas.push(
       diasParaParada === null
         ? "Paradas, sem contar as pausadas"
-        : `Paradas há mais de ${String(diasParaParada)} dias, sem contar as pausadas`,
+        : `Paradas há ${String(diasParaParada)} dias ou mais, sem contar as pausadas`,
     );
   }
 

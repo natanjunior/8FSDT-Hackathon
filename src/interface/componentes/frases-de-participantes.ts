@@ -150,7 +150,7 @@ export const TEXTOS_DA_TABELA = {
   buscarEtiqueta: "Buscar etiqueta",
   semEtiquetaComEsseNome: "Nenhuma etiqueta com esse nome.",
   etiquetas: "Etiquetas",
-  vazioDaEtiqueta: "Ninguém com esta etiqueta neste recorte.",
+  vazioDaEtiqueta: "Ninguém com esta etiqueta neste filtro.",
   buscar: "Buscar pelo nome",
   exemploDaBusca: "Ex.: Beatriz",
   editar: "Editar participante",
@@ -302,7 +302,10 @@ export function avisoDeAcessoEncerrado(nome: string): AvisoDeConclusao {
 export function avisoDeCadastrado(nome: string, papel: string): AvisoDeConclusao {
   return {
     titulo: `${nome} entrou como ${rotuloDoPapel(papel)}`,
-    descricao: "Sem conta: recebe atribuições e aparece como responsável.",
+    descricao:
+      papel === "encarregado"
+        ? "Sem conta: recebe atribuições e aparece como responsável."
+        : "Sem conta por enquanto. Para dar acesso, use Convidar na página da pessoa.",
   };
 }
 

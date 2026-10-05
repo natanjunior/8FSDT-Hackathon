@@ -51,13 +51,6 @@ export function textoDoTipo(novidade: NovidadeNaTela, quemLePessoaId: string, st
   }
 }
 
-/** O pé da lista, quando o limite deixou não lidas de fora (spec §3.11). */
-export function foraDaLista(quantas: number): string {
-  return quantas === 1
-    ? "Mais 1 não lida fora desta lista."
-    : `Mais ${String(quantas)} não lidas fora desta lista.`;
-}
-
 export type LinhaDoSino = {
   ocorrenciaId: string;
   href: string;

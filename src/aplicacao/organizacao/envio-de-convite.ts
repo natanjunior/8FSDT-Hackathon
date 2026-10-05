@@ -165,6 +165,7 @@ export function montarMensagemDoConvite(dados: {
   papel: string;
   link: string;
 }): Mensagem {
+  const soSeu = "Este link é só seu: não o encaminhe.";
   const ignorar = "Se você não esperava este convite, pode ignorar esta mensagem.";
   const texto = [
     `Olá, ${dados.pessoa}.`,
@@ -173,6 +174,7 @@ export function montarMensagemDoConvite(dados: {
     "Abra o link para entrar:",
     dados.link,
     "",
+    soSeu,
     ignorar,
   ].join("\n");
   const html = [
@@ -180,6 +182,7 @@ export function montarMensagemDoConvite(dados: {
     `<p>${escapar(dados.quemConvidou)} convida você para usar o Resolve Aí em ${escapar(dados.organizacao)}, como ${escapar(dados.papel)}.</p>`,
     `<p><a href="${escapar(dados.link)}">Abrir o convite</a></p>`,
     `<p>${escapar(dados.link)}</p>`,
+    `<p>${soSeu}</p>`,
     `<p>${ignorar}</p>`,
   ].join("\n");
   return { para: dados.para, assunto: `Convite para ${dados.organizacao}`, texto, html };

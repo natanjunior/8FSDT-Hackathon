@@ -74,7 +74,7 @@ export const VAZIO_DO_FILTRO: Readonly<
   todos: { titulo: "Ninguém nesta organização.", corpo: null },
   pedidos: {
     titulo: SEM_PEDIDOS,
-    corpo: "Os pedidos aparecem aqui quando alguém usa o código da organização.",
+    corpo: "Os pedidos aparecem aqui quando alguém usa o código, o link ou o QR da organização.",
   },
   solicitantes: { titulo: "Nenhum Solicitante nesta organização.", corpo: null },
   gestores: { titulo: "Nenhum Gestor nesta organização.", corpo: null },

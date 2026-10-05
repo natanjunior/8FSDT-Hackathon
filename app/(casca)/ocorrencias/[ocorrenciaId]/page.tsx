@@ -465,7 +465,7 @@ export default async function Ocorrencia({
         ocorrenciaId={detalhe.id}
         comando="analisar"
         titulo="Analisar"
-        descricao={`A ocorrência passa a ${nomeDoStatus("em_analise")}.`}
+        descricao={`O status passa a ser ${nomeDoStatus("em_analise")}.`}
         rotuloDoGatilho="Analisar"
         rotuloDoCampo="Observação (opcional)"
         rotuloDeConfirmar="Analisar"

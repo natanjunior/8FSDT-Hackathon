@@ -575,7 +575,7 @@ export function FormularioDeOcorrencia({
               {DESCARTE.titulo}
             </AlertDialogTitle>
             <AlertDialogDescription className="text-corpo text-tinta-suave">
-              {DESCARTE.corpo}
+              {anexo.nome === "subindo" || anexo.nome === "pronta" ? DESCARTE.corpoComFoto : DESCARTE.corpoSemFoto}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
