@@ -335,11 +335,11 @@ test("a configuração da organização: nome repetido, desativar até a última
   await modalDasRegras.getByRole("button", { name: "Salvar" }).click();
   await expect(modalDasRegras.getByText("Altere uma regra antes de salvar.")).toBeVisible();
 
-  await modalDasRegras.getByRole("switch", { name: "Exigir a solução ao resolver" }).click();
+  await modalDasRegras.getByRole("switch", { name: "Exigir a solução aplicada ao resolver" }).click();
   await modalDasRegras.getByRole("button", { name: "Salvar" }).click();
   await expect(modalDasRegras).toBeHidden();
   await page.getByRole("tab", { name: "Histórico" }).click();
-  await expect(page.getByText("Exigir a solução ao resolver: de Não para Sim")).toBeVisible();
+  await expect(page.getByText("Exigir a solução aplicada ao resolver: de Não para Sim")).toBeVisible();
   await page.getByRole("tab", { name: "Configurações de ocorrências" }).click();
 
   // **O mesmo `PATCH` direto ao servidor, com o mesmo valor: `200` e nenhuma linha a mais.** É o
@@ -350,7 +350,7 @@ test("a configuração da organização: nome repetido, desativar até a última
   expect(repetido.status()).toBe(200);
   await page.reload();
   await page.getByRole("tab", { name: "Histórico" }).click();
-  await expect(page.getByText("Exigir a solução ao resolver: de Não para Sim")).toHaveCount(1);
+  await expect(page.getByText("Exigir a solução aplicada ao resolver: de Não para Sim")).toHaveCount(1);
   await page.getByRole("tab", { name: "Configurações de ocorrências" }).click();
 
   // -------------------------------------------------------------------------
@@ -405,7 +405,7 @@ test("a configuração da organização: nome repetido, desativar até a última
   // 0c · O texto que quem abre lê — critérios 100.1, 100.2, 100.5 e 100.7
   // -------------------------------------------------------------------------
   await page.reload();
-  const cartaoDosRotulos = page.getByRole("region", { name: "Como quem abre lê o status" });
+  const cartaoDosRotulos = page.getByRole("region", { name: "Textos do Solicitante" });
   // **Sem customização, o cartão mostra o padrão** — o critério 2 pelo lado da tela.
   await expect(cartaoDosRotulos.getByText("Em execução")).toBeVisible();
 
@@ -486,7 +486,7 @@ test("a configuração da organização: nome repetido, desativar até a última
   // O modal não fecha com a recusa: a pessoa corrige onde estava.
   await expect(modalDeCriar.getByRole("heading", { name: "Criar categoria" })).toBeVisible();
 
-  await modalDeCriar.getByRole("button", { name: "Cancelar" }).click();
+  await modalDeCriar.getByRole("button", { name: "Voltar" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   // **A recusa recusou mesmo:** continuam sendo sete, e não oito.
   await expect(page.getByRole("row")).toHaveCount(SEMENTES.length + 1);
@@ -605,11 +605,11 @@ test("a configuração da organização: nome repetido, desativar até a última
   await expect(modalDaArea.getByRole("heading", { name: "Editar área" })).toBeVisible();
   // A opção que é o tipo de hoje se apresenta como tal, e por isso o rótulo não casa exato.
   await expect(modalDaArea.getByRole("radio", { name: /^Área comum/u })).toBeChecked();
-  await expect(modalDaArea.getByText("Mudar o tipo vale de agora em diante")).toHaveCount(0);
+  await expect(modalDaArea.getByText("Vale daqui em diante")).toHaveCount(0);
 
   await modalDaArea.getByRole("radio", { name: /^Unidade privativa/u }).check();
   await expect(modalDaArea).toContainText(
-    "Mudar o tipo vale de agora em diante — o passado não muda. As ocorrências já registradas mantêm o tipo que a área tinha quando foram criadas.",
+    "Vale daqui em diante. As ocorrências já registradas mantêm o tipo antigo.",
   );
 
   await modalDaArea.getByRole("button", { name: "Salvar" }).click();

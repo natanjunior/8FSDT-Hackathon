@@ -1,3 +1,5 @@
+import { FRASES_DE_ESPERA } from "@/interface/componentes/frases-de-espera";
+
 /**
  * O cold start de T-08 (RNF5, escala a zero) — mesma regra e mesmo texto das outras telas, e o texto
  * **não promete prazo**.
@@ -33,7 +35,7 @@ export default function EsperandoOsParticipantes() {
         role="status"
         className="text-tinta-suave text-interface animate-in fade-in opacity-0 [animation-delay:2s] [animation-duration:300ms] [animation-fill-mode:forwards]"
       >
-        Acordando o servidor — a primeira abertura do dia é mais lenta.
+        {FRASES_DE_ESPERA.dentro}
       </p>
     </div>
   );

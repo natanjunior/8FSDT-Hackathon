@@ -129,7 +129,7 @@ export type ConfiguracaoProjetada = {
   /** Quantos dias sem atividade até a ocorrência contar como parada (item 101). De 1 a 90. */
   diasParaParada: number;
   /**
-   * O texto que quem abriu lê em cada ponto do ciclo (item 100). **Os seis estados sempre presentes**,
+   * O texto do Solicitante em cada ponto do ciclo (item 100). **Os seis estados sempre presentes**,
    * com `null` onde vale o padrão: presença fixa é o que impede a tela de confundir *"não customizado"*
    * com *"o campo não veio"*.
    */

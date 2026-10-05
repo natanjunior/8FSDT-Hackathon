@@ -23,7 +23,7 @@ as que não dependem de ninguém lembrar.
 | `ocorrencias` | o objeto central, com estado, prioridade, solução aplicada e avaliação |
 | `registros_transicao` | a trilha de auditoria: um registro por mudança de estado |
 | `mudancas_de_configuracao` | cada mudança de uma regra da organização, com o valor anterior, o novo, quem e quando |
-| `rotulos_de_status` | o texto com que quem abriu lê cada ponto do ciclo nesta organização, quando ela o customizou |
+| `rotulos_de_status` | o texto do Solicitante para cada ponto do ciclo nesta organização, quando ela o customizou |
 | `atribuicoes` | quem é o responsável por uma ocorrência, e desde quando |
 | `canais_conversa` | o canal de mensagens de uma ocorrência |
 | `mensagens` | o texto trocado dentro de um canal |

@@ -166,7 +166,7 @@ describe("a tabela: o motivo desce, as colunas têm teto, e ela nasce em lg — 
 
     expect(celulas[0]?.textContent).toBe("Pausada");
     expect(celulas[1]?.textContent).toContain(
-      "Equipamentos quebrados · Parada — esperando material chegar · 1 foto",
+      "Equipamentos quebrados · Aguardando peça · 1 foto",
     );
   });
 
@@ -177,7 +177,7 @@ describe("a tabela: o motivo desce, as colunas têm teto, e ela nasce em lg — 
     expect(titulo?.textContent).not.toContain("Parada — esperando material chegar");
   });
 
-  it("Onde e Responsável quebram dentro de uma caixa de 180 px", async () => {
+  it("Área e Responsável quebram dentro de uma caixa de 180 px", async () => {
     await desenharLista([item({})]);
     const celulas = conteiner.querySelectorAll("tbody tr td");
 

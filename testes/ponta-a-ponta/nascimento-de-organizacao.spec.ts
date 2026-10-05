@@ -497,7 +497,7 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   // **A consequência está escrita ao lado de cada papel**, e a de Encarregado é a que o inventário cobra
   // em destaque.
   await expect(modalDoPedido.getByText("Registra e acompanha as próprias ocorrências.")).toBeVisible();
-  await expect(modalDoPedido.getByText("Não consegue fazer nada dentro do sistema.")).toBeVisible();
+  await expect(modalDoPedido.getByText("Não entra no aplicativo.")).toBeVisible();
   cobre(test.info(), "2.5 · 3", {
     falta: "a consequência do papel Gestor — o teste afirma as de Solicitante e de Encarregado",
   });
@@ -693,17 +693,17 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
   ).not.toBe("dark");
 
   // E o caminho que o passo 8 já fazia, agora com o menu aberto pelo teclado.
-  await b.getByRole("menuitem", { name: "Entrar em outra organização" }).click();
+  await b.getByRole("menuitem", { name: "Pedir entrada em outra organização" }).click();
   await b.waitForURL(/entrar-em-outra=true$/u);
 
   // Navegação por link: o `<html>` é do layout raiz, que a navegação suave não refaz.
   await expect(b.locator("html")).toHaveAttribute("data-theme", "light");
   cobre(test.info(), "6.2 · 4", {
     falta:
-      "o conteúdo do menu — nome, e-mail, «Meus dados» e «Sair»; o teste afirma só o item «Entrar em outra organização»",
+      "o conteúdo do menu — nome, e-mail, «Meus dados» e «Sair»; o teste afirma só o item «Pedir entrada em outra organização»",
   });
 
-  await expect(b.getByRole("heading", { name: "Entrar em outra organização" })).toBeVisible();
+  await expect(b.getByRole("heading", { name: "Pedir entrada em outra organização" })).toBeVisible();
   // A frase que o critério 7b.1 exige em palavras: **o vínculo na primeira não é tocado**.
   await expect(b.getByText("Pedir entrada em outra não tira você daqui.")).toBeVisible();
 
@@ -774,7 +774,7 @@ test("o nascimento de uma organização, e a vida dos vínculos: criar conta, fu
     confirmacao.getByRole("heading", { name: `Remover ${PESSOA_PARA_REMOVER} da organização?` }),
   ).toBeVisible();
   await expect(confirmacao).toContainText(
-    `Remover o vínculo de ${PESSOA_PARA_REMOVER}. O cadastro da pessoa não é apagado, mas ela não tem conta e não pode pedir entrada: para voltar, precisa ser cadastrada de novo, com os contatos.`,
+    `${PESSOA_PARA_REMOVER} sai da organização. O cadastro não é apagado, mas a pessoa não tem conta e não pode pedir entrada: para voltar, precisa ser cadastrada de novo, com os contatos.`,
   );
   await confirmacao.getByRole("button", { name: "Remover" }).click();
 
@@ -1205,7 +1205,7 @@ test("o QR na área: o Gestor gera, quem participa registra com a área, quem n�
   await expect(s.getByRole("heading", { name: ORG_QR })).toBeVisible();
   await expect(s.getByText(primeiraArea, { exact: true })).toHaveCount(0);
   expect(await transbordo(s)).toStrictEqual(SEM_TRANSBORDO);
-  for (const nome of ["Entrar", "Entrar na organização"]) {
+  for (const nome of ["Entrar", "Pedir para entrar"]) {
     const caixa = await s.getByRole("link", { name: nome, exact: true }).boundingBox();
     expect((caixa?.y ?? 9999) + (caixa?.height ?? 0), nome).toBeLessThanOrEqual(640);
   }

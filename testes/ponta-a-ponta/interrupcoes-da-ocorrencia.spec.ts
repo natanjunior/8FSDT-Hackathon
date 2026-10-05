@@ -99,7 +99,7 @@ const RESPOSTA_DE_MARCOS = `A peça chega na quinta. ${MARCA}`;
 
 /** Os quatro motivos de pausa, na ordem de `MOTIVOS_DE_PAUSA` — critério 23. */
 const MOTIVOS_DE_PAUSA = [
-  "Aguardando informação do solicitante",
+  "Aguardando informação do Solicitante",
   "Aguardando peça",
   "Aguardando autorização",
   "Aguardando um terceiro",
@@ -172,7 +172,7 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
 
   await marcos.getByRole("button", { name: "Iniciar atendimento" }).click();
   const modalDeAtendimento = marcos.getByRole("dialog");
-  await modalDeAtendimento.getByRole("button", { name: "Iniciar" }).click();
+  await modalDeAtendimento.getByRole("button", { name: "Iniciar atendimento" }).click();
   await esperarSituacao(marcos, "Em atendimento");
   cobre(test.info(), "4.4 · 51");
 
@@ -229,7 +229,9 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
   // **A régua do ciclo — critério 44d.7.** A pausa sai da linha reta e fica ancorada depois do último
   // passo alcançado; *Resolvida* continua por alcançar, e por isso o bloco não a datou.
   await expect(ciclo(marcos)).toContainText("Pausada");
-  await expect(ciclo(marcos)).toContainText(O_QUE_O_SOLICITANTE_LE);
+  // Desde o item 126 o Gestor lê o NOME do motivo, o mesmo do modal de pausa, e nunca "Parada —".
+  await expect(ciclo(marcos)).toContainText(MOTIVO_ESCOLHIDO);
+  await expect(ciclo(marcos)).not.toContainText(O_QUE_O_SOLICITANTE_LE);
   await expect(ciclo(marcos)).toContainText("Resolvida");
   cobre(test.info(), "4.4 · 54", {
     falta:
@@ -245,7 +247,8 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
     .getByRole("row")
     .filter({ has: marcos.getByRole("link", { name: TITULO }) });
   await expect(linhaDeMarcos.getByText("Pausada", { exact: true })).toBeVisible();
-  await expect(linhaDeMarcos.getByText(O_QUE_O_SOLICITANTE_LE)).toBeVisible();
+  await expect(linhaDeMarcos.getByText(MOTIVO_ESCOLHIDO)).toBeVisible();
+  await expect(linhaDeMarcos.getByText(O_QUE_O_SOLICITANTE_LE)).toHaveCount(0);
   cobre(test.info(), "4.4 · 55", { criterio: "23.6, 31.6" });
 
   // De volta à ocorrência: o percurso do Gestor continua nela, e a ida à lista foi uma visita.
@@ -590,7 +593,7 @@ test("compartilhar: a Solicitante escolhe, o Gestor abre, e quem recebe só lê 
  * **O que só o ponta a ponta prova:** que abrir pelo sino e **voltar pelo botão do navegador** mostra o
  * número já caído. O layout da casca não se renderiza de novo na navegação, e só a revalidação que a ação
  * de servidor dispara o alcança. **E que o contador do 88 virou o sino:** T-03 sem número na aba, o selo
- * *Não vista* na linha, e o compartilhamento chegando como aviso.
+ * *Não lida* na linha, e o compartilhamento chegando como aviso.
  *
  * **Números relativos, sempre.** O mundo de teste acumula ocorrências a cada corrida, e o Gestor tem *Nova
  * ocorrência* de todas as dos últimos 30 dias: nenhum número absoluto é estável.
@@ -683,7 +686,7 @@ test("o sino, derivado da leitura — item 117", async ({ browser }) => {
   await helena.keyboard.press("Escape");
 
   // -------------------------------------------------------------------------
-  // 5 · O 88 absorvido: compartilhamento vira aviso, T-03 sem número na aba, selo Não vista na linha.
+  // 5 · O 88 absorvido: compartilhamento vira aviso, T-03 sem número na aba, selo Não lida na linha.
   // -------------------------------------------------------------------------
   await marcos.goto("/ocorrencias");
   const idDoMarcos = await registrarOcorrencia(marcos, doMarcos, "Ruído contínuo.");
@@ -699,7 +702,7 @@ test("o sino, derivado da leitura — item 117", async ({ browser }) => {
     /^Compartilhadas comigo$/u,
   );
   await expect(
-    helena.getByRole("row", { name: new RegExp(doMarcos, "u") }).getByText("Não vista", { exact: true }),
+    helena.getByRole("row", { name: new RegExp(doMarcos, "u") }).getByText("Não lida", { exact: true }),
   ).toBeVisible();
   cobre(test.info(), "88 · 3", { criterio: "88.1" });
   lista = await abrirOSino(helena);
@@ -712,7 +715,7 @@ test("o sino, derivado da leitura — item 117", async ({ browser }) => {
   await leituraGravada;
   await helena.goBack();
   await expect(
-    helena.getByRole("row", { name: new RegExp(doMarcos, "u") }).getByText("Não vista", { exact: true }),
+    helena.getByRole("row", { name: new RegExp(doMarcos, "u") }).getByText("Não lida", { exact: true }),
   ).toHaveCount(0);
   cobre(test.info(), "117 · 6", { criterio: "117.13" });
 

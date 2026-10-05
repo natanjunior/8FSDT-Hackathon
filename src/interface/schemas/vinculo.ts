@@ -21,7 +21,7 @@ const nomeDePessoa = z
 
 /**
  * A unidade. **`null` explícito é aceito** — é *"sem unidade"*, o caso do Gestor e do Encarregado
- * terceirizado, e é o que a tela manda quando o seletor está em *"Sem unidade"*.
+ * terceirizado, e é o que a tela manda quando o seletor está em *"Sem área"*.
  *
  * Área que não é desta organização, ou inativa, é `422 AREA_INVALIDA` — recusa de domínio, não de forma:
  * o schema só confere que é um `uuid`.
