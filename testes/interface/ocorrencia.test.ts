@@ -117,7 +117,7 @@ import {
   vazioDoRegistro,
   type ValoresDoRegistro,
 } from "@/interface/componentes/registro-de-ocorrencia";
-import { MENSAGEM_GENERICA, mensagemDoProblema } from "@/interface/componentes/retorno-de-acao";
+import { MENSAGEM_GENERICA, MENSAGEM_SEM_CONEXAO, mensagemDoProblema } from "@/interface/componentes/retorno-de-acao";
 import {
   acaoPrimaria,
   acoesDaBarra,
@@ -1972,7 +1972,7 @@ describe("o critério 15.6 — a descrição do recorte, para o subtítulo do va
 
   it("a cláusula de paradas vem com o número da organização — item 101", () => {
     expect(descricaoDoRecorte({ apenasParadas: true }, nomes, 7)).toStrictEqual([
-      "Paradas há mais de 7 dias, sem contar as pausadas",
+      "Paradas há 7 dias ou mais, sem contar as pausadas",
     ]);
   });
 
@@ -1987,7 +1987,7 @@ describe("o critério 15.6 — a descrição do recorte, para o subtítulo do va
       descricaoDoRecorte({ titulo: "vaz", apenasParadas: true, status: ["aberta"] }, nomes, 7),
     ).toStrictEqual([
       'Título com "vaz"',
-      "Paradas há mais de 7 dias, sem contar as pausadas",
+      "Paradas há 7 dias ou mais, sem contar as pausadas",
       "Status: Aberta",
     ]);
   });
@@ -2194,13 +2194,13 @@ describe("os rótulos que descem para a barra de ações", () => {
       expect(typeof nomes[status]).toBe("string");
     }
 
-    // A frase do `409` usa a coluna de quem lê — "agora ela está …". Do lado do Solicitante `pausada`
+    // A frase do `409` usa a coluna de quem lê — "Agora: …". Do lado do Solicitante `pausada`
     // degrada para a palavra sozinha, porque um erro não carrega motivo de pausa.
     expect(doSolicitante.pausada).toBe("Parada");
     expect(doSolicitante.em_analise).toBe("Em análise");
 
     // **Do lado do Gestor não há degradação a fazer:** a coluna dele JÁ é uma palavra por status, e
-    // `pausada` é "Pausada" com ou sem motivo. É o que faz o `409` dele ler "agora ela está Pausada."
+    // `pausada` é "Pausada" com ou sem motivo. É o que faz o `409` dele ler "Agora: Pausada."
     expect(doGestor.pausada).toBe("Pausada");
     expect(doGestor.aberta).toBe("Aberta");
     expect(doGestor.em_atendimento).toBe("Em atendimento");
@@ -2505,11 +2505,22 @@ describe("executarComando", () => {
 
     expect(resultado).toStrictEqual({
       ok: false,
-      aviso: "Esta ocorrência mudou enquanto você estava olhando: agora ela está Cancelada.",
+      aviso: "Esta ocorrência mudou enquanto você estava olhando. Agora: Cancelada.",
     });
   });
 
-  it("422 usa o detail do problema — é o texto que o contrato publica", async () => {
+  it("erro sem frase própria usa o detail do problema — é o texto que o contrato publica", async () => {
+    responderCom({
+      ok: false,
+      corpo: { codigo: "JA_AVALIADA", detail: "Esta ocorrência já foi avaliada." },
+    });
+
+    const resultado = await executarComando("abc", "avaliar", {}, ROTULOS, "organizacao-a");
+
+    expect(resultado).toStrictEqual({ ok: false, aviso: "Esta ocorrência já foi avaliada." });
+  });
+
+  it("o 422 de responsável sem acesso sai pela frase da tela, e o detail publicado não muda (item 126)", async () => {
     responderCom({
       ok: false,
       corpo: {
@@ -2528,7 +2539,7 @@ describe("executarComando", () => {
 
     expect(resultado).toStrictEqual({
       ok: false,
-      aviso: "Só é possível atribuir a quem tem vínculo ativo nesta organização.",
+      aviso: "Esta pessoa não participa mais desta organização. Escolha outra.",
     });
   });
 
@@ -2545,7 +2556,7 @@ describe("executarComando", () => {
     vi.stubGlobal("fetch", () => Promise.reject(new Error("rede")));
     expect(await executarComando("abc", "analisar", {}, ROTULOS, "organizacao-a")).toStrictEqual({
       ok: false,
-      aviso: MENSAGEM_GENERICA,
+      aviso: MENSAGEM_SEM_CONEXAO,
     });
   });
 
@@ -2554,7 +2565,7 @@ describe("executarComando", () => {
     const resultado = await executarComando("abc", "analisar", {}, ROTULOS, "organizacao-a");
     expect(resultado).toStrictEqual({
       ok: false,
-      aviso: "Esta ocorrência mudou enquanto você estava olhando: agora ela está hibernada.",
+      aviso: "Esta ocorrência mudou enquanto você estava olhando. Agora: hibernada.",
     });
   });
 });
@@ -2752,7 +2763,7 @@ describe("vazioDaBarra — as DUAS frases do vazio de T-05", () => {
     // `ehGestor` não tinha população, e o caso seguinte prova isso.
     for (const emAndamento of ["aberta", "em_analise", "em_atendimento", "pausada"] as const) {
       expect(vazioDaBarra(emAndamento)).toBe(
-        "Só os Gestores podem cancelar a partir daqui. Peça o cancelamento pelo comentário.",
+        "Agora só os Gestores podem cancelar. Peça o cancelamento nas mensagens abaixo.",
       );
     }
   });
@@ -2760,16 +2771,18 @@ describe("vazioDaBarra — as DUAS frases do vazio de T-05", () => {
   it("fora de estado terminal, a frase convida ao comentário — critério 30.6", () => {
     for (const emAndamento of ["aberta", "em_analise", "em_atendimento", "pausada"] as const) {
       expect(vazioDaBarra(emAndamento)).toBe(
-        "Só os Gestores podem cancelar a partir daqui. Peça o cancelamento pelo comentário.",
+        "Agora só os Gestores podem cancelar. Peça o cancelamento nas mensagens abaixo.",
       );
     }
   });
 
-  it("a segunda oração é a do `detail` publicado, palavra por palavra — e o `detail` NÃO muda", () => {
-    // `openapi.yaml`: o detail do 403 SOMENTE_O_GESTOR_CANCELA_NESTE_ESTADO termina com esta frase.
-    expect(vazioDaBarra("em_atendimento")).toContain("Peça o cancelamento pelo comentário.");
-    // A primeira oração daquele detail — "O atendimento já começou" — continua FORA, e a razão está no
-    // critério 18.6: ela é falsa numa ocorrência que chegou a `pausada` vinda de `em_analise`.
+  it("a frase da tela diverge do `detail` publicado de propósito, e o `detail` NÃO muda (item 126)", () => {
+    // `openapi.yaml`: o detail do 403 SOMENTE_O_GESTOR_CANCELA_NESTE_ESTADO fala em "comentário", e o
+    // item 126 não mexe nele. A tela chama a conversa de *Mensagens*, e é lá que a frase manda pedir.
+    expect(vazioDaBarra("em_atendimento")).toContain("Peça o cancelamento nas mensagens abaixo.");
+    expect(vazioDaBarra("em_atendimento")).not.toContain("comentário");
+    // "O atendimento já começou" continua FORA: é falsa numa ocorrência que chegou a `pausada` vinda de
+    // `em_analise` (critério 18.6).
     expect(vazioDaBarra("pausada")).not.toContain("atendimento já começou");
   });
 
@@ -2784,7 +2797,7 @@ describe("vazioDaBarra — as DUAS frases do vazio de T-05", () => {
   it("a frase terminal NÃO é derivada aqui — ela chama ehTerminal, que é do Domínio", () => {
     expect(vazioDaBarra("cancelada")).toBe("Esta ocorrência está encerrada.");
     expect(vazioDaBarra("em_atendimento")).toBe(
-      "Só os Gestores podem cancelar a partir daqui. Peça o cancelamento pelo comentário.",
+      "Agora só os Gestores podem cancelar. Peça o cancelamento nas mensagens abaixo.",
     );
   });
 
@@ -2861,7 +2874,7 @@ describe("o corpo de POST …/pausar — o primeiro comando com campo OBRIGATÓR
 describe("nomeDoMotivoPausa — o motivo como OPÇÃO DE ESCOLHA, e não como o que aconteceu", () => {
   it("dá os quatro textos do protótipo, e nenhum deles é o rótulo de status", () => {
     expect(nomeDoMotivoPausa("aguardando_informacao_solicitante")).toBe(
-      "Aguardando informação do solicitante",
+      "Aguardando informação do Solicitante",
     );
     expect(nomeDoMotivoPausa("aguardando_peca")).toBe("Aguardando peça");
     expect(nomeDoMotivoPausa("aguardando_autorizacao")).toBe("Aguardando autorização");
@@ -2880,7 +2893,7 @@ describe("opcoesDeMotivoPausa — os quatro pares PRONTOS, para a página não i
     expect(opcoesDeMotivoPausa()).toStrictEqual([
       {
         valor: "aguardando_informacao_solicitante",
-        rotulo: "Aguardando informação do solicitante",
+        rotulo: "Aguardando informação do Solicitante",
       },
       { valor: "aguardando_peca", rotulo: "Aguardando peça" },
       { valor: "aguardando_autorizacao", rotulo: "Aguardando autorização" },
@@ -2896,10 +2909,15 @@ describe("a guarda da segunda linha de T-03 — os critérios 23.6 e 31.6", () =
     }
   });
 
-  it("devolve o rótulo quando os dois textos DIVERGEM — e é o que prova que a guarda se apaga sozinha no item 31", () => {
-    // No item 31 o rótulo do Gestor vira "Pausada", os textos divergem, e a segunda linha volta
-    // sozinha — que é o que o critério 14.3 pede. Sem este caso, "volta sozinha" seria prosa.
-    expect(segundaLinhaDeMotivo("aguardando_peca", "Pausada")).toBe(
+  it("sob \"Pausada\", a segunda linha é o NOME do motivo, e nunca \"Parada —\" (item 126, sugestão 5)", () => {
+    // No item 31 o rótulo do Gestor vira "Pausada" e a segunda linha volta sozinha (critério 14.3). Desde
+    // o 126 ela diz o nome do motivo, o mesmo do modal de pausa: "Parada —" sob "Pausada" confundia a
+    // pausa com a ocorrência parada, que o filtro *Paradas* exclui.
+    expect(segundaLinhaDeMotivo("aguardando_peca", "Pausada")).toBe("Aguardando peça");
+  });
+
+  it("um texto da organização que diverge do padrão ainda ganha a frase do motivo como segunda linha", () => {
+    expect(segundaLinhaDeMotivo("aguardando_peca", "Esperando o síndico")).toBe(
       "Parada — esperando material chegar",
     );
   });
@@ -2918,7 +2936,8 @@ describe("a guarda da segunda linha de T-03 — os critérios 23.6 e 31.6", () =
     (motivo) => {
       const doGestor = rotuloDeStatus("pausada", motivo, LENTE_DO_GESTOR);
       expect(doGestor).toBe("Pausada");
-      expect(segundaLinhaDeMotivo(motivo, doGestor)).toBe(rotuloDeMotivoPausa(motivo));
+      expect(segundaLinhaDeMotivo(motivo, doGestor)).toBe(nomeDoMotivoPausa(motivo));
+      expect(segundaLinhaDeMotivo(motivo, doGestor)).not.toMatch(/^Parada/u);
     },
   );
 
@@ -2934,6 +2953,26 @@ describe("a guarda da segunda linha de T-03 — os critérios 23.6 e 31.6", () =
       expect(segundaLinhaDeMotivo(motivo, doSolicitante)).toBeNull();
     },
   );
+
+  /**
+   * **A escolha 13 do item 126.** A espera pelo autor só diz *"você"* para quem registrou: quem recebeu
+   * um compartilhamento lê a frase de quem não registrou, e ela já traz o motivo dentro.
+   */
+  it("quem não registrou lê 'esperando quem registrou responder', e sem segunda linha (escolha 13)", () => {
+    const lente = lenteDoSolicitante({}, "outra");
+    const frase = rotuloDeStatus("pausada", "aguardando_informacao_solicitante", lente, "autora");
+    expect(frase).toBe("Parada — esperando quem registrou responder");
+    expect(segundaLinhaDeMotivo("aguardando_informacao_solicitante", frase)).toBeNull();
+    // O autor continua lendo a frase dele, e sem o autor à mão vale a frase de antes.
+    expect(rotuloDeStatus("pausada", "aguardando_informacao_solicitante", lenteDoSolicitante({}, "autora"), "autora")).toBe(
+      rotuloDeMotivoPausa("aguardando_informacao_solicitante"),
+    );
+    expect(rotuloDeStatus("pausada", "aguardando_informacao_solicitante", lente)).toBe(
+      rotuloDeMotivoPausa("aguardando_informacao_solicitante"),
+    );
+    // Os outros três motivos não mandam ninguém responder: não mudam com quem lê.
+    expect(rotuloDeStatus("pausada", "aguardando_peca", lente, "autora")).toBe(rotuloDeMotivoPausa("aguardando_peca"));
+  });
 
   it("fora de pausada não há segunda linha, em nenhuma das duas lentes", () => {
     for (const lente of [SEM_CUSTOMIZACAO, LENTE_DO_GESTOR]) {
@@ -3797,7 +3836,7 @@ describe("enviarComentario — a irmã sem o ramo do 409", () => {
     vi.stubGlobal("fetch", () => Promise.reject(new Error("rede")));
     expect(await enviarComentario("abc", "oi", "organizacao-a")).toStrictEqual({
       ok: false,
-      aviso: MENSAGEM_GENERICA,
+      aviso: MENSAGEM_SEM_CONEXAO,
     });
   });
 });
@@ -4058,7 +4097,7 @@ describe("errosDoRegistro — os quatro obrigatórios de T-04 (critério 44l.7)"
   it("cada obrigatório vazio tem a sua frase, e ela diz o que fazer", () => {
     expect(errosDoRegistro(VALORES_VAZIOS)).toStrictEqual({
       titulo: "Dê um título à ocorrência.",
-      descricao: "Descreva o que aconteceu, em uma frase.",
+      descricao: "Descreva o que aconteceu.",
       categoriaId: "Escolha uma categoria.",
       areaId: "Escolha onde aconteceu.",
     });
@@ -4067,7 +4106,7 @@ describe("errosDoRegistro — os quatro obrigatórios de T-04 (critério 44l.7)"
   it("só espaço não vale, nos dois campos de texto", () => {
     const erros = errosDoRegistro({ ...cheio, titulo: "   ", descricao: "\n \t" });
     expect(erros.titulo).toBe("Dê um título à ocorrência.");
-    expect(erros.descricao).toBe("Descreva o que aconteceu, em uma frase.");
+    expect(erros.descricao).toBe("Descreva o que aconteceu.");
   });
 
   it("a referência do lugar vazia nunca é erro — ela não é obrigatória", () => {

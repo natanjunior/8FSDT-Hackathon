@@ -119,7 +119,7 @@ describe("as colunas são fixas e declaradas — critério 2", () => {
       "Categoria",
       "Área",
       "Tipo da área",
-      "Solicitante",
+      "Registrada por",
       "Responsável",
       "Motivo da pausa",
       "Solução aplicada",

@@ -1,3 +1,5 @@
+import { FRASES_DE_ESPERA } from "@/interface/componentes/frases-de-espera";
+
 /**
  * O cold start de T-04 (RNF5), e é a tela cronometrada pelo RNF6 — menos de um minuto do toque ao `201`.
  * Abrir em branco enquanto o servidor acorda gasta 20,7 s desse minuto sem dizer nada.
@@ -28,7 +30,7 @@ export default function EsperandoORegistro() {
         role="status"
         className="text-tinta-suave text-interface animate-in fade-in opacity-0 [animation-delay:2s] [animation-duration:300ms] [animation-fill-mode:forwards]"
       >
-        Acordando o servidor — a primeira abertura do dia é mais lenta.
+        {FRASES_DE_ESPERA.dentro}
       </p>
     </div>
   );

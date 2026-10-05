@@ -37,7 +37,7 @@ import { projetarContexto } from "@/interface/projecoes";
  */
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = { title: "Entrar em uma organização" };
+export const metadata: Metadata = { title: "Organizações" };
 
 export default async function TelaSemOrganizacaoAtiva({
   searchParams,
@@ -237,12 +237,12 @@ function FaceD({
 }) {
   return (
     <MolduraDeConta
-      titulo="Em qual organização você quer trabalhar?"
+      titulo="Qual organização você quer abrir?"
       contexto="Dá para trocar depois, pelo nome no alto da tela."
       caminhos={
         <>
           <Link href="/organizacao?entrar-em-outra=true" className={CLASSE_DO_CAMINHO}>
-            Entrar em outra organização
+            Pedir entrada em outra organização
           </Link>
           <CaminhoDeSair />
         </>
@@ -263,7 +263,7 @@ function FaceD({
 
 /**
  * ============================================================================
- *  **Face E · Entrar em outra organização** — o item 7b
+ *  **Face E · Pedir entrada em outra organização** — o item 7b
  * ============================================================================
  *
  * **Não estava em documento nenhum quando nasceu**, e o critério 7b.5 sabia disso. Ganhou desenho na
@@ -299,7 +299,7 @@ function FaceE({
 }) {
   return (
     <MolduraDeConta
-      titulo="Entrar em outra organização"
+      titulo="Pedir entrada em outra organização"
       contexto={
         organizacaoAtiva === null ? (
           "Pedir entrada em outra não tira você das organizações em que já participa."

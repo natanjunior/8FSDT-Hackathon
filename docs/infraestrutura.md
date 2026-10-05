@@ -92,6 +92,30 @@ Migração de banco é versionada em arquivo e não se desfaz sozinha, então mu
 exige o script de volta escrito à mão. É a razão de a ordem segura ser migração compatível primeiro,
 código depois.
 
+## A cópia de segurança do banco
+
+O projeto de banco na franquia gratuita não guarda cópia de segurança. As migrações reconstroem o esquema,
+mas nenhuma delas reconstrói o dado nem as contas de quem usa o produto. A cópia é feita pela própria
+esteira: o workflow
+[`copia-de-seguranca-do-banco.yml`](https://github.com/natanjunior/8FSDT-Hackathon/blob/main/.github/workflows/copia-de-seguranca-do-banco.yml)
+roda o `pg_dump` uma vez por dia, de madrugada, e
+guarda o resultado como artefato da execução por trinta dias.
+
+A cópia leva os dois esquemas que as migrações não refazem, o do produto e o das contas, no formato
+próprio do PostgreSQL, que já sai comprimido e deixa escolher na volta o que restaurar. O cliente é o da
+versão 17, tirado da mesma imagem de contêiner que serve de banco aos testes da esteira, porque o cliente
+instalado no servidor de execução é mais antigo e recusa copiar um servidor mais novo. A versão é
+conferida antes da cópia, e a execução falha com a causa escrita quando o segredo de conexão falta,
+quando a versão não confere, quando a cópia sai vazia ou quando o arquivo não tem a assinatura do formato.
+
+Como a cópia contém as contas, com e-mail e senha cifrada, ela só sobe enquanto o repositório for
+privado. Com o repositório público, qualquer conta do GitHub poderia baixar o artefato, e a execução
+falha em vez de publicá-lo.
+
+A volta seria criar o projeto, aplicar as migrações e restaurar os dados com o `pg_restore`. A
+restauração não foi ensaiada. O roteiro da cópia é testado na esteira com o contêiner e a API simulados,
+sem banco e sem o segredo; a cópia contra o banco publicado só se prova na primeira execução agendada.
+
 ## O que a franquia gratuita impõe
 
 Sem tráfego, a aplicação escala para zero réplicas; a primeira requisição depois de um período ocioso leva

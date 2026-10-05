@@ -19,7 +19,7 @@ export const GET = comContexto({ exige: "organizacao.configurar" }, async ({ rep
 );
 
 /**
- * `PATCH /configuracao` — mudar as regras (item 99) e os textos que quem abriu lê (item 100).
+ * `PATCH /configuracao` — mudar as regras (item 99) e os textos do Solicitante (item 100).
  *
  * **A trilha é escrita pelo gatilho da migração 017, dentro da mesma instrução**, com o valor anterior da
  * linha travada pelo `update`: é o que faz a segunda de duas escritas simultâneas registrar o valor que a

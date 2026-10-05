@@ -72,7 +72,7 @@ flowchart TB
 
 A lista de ocorrências é a tela inicial de todo papel que age, e a tela de ocorrência é onde os comandos
 moram. Do menu do cabeçalho saem o Painel, os Participantes, a Configuração, que mostra as regras do
-atendimento, os textos que quem abriu lê, as etiquetas, o convite e cada mudança, e abre as categorias e as áreas,
+atendimento, os textos do Solicitante, as etiquetas, o convite e cada mudança, e abre as categorias e as áreas,
 os Meus dados e a página do Grupo, que também responde sem sessão.
 
 Na lista, um controle de escolha única diz qual conjunto está na tela. Quem lê todas escolhe entre *Todas as
@@ -80,7 +80,7 @@ ocorrências* e *Minhas ocorrências*, com a contagem de cada uma ao lado do ró
 escolhe entre *Minhas ocorrências* e *Compartilhadas comigo*.
 
 Na aba *Compartilhadas comigo*, cada linha que a pessoa ainda não abriu desde que foi compartilhada leva a
-palavra *Não vista*, ao lado do status. Quantas são é o sino que diz.
+palavra *Não lida*, ao lado do status. Quantas são é o sino que diz.
 
 O convite chega por um link curto com o código, e a tela dele funciona antes de a pessoa ter conta. Criar a
 conta ou entrar a devolve ao convite.
@@ -140,7 +140,7 @@ quem olha pode desfazer. O botão de compartilhar abre uma busca de pessoas: tel
 lateral na tela grande. Tocar num nome compartilha na hora, uma pessoa por vez; quem já vê a ocorrência
 aparece na lista com o motivo escrito, e não é escolhível.
 
-Quem recebeu a ocorrência compartilhada vê o que o autor vê, e no lugar das ações do cabeçalho lê uma faixa
+Quem recebeu a ocorrência compartilhada vê o que o autor vê, menos numa pausa à espera de resposta, em que lê *Parada — esperando quem registrou responder*. No lugar das ações do cabeçalho lê uma faixa
 com quem a compartilhou. Ela não tem botão de ação nenhum, não tem o cartão *Compartilhada com* e não tem o
 campo de mensagem — as mensagens continuam legíveis.
 
@@ -244,7 +244,7 @@ botão só aparece para quem tem a permissão daquela lista, e some quando a lis
 ## A configuração da organização
 
 A identidade da organização fica no alto, com o nome e o código, e o resto se divide em três abas. Em
-Configurações de ocorrências ficam as regras do atendimento, os textos que quem abriu lê em cada status e
+Configurações de ocorrências ficam as regras do atendimento, os textos do Solicitante em cada status e
 as duas listas do formulário de registro. Em Configurações de participantes ficam as etiquetas e o
 convite, com o código, o link para copiar e o QR, lado a lado na tela grande. Em Histórico ficam as
 mudanças de configuração. A aba escolhida fica no endereço, e quem recarrega volta a ela.
@@ -284,8 +284,8 @@ A página do convite pessoal tem quatro faces, e a situação vem decidida do se
 | Situação | Face |
 |---|---|
 | sem sessão | o nome da pessoa e a frase da organização que convida, com o formulário de criar conta já com o nome preenchido, e o caminho para quem já tem conta |
-| com outra conta | *Entrar no {organização} como {papel}?*, a conta em uso e o caminho de sair, com o botão Entrar |
-| já participa | *Você já participa do {organização}.*, com o caminho para entrar nela |
+| com outra conta | *Entrar em {organização} como {papel}?*, a conta em uso e o caminho de sair, com o botão Entrar |
+| já participa | *Você já participa de {organização}.*, com o caminho para entrar nela |
 | não vale | *Este convite não vale mais.*, sem dizer por quê |
 
 O e-mail não vem preenchido no formulário: a página roda sem sessão, e contato só é legível dentro da

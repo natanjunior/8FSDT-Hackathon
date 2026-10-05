@@ -276,7 +276,7 @@ function Trilha({
               {/* Mono porque é dado temporal — o papel que o guia §3 dá à monoespaçada. */}
               <span className="font-mono tabular-nums">{dataHoraComSegundos(registro.ocorreuEm)}</span>
             </Campo>
-            <Campo nome="autor">{registro.autor.nome}</Campo>
+            <Campo nome="quem fez">{registro.autor.nome}</Campo>
             {registro.motivoPausa !== null && (
               <Campo nome="motivo da pausa">{nomeDoMotivoPausa(registro.motivoPausa)}</Campo>
             )}

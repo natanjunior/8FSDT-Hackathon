@@ -124,6 +124,29 @@ O produto guarda foto, localização e contato de pessoas, e os controles são e
 | Arquivo exportado | o arquivo de participantes leva e-mail e telefone, e sai só para quem tem `vinculo.gerir`, a mesma permissão de quem já vê esses contatos na tela. O arquivo sai do prédio, e por isso a exportação fica com quem gere |
 | Fórmula na planilha | título e descrição são escritos por quem registra e abertos numa planilha por quem gere. No arquivo exportado, o texto que começa com `=`, `+`, `-` ou `@` sai com um apóstrofo na frente, e a planilha o mostra como texto em vez de executá-lo |
 
+## Os cabeçalhos da resposta
+
+Toda rota responde com cinco cabeçalhos de segurança, declarados no `next.config.ts` e conferidos por um
+teste de unidade que lê a configuração exportada:
+
+| Cabeçalho | Valor | O que impede |
+|---|---|---|
+| `Strict-Transport-Security` | `max-age=63072000; includeSubDomains` | que o navegador volte a falar HTTP com o site depois da primeira visita |
+| `X-Content-Type-Options` | `nosniff` | que um arquivo servido seja interpretado como outro tipo |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | que o endereço completo de uma ocorrência vaze para outro site |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=(), browsing-topics=()` | o acesso a recursos do aparelho que o produto não usa. A foto vem do seletor de arquivo, que esta política não alcança |
+| `X-Frame-Options` | `DENY` | que uma tela do produto seja aberta dentro de outro site para induzir um clique |
+
+O navegador ignora o `Strict-Transport-Security` recebido por HTTP, então o cabeçalho vale em todo
+ambiente sem prender o desenvolvimento local ao HTTPS.
+
+A política de conteúdo (CSP) ficou de fora. Ela é o único desses controles que bloqueia origem, e o
+navegador do produto depende de mais de uma: envia e lê as fotos direto no Azure Blob, e executa os
+scripts em linha que o Next.js e a documentação injetam. Uma política escrita
+sem observar o que o navegador recusa quebra um desses caminhos em tempo de execução, onde nenhum teste
+automatizado alcança. A entrada dela exige primeiro um
+período em modo de relatório, lendo o que seria bloqueado, e só depois o bloqueio.
+
 ## Os segredos
 
 Nenhum segredo entra na imagem. Não há `ARG` no Dockerfile, os arquivos de ambiente são excluídos antes de

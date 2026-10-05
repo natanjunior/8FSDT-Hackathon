@@ -48,7 +48,7 @@ export function ModalDeNovaEtiqueta({ organizacaoId }: { organizacaoId: string }
       return { ok: false, aviso: mensagemDoProblema(await resposta.json().catch(() => null)) };
     },
     aoConcluir: (valor) => ({ titulo: reciboDaCriacao(valor?.etiqueta.nome ?? aparado, valor?.criada ?? true) }),
-    tituloDaFalha: "Não foi possível criar a etiqueta.",
+    tituloDaFalha: "Não foi possível criar a etiqueta",
     aoAbrir: () => {
       setNome("");
       formulario.recomecar();
@@ -67,7 +67,7 @@ export function ModalDeNovaEtiqueta({ organizacaoId }: { organizacaoId: string }
       aoMudarAbertura={envio.mudarAbertura}
       enviando={envio.enviando}
       titulo="Nova etiqueta"
-      descricao="Um rótulo livre para dar aos participantes."
+      descricao="Um nome livre para marcar participantes."
       obrigatorios={1}
       todosObrigatorios
       aoEnviar={aoEnviar}

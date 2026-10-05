@@ -90,14 +90,14 @@ export default async function Despachante({
       contexto={
         <>
           Seu papel de {rotuloDoPapel(contexto.papel)} em{" "}
-          <strong className="text-tinta font-semibold">{ativa.nome}</strong> ainda não abre nenhuma tela.
-          Quando abrir, ela aparece aqui.
+          <strong className="text-tinta font-semibold">{ativa.nome}</strong> não abre nenhuma tela. Se precisar
+          de outro papel, fale com um Gestor.
         </>
       }
       caminhos={
         <>
           <Link href="/organizacao?entrar-em-outra=true" className={CLASSE_DO_CAMINHO}>
-            Entrar em outra organização
+            Pedir entrada em outra organização
           </Link>
           <CaminhoDeSair />
         </>

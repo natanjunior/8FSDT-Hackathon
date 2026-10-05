@@ -1,3 +1,5 @@
+import { FRASES_DE_ESPERA } from "@/interface/componentes/frases-de-espera";
+
 /**
  * O cold start do QR da área: o cabeçalho e um cartão do tamanho do QR. Mesma regra e mesmo texto das
  * outras telas (RNF5): *"qualquer requisição que passe de ~2 s ganha o texto"*, e o texto **não promete
@@ -21,7 +23,7 @@ export default function EsperandoOQrDaArea() {
         role="status"
         className="text-tinta-suave animate-in fade-in text-meta opacity-0 [animation-delay:2s] [animation-duration:300ms] [animation-fill-mode:forwards]"
       >
-        Acordando o servidor — a primeira abertura do dia é mais lenta.
+        {FRASES_DE_ESPERA.dentro}
       </p>
     </div>
   );

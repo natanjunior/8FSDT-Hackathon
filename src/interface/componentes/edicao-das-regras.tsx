@@ -125,6 +125,7 @@ export function EdicaoDasRegras({
         <Button
           type="button"
           variant="marca"
+          aria-label="Editar regras"
           className="text-interface min-h-11 rounded-sm px-4 has-[>svg]:px-4"
         >
           <Pencil aria-hidden="true" />

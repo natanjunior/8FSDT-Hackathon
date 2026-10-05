@@ -41,7 +41,7 @@ export function tituloDoModal(nome: string): string {
 
 /** O que o Gestor precisa saber antes de mandar o link a alguém. */
 export function explicacaoDoModal(organizacao: string, papel: string): string {
-  return `Quem abrir este link entra no ${organizacao} como ${papel}, sem precisar de aprovação.`;
+  return `Quem abrir este link entra em ${organizacao} como ${papel}, sem precisar de aprovação.`;
 }
 
 /** `Gerado em dd/mm por {nome}`: o rastro que o Gestor tem de que o link mudou. */
@@ -54,16 +54,16 @@ export function convitePelaFace(organizacao: string, papel: string): string {
 }
 
 export function perguntaDoAceite(organizacao: string, papel: string): string {
-  return `Entrar no ${organizacao} como ${papel}?`;
+  return `Entrar em ${organizacao} como ${papel}?`;
 }
 
 export function jaParticipa(organizacao: string): string {
-  return `Você já participa do ${organizacao}.`;
+  return `Você já participa de ${organizacao}.`;
 }
 
 /** A conta em uso, antes de confirmar: o link pode ter sido aberto no celular de outra pessoa da família. */
 export function contaEmUso(nome: string): string {
-  return `Você está como ${nome}.`;
+  return `Você entrou como ${nome}.`;
 }
 
 /** O que o detalhe mostra no lugar do convite: o botão, ou a frase. */

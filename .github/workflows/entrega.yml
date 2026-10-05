@@ -86,13 +86,75 @@ jobs:
         run: npm run tipos
 
       # --- Testes (DoD) --------------------------------------------------
-      - name: teste unitário — domínio e aplicação, sem banco
-        run: npm run teste
-
-      - name: teste de integração — critério A4, organização A não vê dado de B
-        run: npm run teste:integracao
+      # **Um passo só, e a fusão é o que impede a suíte de rodar duas vezes.**
+      # O `npm run cobertura` é `vitest run --coverage` sem `--project`: roda o
+      # `unitario` e o `integracao` numa execução, instrumentada. Manter os dois
+      # passos antigos e acrescentar a cobertura depois pagaria cada teste duas
+      # vezes; instrumentar cada passo em separado exigiria fundir dois
+      # relatórios. O que se perde é o nome do projeto no título do passo, e ele
+      # continua na saída do Vitest, linha a linha.
+      #
+      # **Cobertura é relatório, nunca portão.** O piso não existe aqui nem no
+      # `vitest.config.mts`, pela razão escrita lá (ADR-0008): um limiar que o
+      # projeto não alcança deixa o build vermelho por uma métrica que ninguém
+      # pediu. O passo falha quando um teste falha, e só então.
+      #
+      # Os três `--coverage.reporter` substituem a lista do arquivo de
+      # configuração só aqui: o `html` é o relatório navegável do artefato, e o
+      # laço local continua sem pagá-lo.
+      - name: teste unitário e de integração, com cobertura — critério A4 incluído
+        run: >-
+          npm run cobertura --
+          --coverage.reporter=text-summary
+          --coverage.reporter=json-summary
+          --coverage.reporter=html
         env:
           BANCO_URL_TESTE: postgresql://postgres:postgres@127.0.0.1:5432/resolveai_teste
+
+      # A tabela vai para o sumário do emprego, legível sem baixar nada. Roda
+      # também quando um teste falhou, desde que o Vitest tenha escrito o
+      # resumo; sem ele, diz que não há número em vez de morrer calado.
+      - name: cobertura no sumário do emprego
+        if: ${{ !cancelled() }}
+        run: |
+          node --input-type=module <<'JS' >> "$GITHUB_STEP_SUMMARY"
+          import { existsSync, readFileSync } from "node:fs";
+          import { relative } from "node:path";
+
+          const arquivo = ".cobertura/coverage-summary.json";
+          if (!existsSync(arquivo)) {
+            console.log("## Cobertura\n\nO Vitest não escreveu o resumo: a execução parou antes do relatório.");
+            process.exit(0);
+          }
+          const resumo = JSON.parse(readFileSync(arquivo, "utf8"));
+          const pct = (m) => `${m.pct}% (${m.covered}/${m.total})`;
+          const linha = (nome, m) =>
+            `| ${nome} | ${pct(m.lines)} | ${pct(m.statements)} | ${pct(m.functions)} | ${pct(m.branches)} |`;
+          const cabecalho = "| Arquivo | Linhas | Instruções | Funções | Ramos |\n|---|--:|--:|--:|--:|";
+
+          const { total, ...porArquivo } = resumo;
+          const arquivos = Object.entries(porArquivo)
+            .map(([caminho, m]) => [relative(process.cwd(), caminho).replaceAll("\\", "/"), m])
+            .sort(([a], [b]) => a.localeCompare(b));
+
+          console.log("## Cobertura\n");
+          console.log("Medição, não portão: nenhum piso faz este emprego falhar.\n");
+          console.log(cabecalho);
+          console.log(linha("**Total**", total));
+          console.log(`\n<details><summary>Por arquivo (${arquivos.length})</summary>\n`);
+          console.log(cabecalho);
+          for (const [caminho, m] of arquivos) console.log(linha(`\`${caminho}\``, m));
+          console.log("\n</details>");
+          JS
+
+      - name: relatório de cobertura como artefato
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura
+          path: .cobertura/
+          if-no-files-found: warn
+          retention-days: 14
 
       # --- Documentação (DoD) --------------------------------------------
       # Os três verificadores. Falham o build: a §15 do contrato e o DoD

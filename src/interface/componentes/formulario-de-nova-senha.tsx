@@ -19,7 +19,7 @@ import { definirSenhaSchema, errosDoSchema } from "@/interface/schemas";
  * A regra de força aparece **antes** de digitar, como em T-11, e evita o modo de falha mais comum de um
  * cadastro: a pessoa escolhe, envia, e descobre a regra como erro.
  *
- * **O retorno (guia §7, item 44g).** Com a senha gravada, sai o aviso *"Senha alterada"* e a tela segue
+ * **O retorno (guia §7, item 44g).** Com a senha gravada, sai o aviso *"Senha redefinida"* e a tela segue
  * para T-01; a ação devolve `concluido` em vez de redirecionar, porque o aviso só sai do navegador. A falha
  * fica só na linha acima do formulário (item 116, critério 9).
  */
@@ -35,7 +35,7 @@ export function FormularioDeNovaSenha() {
       const proximo = await chamarAcaoDeCredencial(acaoDeDefinirSenha, anterior, dados);
       formulario.recomecar();
       if (proximo.concluido === true) {
-        avisarSucesso("Senha alterada", "Entre com ela.");
+        avisarSucesso("Senha redefinida", "Entre com ela.");
         // **`replace`, e não `push`:** o botão voltar não pode reencontrar este formulário (6b.4). A
         // ação já limpou o cookie de recuperação, então a própria página também manda para T-01.
         router.replace("/entrar");

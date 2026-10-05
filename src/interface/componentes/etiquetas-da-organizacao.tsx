@@ -70,7 +70,7 @@ export function EtiquetasDaOrganizacao({
       <CabecaDoCartao
         id="etiquetas"
         titulo="Etiquetas de participantes"
-        apoio="Os rótulos livres que você dá aos participantes."
+        apoio="Nomes livres para marcar participantes."
         acao={<ModalDeNovaEtiqueta organizacaoId={organizacaoId} />}
       />
       {etiquetas.length === 0 ? (
@@ -144,7 +144,7 @@ function ApagarEtiqueta({
       return { ok: false, aviso: mensagemDoProblema(await resposta.json().catch(() => null)) };
     },
     aoConcluir: () => ({ titulo: `${etiqueta.nome} apagada` }),
-    tituloDaFalha: "Não foi possível apagar a etiqueta.",
+    tituloDaFalha: "Não foi possível apagar a etiqueta",
   });
 
   return (

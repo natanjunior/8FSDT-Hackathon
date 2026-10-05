@@ -15,7 +15,7 @@ export const FRASE_DO_MOTIVO: Readonly<Record<MotivoDeNaoEnvio, string>> = {
   "vinculo-revogado": "Não participa mais",
   "sem-email": "Sem e-mail cadastrado",
   "ja-tem-conta": "Já usa o aplicativo",
-  encarregado: "Encarregados não recebem convite",
+  encarregado: "Encarregados não usam o aplicativo",
   "limite-do-dia": "Este endereço já recebeu convite hoje",
   "limite-do-participante": "Já recebeu os 10 convites por e-mail",
   "falha-no-envio": "O e-mail não pôde ser enviado. Tente de novo mais tarde",
@@ -28,7 +28,7 @@ export const TEXTOS_DO_ENVIO = {
   voltar: "Voltar",
   fechar: "Fechar",
   enviarPorEmail: "Enviar convite por e-mail",
-  acrescentarEmail: "Acrescentar e-mail",
+  acrescentarEmail: "Adicionar e-mail",
   falhaInteira:
     "Não foi possível concluir o envio. Parte dos convites pode ter saído: abra o convite de cada pessoa para ver o último envio.",
   limiteDoDia: "Este endereço já recebeu convite hoje. O próximo pode sair amanhã.",

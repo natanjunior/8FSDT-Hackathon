@@ -142,8 +142,8 @@ describe("apagar mostra quantas (critério 7)", () => {
 
   it("as frases da confirmação", () => {
     expect(tituloDoApagar("Prestador")).toBe("Apagar “Prestador”?");
-    expect(textoDoApagar(6)).toBe("Está em 6 pessoas e sai de todas.");
-    expect(textoDoApagar(1)).toBe("Está em 1 pessoa e sai dela.");
+    expect(textoDoApagar(6)).toBe("Está em 6 participantes e sai de todos.");
+    expect(textoDoApagar(1)).toBe("Está em 1 participante e sai dele.");
     expect(textoDoApagar(0)).toBe("Não está em ninguém.");
   });
 });

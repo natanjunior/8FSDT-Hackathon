@@ -1,5 +1,5 @@
 import { cabecalhosDeEscrita } from "@/interface/componentes/afirmacao-de-organizacao";
-import { MENSAGEM_GENERICA, mensagemDoProblema } from "@/interface/componentes/retorno-de-acao";
+import { MENSAGEM_SEM_CONEXAO, mensagemDoProblema } from "@/interface/componentes/retorno-de-acao";
 
 /**
  * ============================================================================
@@ -25,7 +25,7 @@ export type ResultadoDoComando = { ok: true } | { ok: false; aviso: string };
  * Chama `POST /api/ocorrencias/{id}/{comando}` e traduz a resposta em **uma frase ou nada**.
  *
  * **A frase do `409` é a do inventário**, montada com o `statusAtual` que o contrato pôs no corpo do erro
- * exatamente para isto: *"Esta ocorrência mudou enquanto você estava olhando: agora ela está …"*. É o caso
+ * exatamente para isto: *"Esta ocorrência mudou enquanto você estava olhando. Agora: …"*. É o caso
  * das duas pessoas triando ao mesmo tempo.
  *
  * **Quem repinta a tela é quem chama**, e não esta função — os dois chamadores repintam em momentos
@@ -56,26 +56,45 @@ export async function executarComando(
   } catch {
     // `fetch` rejeitou antes de haver resposta — rede caiu. Sem este `catch` a rejeição aciona o Error
     // Boundary em vez de mostrar a linha de aviso. Nuvem sem SLA: rede instável é o caso esperado.
-    return { ok: false, aviso: MENSAGEM_GENERICA };
+    return { ok: false, aviso: MENSAGEM_SEM_CONEXAO };
   }
 }
 
+/** A frase de quem perdeu o acesso à organização no meio do caminho, nos comandos e na conversa. */
+const SEM_ACESSO_A_ORGANIZACAO = "Você não tem mais acesso a esta organização.";
+
+/**
+ * As frases da tela que não dependem de `statusAtual`, e por isso valem mesmo quando o corpo não o traz.
+ * O `detail` publicado de cada código não muda: a troca é só na tela.
+ */
+const FRASES_FIXAS_DO_COMANDO: Readonly<Record<string, string>> = {
+  SOMENTE_O_GESTOR_CANCELA_NESTE_ESTADO:
+    "Agora só os Gestores podem cancelar. Peça o cancelamento nas mensagens.",
+  SEM_VINCULO_NA_ORGANIZACAO: SEM_ACESSO_A_ORGANIZACAO,
+  RESPONSAVEL_SEM_VINCULO_ATIVO: "Esta pessoa não participa mais desta organização. Escolha outra.",
+  OCORRENCIA_NAO_ENCONTRADA: "Esta ocorrência não está mais disponível para você.",
+};
+
 /**
  * **A frase do `409` é a do inventário**, montada com o `statusAtual` que o contrato pôs no corpo do erro
- * para isto: *"Esta ocorrência mudou enquanto você estava olhando: agora ela está …"*. Ela é a frase da
- * tela para `TRANSICAO_NAO_PERMITIDA`, e por isso entra em `mensagemDoProblema` pelo mapa. Sem
- * `statusAtual`, o mapa fica vazio e vale o `detail`.
+ * para isto: *"Esta ocorrência mudou enquanto você estava olhando. Agora: …"*. O rótulo fica fora da
+ * oração, porque o do Solicitante é livre e não concorda com frase nenhuma. Ela é a frase da tela para
+ * `TRANSICAO_NAO_PERMITIDA` e para `PRIORIDADE_IMUTAVEL_EM_ESTADO_TERMINAL`, que é a mesma corrida vista
+ * pelo seletor de prioridade. Sem `statusAtual`, valem só as frases fixas e, para o `409`, o `detail`.
  */
 function frasesDoComando(
   problema: unknown,
   rotulosDeStatus: Readonly<Record<string, string>>,
 ): Readonly<Record<string, string>> {
-  if (typeof problema !== "object" || problema === null) return {};
+  if (typeof problema !== "object" || problema === null) return FRASES_FIXAS_DO_COMANDO;
   const { statusAtual } = problema as { statusAtual?: unknown };
-  if (typeof statusAtual !== "string") return {};
+  if (typeof statusAtual !== "string") return FRASES_FIXAS_DO_COMANDO;
   const rotulo = rotulosDeStatus[statusAtual] ?? statusAtual;
+  const mudou = `Esta ocorrência mudou enquanto você estava olhando. Agora: ${rotulo}.`;
   return {
-    TRANSICAO_NAO_PERMITIDA: `Esta ocorrência mudou enquanto você estava olhando: agora ela está ${rotulo}.`,
+    ...FRASES_FIXAS_DO_COMANDO,
+    TRANSICAO_NAO_PERMITIDA: mudou,
+    PRIORIDADE_IMUTAVEL_EM_ESTADO_TERMINAL: mudou,
   };
 }
 
@@ -96,7 +115,7 @@ export type ResultadoDoEnvio =
  * comando.**
  *
  * **Compartilha o corpo do `fetch`**: `cabecalhosDeEscrita(organizacaoId)` — a afirmação de organização
- * do item 7b —, o `detail` do problema como aviso, a frase genérica e o `catch` de rede caída.
+ * do item 7b —, o `detail` do problema como aviso, a frase genérica e a de conexão no `catch` de rede caída.
  *
  * **O que ela NÃO tem é o ramo do `409 TRANSICAO_NAO_PERMITIDA`**, e por isso não recebe
  * `rotulosDeStatus`: comentar não é comando, e o contrato **não publica** aquele erro neste endpoint.
@@ -128,10 +147,13 @@ export async function enviarComentario(
     }
 
     const problema = (await resposta.json().catch(() => null)) as unknown;
-    return { ok: false, aviso: mensagemDoProblema(problema) };
+    return {
+      ok: false,
+      aviso: mensagemDoProblema(problema, { SEM_VINCULO_NA_ORGANIZACAO: SEM_ACESSO_A_ORGANIZACAO }),
+    };
   } catch {
     // `fetch` rejeitou antes de haver resposta — rede caiu. Sem este `catch` a rejeição aciona o Error
     // Boundary em vez de mostrar a linha de aviso. Nuvem sem SLA: rede instável é o caso esperado.
-    return { ok: false, aviso: MENSAGEM_GENERICA };
+    return { ok: false, aviso: MENSAGEM_SEM_CONEXAO };
   }
 }

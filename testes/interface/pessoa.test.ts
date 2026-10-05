@@ -54,8 +54,8 @@ describe("erroDoNome — o campo do modal Editar nome (critérios 44i.5 e 44i.8)
   const ATUAL = "Helena Rocha";
 
   it("vazio e só espaços pedem o nome, com a frase do schema da rota", () => {
-    expect(erroDoNome("pessoa", "", ATUAL)).toBe("Diga como você quer ser chamado.");
-    expect(erroDoNome("pessoa", "   ", ATUAL)).toBe("Diga como você quer ser chamado.");
+    expect(erroDoNome("pessoa", "", ATUAL)).toBe("Informe o seu nome.");
+    expect(erroDoNome("pessoa", "   ", ATUAL)).toBe("Informe o seu nome.");
   });
 
   it("igual ao atual, mesmo com espaços em volta, pede para alterar", () => {
@@ -88,7 +88,7 @@ describe("os textos do modal do nome — critérios 44i.2, 44i.5 e 44i.8", () =>
   });
 
   it("os títulos do modal e da falha, e cada alvo no endpoint dele", () => {
-    expect(EDICAO_DE_NOME.organizacao.titulo).toBe("Editar organização");
+    expect(EDICAO_DE_NOME.organizacao.titulo).toBe("Renomear organização");
     expect(EDICAO_DE_NOME.pessoa.titulo).toBe("Editar nome");
     expect(EDICAO_DE_NOME.organizacao.falha).toBe("Não foi possível renomear a organização");
     expect(EDICAO_DE_NOME.pessoa.falha).toBe("Não foi possível salvar o seu nome");
@@ -112,10 +112,10 @@ describe("a resposta do servidor no modal do nome — C-5 do plano", () => {
       detail: "Um ou mais campos estão inválidos.",
       erros: [
         { campo: "corpo", codigo: "OBRIGATORIO", mensagem: "Informe ao menos um campo para alterar." },
-        { campo: "nome", codigo: "MUITO_CURTO", mensagem: "Diga como você quer ser chamado." },
+        { campo: "nome", codigo: "MUITO_CURTO", mensagem: "Informe o seu nome." },
       ],
     };
-    expect(errosDoNomeNoCorpo(corpo)).toStrictEqual({ nome: "Diga como você quer ser chamado." });
+    expect(errosDoNomeNoCorpo(corpo)).toStrictEqual({ nome: "Informe o seu nome." });
     expect(
       errosDoNomeNoCorpo({ codigo: "FORMATO_INVALIDO", erros: [{ campo: "corpo", codigo: "OBRIGATORIO" }] }),
     ).toStrictEqual({});

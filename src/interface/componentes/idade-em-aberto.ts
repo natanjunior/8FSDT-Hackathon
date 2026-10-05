@@ -71,7 +71,7 @@ export function vereditoDaIdade(faixas: readonly FaixaDeIdadeNaTela[]): string {
  * recém-criada lê o que o quadro mede), e a soma em texto, que deixa à vista a conferência com o quadro 5.
  */
 export function rodapeDaIdade(faixas: readonly FaixaDeIdadeNaTela[]): string {
-  return `Há quanto tempo o que está em aberto espera, contando do registro: ${String(totalEmAberto(faixas))} ao todo, nos quatro status não terminais.`;
+  return `Há quanto tempo o que está em aberto espera, contando do registro: ${String(totalEmAberto(faixas))} ao todo, entre Aberta, Em análise, Em atendimento e Pausada.`;
 }
 
 const PORCENTAGEM = new Intl.NumberFormat("pt-BR", {

@@ -21,7 +21,10 @@ import { toast } from "sonner";
  */
 
 /** A frase de quando não há frase melhor. **Existe uma vez só no produto** (critério 44g.6). */
-export const MENSAGEM_GENERICA = "Não foi possível realizar a ação.";
+export const MENSAGEM_GENERICA = "Não foi possível concluir agora. Tente de novo em instantes.";
+
+/** A frase do `catch` de rede: o `fetch` rejeitou antes de haver resposta. */
+export const MENSAGEM_SEM_CONEXAO = "Sem conexão. Verifique a internet e tente de novo.";
 
 /** Os dois títulos de aviso de uma ação: o do sucesso e o da falha. */
 export type TextosDoRetorno = { readonly sucesso: string; readonly falha: string };
@@ -39,8 +42,9 @@ export type FrasesDaTela = Readonly<Record<string, string>>;
 /**
  * A mensagem que vai para dentro do modal ou do formulário, a partir do corpo de um `problem+json`.
  *
- * Em ordem: (1) a frase da própria tela para aquele `codigo`; (2) o `detail` do servidor, quando a
- * resposta tem `codigo` **e** `detail`; (3) `MENSAGEM_GENERICA` em todo o resto: sem `codigo`,
+ * Em ordem: (1) a frase da própria tela para aquele `codigo`; (2) num `400 FORMATO_INVALIDO`, a
+ * `mensagem` do primeiro item de `erros[]`, que diz qual campo e o que fazer; (3) o `detail` do servidor,
+ * quando a resposta tem `codigo` **e** `detail`; (4) `MENSAGEM_GENERICA` em todo o resto: sem `codigo`,
  * `ERRO_INTERNO` (que vem sem `detail`, `problema.ts`), corpo que não é JSON.
  *
  * **Recebe `unknown`**, porque é o que `resposta.json()` devolve de verdade: quem chama não precisa
@@ -55,8 +59,23 @@ export function mensagemDoProblema(corpo: unknown, frasesDaTela: FrasesDaTela = 
   const daTela = frasesDaTela[codigo];
   if (daTela !== undefined) return daTela;
 
+  if (codigo === "FORMATO_INVALIDO") {
+    const primeira = primeiraMensagemDeCampo(corpo);
+    if (primeira !== null) return primeira;
+  }
+
   if (typeof detail === "string" && detail.trim() !== "") return detail;
   return MENSAGEM_GENERICA;
+}
+
+/** A `mensagem` do primeiro item de `erros[]` (contrato §6.1), quando ele traz uma. */
+function primeiraMensagemDeCampo(corpo: object): string | null {
+  const { erros } = corpo as { erros?: unknown };
+  if (!Array.isArray(erros)) return null;
+  const primeiro: unknown = erros[0];
+  if (typeof primeiro !== "object" || primeiro === null) return null;
+  const { mensagem } = primeiro as { mensagem?: unknown };
+  return typeof mensagem === "string" && mensagem.trim() !== "" ? mensagem : null;
 }
 
 function descricaoOpcional(descricao: string | undefined): { description?: string } {

@@ -374,7 +374,7 @@ export function TabelaDeParticipantes({
                             <Checkbox
                               checked={estadoDaPagina(selecao, pagina.itens)}
                               onCheckedChange={() => alternarPagina(pagina.itens)}
-                              aria-label="Marcar os desta página"
+                              aria-label="Marcar todos desta página"
                             />
                           </label>
                         </TableHead>
@@ -388,7 +388,7 @@ export function TabelaDeParticipantes({
                         />
                         <CabecaDaTabela
                           coluna="unidade"
-                          rotulo="Unidade"
+                          rotulo="Área"
                           endereco={endereco}
                           aoOrdenar={escrever}
                           largura="w-[150px]"

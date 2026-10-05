@@ -373,7 +373,7 @@ describe("textoDaConfirmacao — os dois ramos de temConta, e o aviso de auto-re
     });
 
     expect(linhas).toStrictEqual([
-      "Remover o vínculo de Helena Rocha. O cadastro da pessoa não é apagado, e ela pode pedir entrada de novo.",
+      "Helena Rocha sai da organização. O cadastro não é apagado, e a pessoa pode pedir entrada de novo.",
     ]);
   });
 
@@ -390,7 +390,7 @@ describe("textoDaConfirmacao — os dois ramos de temConta, e o aviso de auto-re
     });
 
     expect(linhas).toStrictEqual([
-      "Remover o vínculo de Sebastião Alves. O cadastro da pessoa não é apagado, mas ela não tem conta e não pode pedir entrada: para voltar, precisa ser cadastrada de novo, com os contatos.",
+      "Sebastião Alves sai da organização. O cadastro não é apagado, mas a pessoa não tem conta e não pode pedir entrada: para voltar, precisa ser cadastrada de novo, com os contatos.",
     ]);
   });
 
@@ -407,7 +407,7 @@ describe("textoDaConfirmacao — os dois ramos de temConta, e o aviso de auto-re
 
     expect(linhas).toHaveLength(2);
     expect(linhas[1]).toBe(
-      "Este é o seu próprio vínculo. Ao remover, você perde o acesso a esta organização.",
+      "Este é você. Ao remover, você perde o acesso a esta organização.",
     );
   });
 });
@@ -457,7 +457,7 @@ describe("textoDaRecusa — o instante entre a tela saber e o Gestor clicar", ()
 
   it("o 404 é o caso de dois Gestores removendo o mesmo vínculo", () => {
     expect(textoDaRecusa({ codigo: "VINCULO_NAO_ENCONTRADO" }, "Helena Rocha")).toBe(
-      "Este vínculo não existe mais.",
+      "Esta pessoa não participa mais desta organização.",
     );
   });
 
@@ -468,8 +468,8 @@ describe("textoDaRecusa — o instante entre a tela saber e o Gestor clicar", ()
   });
 
   it("sem código e sem resposta, a frase genérica do produto", () => {
-    expect(textoDaRecusa({}, "Helena Rocha")).toBe("Não foi possível realizar a ação.");
-    expect(textoDaRecusa(null, "Helena Rocha")).toBe("Não foi possível realizar a ação.");
+    expect(textoDaRecusa({}, "Helena Rocha")).toBe("Não foi possível concluir agora. Tente de novo em instantes.");
+    expect(textoDaRecusa(null, "Helena Rocha")).toBe("Não foi possível concluir agora. Tente de novo em instantes.");
   });
 });
 
@@ -505,7 +505,7 @@ describe("faceDepoisDaRecusa — o 409 que chega entre a tela saber e o Gestor c
 
 describe("textoDoEncerramento — o que a confirmação diz", () => {
   const RASTRO =
-    "Joana Prado já deixou rastro nesta organização, então o vínculo não é apagado: as ocorrências, as mensagens e o nome na trilha continuam.";
+    "Joana Prado já deixou rastro nesta organização, então nada é apagado: as ocorrências, as mensagens e o nome no histórico continuam.";
 
   it("com conta, diz que a pessoa pode pedir entrada de novo", () => {
     expect(
@@ -537,7 +537,7 @@ describe("textoDoEncerramento — o que a confirmação diz", () => {
   it("no próprio vínculo, a última linha diz o que se perde, depois da do responsável", () => {
     const linhas = textoDoEncerramento({ nome: "Marina Gestora", temConta: true, ehMeuProprioVinculo: true, responsavelEmAberto: 2 });
     expect(linhas).toHaveLength(3);
-    expect(linhas[2]).toBe("Este é o seu próprio vínculo. Ao encerrar, você perde o acesso a esta organização.");
+    expect(linhas[2]).toBe("Este é você. Ao encerrar, você perde o acesso a esta organização.");
   });
 
   it("o título pergunta, e não supõe gênero", () => {
@@ -676,7 +676,7 @@ describe("as frases de T-08 — papéis, datas e o fato", () => {
     expect(PAPEIS.map((opcao) => [opcao.papel, opcao.rotulo, opcao.alerta])).toStrictEqual([
       ["solicitante", "Solicitante", null],
       ["gestor", "Gestor", null],
-      ["encarregado", "Encarregado", "Não consegue fazer nada dentro do sistema."],
+      ["encarregado", "Encarregado", "Não entra no aplicativo."],
     ]);
   });
 
@@ -759,9 +759,9 @@ describe("responder um pedido — o botão diz o papel (critérios 6 e 7)", () =
 
   it("o aviso do Encarregado e a recusa não supõem gênero", () => {
     const aviso = avisoDoEncarregado("Paulo Mendes");
-    expect(aviso.destaque).toBe("Paulo não vai conseguir fazer nada dentro do sistema.");
+    expect(aviso.destaque).toBe("Paulo não entra no aplicativo.");
     expect(aviso.resto).toBe(
-      "Aparece como responsável e recebe o trabalho fora do aplicativo. O papel não muda depois: para corrigir, é preciso remover o vínculo e pedir entrada de novo.",
+      "Aparece como responsável e recebe o trabalho fora do aplicativo. O papel não muda depois: para corrigir, remova a pessoa da organização, e ela pede entrada de novo.",
     );
     expect(tituloDaRecusa("Paulo Mendes")).toBe("Recusar o pedido de Paulo Mendes?");
     expect(descricaoDaRecusa("Paulo Mendes")).toBe("Paulo pode pedir entrada de novo quando quiser.");
@@ -779,18 +779,18 @@ describe("os avisos de T-08 — o desfecho por endereço vira aviso (critério 1
   it("os cinco sucessos, sem pronome", () => {
     expect(avisoDeAprovado("Paulo Mendes", "solicitante", "Apartamento 302")).toStrictEqual({
       titulo: "Paulo Mendes entrou como Solicitante",
-      descricao: "Na unidade Apartamento 302.",
+      descricao: "Na área Apartamento 302.",
     });
     expect(avisoDeAprovado("Paulo Mendes", "gestor", null)).toStrictEqual({
       titulo: "Paulo Mendes entrou como Gestor",
-      descricao: "Sem unidade registrada.",
+      descricao: "Sem área registrada.",
     });
     expect(avisoDeRecusado("Paulo Mendes")).toStrictEqual({
       titulo: "Pedido de Paulo Mendes recusado",
       descricao: "Pode pedir entrada de novo quando quiser.",
     });
     expect(avisoDeRemovido("Beatriz Nunes")).toStrictEqual({
-      titulo: "Vínculo de Beatriz Nunes removido",
+      titulo: "Beatriz Nunes saiu da organização",
       descricao: "O cadastro da pessoa não é apagado.",
     });
     expect(avisoDeAcessoEncerrado("Beatriz Nunes")).toStrictEqual({
@@ -804,13 +804,24 @@ describe("os avisos de T-08 — o desfecho por endereço vira aviso (critério 1
     expect(avisoDeSalvo("Sérgio Lima")).toStrictEqual({ titulo: "Dados de Sérgio Lima salvos" });
   });
 
+  it("sem conta, o Solicitante e o Gestor ganham o caminho do convite; o Encarregado não (item 126, sugestão 82)", () => {
+    for (const papel of ["solicitante", "gestor"] as const) {
+      expect(avisoDeCadastrado("Sérgio Lima", papel).descricao).toBe(
+        "Sem conta por enquanto. Para dar acesso, use Convidar na página da pessoa.",
+      );
+    }
+    expect(avisoDeCadastrado("Sérgio Lima", "encarregado").descricao).toBe(
+      "Sem conta: recebe atribuições e aparece como responsável.",
+    );
+  });
+
   it("as seis falhas dizem o que foi tentado", () => {
     expect(FALHA).toStrictEqual({
       aprovar: "Não foi possível aprovar o pedido",
       recusar: "Não foi possível recusar o pedido",
-      remover: "Não foi possível remover o vínculo",
+      remover: "Não foi possível remover da organização",
       encerrar: "Não foi possível encerrar o acesso",
-      cadastrar: "Não foi possível cadastrar a pessoa",
+      cadastrar: "Não foi possível cadastrar o participante",
       salvar: "Não foi possível salvar os dados",
     });
   });
@@ -953,7 +964,7 @@ describe("o filtro rápido (critério 2)", () => {
   it("os vazios das opções, e o de Todos existe só para não ter ramo sem texto", () => {
     expect(VAZIO_DO_FILTRO.pedidos).toStrictEqual({
       titulo: "Nenhum pedido de entrada aguardando.",
-      corpo: "Os pedidos aparecem aqui quando alguém usa o código da organização.",
+      corpo: "Os pedidos aparecem aqui quando alguém usa o código, o link ou o QR da organização.",
     });
     expect(VAZIO_DO_FILTRO.solicitantes.titulo).toBe("Nenhum Solicitante nesta organização.");
     expect(VAZIO_DO_FILTRO.gestores.titulo).toBe("Nenhum Gestor nesta organização.");

@@ -110,7 +110,7 @@ describe("a página do convite — critérios 86.2 e 86.3 na fonte", () => {
       "Você recebeu um convite para participar desta organização.",
       "Você já participa desta organização",
       "Pedido enviado",
-      "está aguardando o Gestor.",
+      "está aguardando a decisão de um Gestor.",
       "Peça para entrar. Um Gestor decide.",
     ]) {
       expect(fonte, frase).toContain(frase);
@@ -384,7 +384,7 @@ describe("a seleção e o envio em massa (item 122)", () => {
       "vinculo-revogado": "Não participa mais",
       "sem-email": "Sem e-mail cadastrado",
       "ja-tem-conta": "Já usa o aplicativo",
-      encarregado: "Encarregados não recebem convite",
+      encarregado: "Encarregados não usam o aplicativo",
       "limite-do-dia": "Este endereço já recebeu convite hoje",
       "limite-do-participante": "Já recebeu os 10 convites por e-mail",
       "falha-no-envio": "O e-mail não pôde ser enviado. Tente de novo mais tarde",

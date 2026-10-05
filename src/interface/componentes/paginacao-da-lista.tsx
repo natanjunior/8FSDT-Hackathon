@@ -72,7 +72,7 @@ export function PaginacaoDaLista({
     <nav className="border-linha-suave flex flex-col items-center gap-2 border-t px-4 py-3 md:flex-row md:justify-between">
       <p className="text-meta text-tinta-suave font-mono tabular-nums">
         Página {pagina} de {totalDePaginas} · {total}{" "}
-        {total === 1 ? "ocorrência no corte" : "ocorrências no corte"}
+        {total === 1 ? "ocorrência" : "ocorrências"}
       </p>
 
       <Pagination className="mx-0 w-auto justify-end">

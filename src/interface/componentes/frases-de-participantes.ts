@@ -51,7 +51,7 @@ export const PAPEIS: readonly OpcaoDePapel[] = [
     papel: "encarregado",
     rotulo: "Encarregado",
     consequencia: "Aparece como responsável pela ocorrência.",
-    alerta: "Não consegue fazer nada dentro do sistema.",
+    alerta: "Não entra no aplicativo.",
   },
 ];
 
@@ -150,7 +150,7 @@ export const TEXTOS_DA_TABELA = {
   buscarEtiqueta: "Buscar etiqueta",
   semEtiquetaComEsseNome: "Nenhuma etiqueta com esse nome.",
   etiquetas: "Etiquetas",
-  vazioDaEtiqueta: "Ninguém com esta etiqueta neste recorte.",
+  vazioDaEtiqueta: "Ninguém com esta etiqueta neste filtro.",
   buscar: "Buscar pelo nome",
   exemploDaBusca: "Ex.: Beatriz",
   editar: "Editar participante",
@@ -179,9 +179,9 @@ export const TEXTOS_DA_RESPOSTA = {
   gatilho: "Responder",
   titulo: "Responder pedido de entrada",
   legenda: "Entra como",
-  unidade: "Unidade",
-  semUnidade: "Sem unidade",
-  ajudaDaUnidade: "Para quem mora ou trabalha numa unidade.",
+  unidade: "Área",
+  semUnidade: "Sem área",
+  ajudaDaUnidade: "Onde a pessoa mora ou trabalha, se for o caso.",
   semTelefone: "Sem telefone informado no pedido.",
   aprovando: "Aprovando…",
   recusar: "Recusar pedido",
@@ -209,9 +209,9 @@ export function erroDoPapelNaResposta(nome: string): string {
 
 export function avisoDoEncarregado(nome: string): { readonly destaque: string; readonly resto: string } {
   return {
-    destaque: `${primeiroNome(nome)} não vai conseguir fazer nada dentro do sistema.`,
+    destaque: `${primeiroNome(nome)} não entra no aplicativo.`,
     resto:
-      "Aparece como responsável e recebe o trabalho fora do aplicativo. O papel não muda depois: para corrigir, é preciso remover o vínculo e pedir entrada de novo.",
+      "Aparece como responsável e recebe o trabalho fora do aplicativo. O papel não muda depois: para corrigir, remova a pessoa da organização, e ela pede entrada de novo.",
   };
 }
 
@@ -226,7 +226,7 @@ export function descricaoDaRecusa(nome: string): string {
 /** As frases que T-08 escreve para os códigos do pedido (inventário, §7). */
 export const FRASES_DO_PEDIDO: FrasesDaTela = {
   PEDIDO_JA_DECIDIDO: "Este pedido já foi decidido por outro Gestor.",
-  JA_VINCULADO: "Esta pessoa já tem vínculo nesta organização.",
+  JA_VINCULADO: "Esta pessoa já participa desta organização.",
   AREA_INVALIDA: "Esta área não existe nesta organização ou está desativada.",
   PEDIDO_NAO_ENCONTRADO: "Este pedido não existe mais.",
 };
@@ -239,7 +239,7 @@ export const TEXTOS_DO_FORMULARIO = {
   cartaoPessoa: "Pessoa",
   cartaoContatos: "Contatos",
   nome: "Nome",
-  ajudaDoNome: "A unidade tem campo próprio; não a escreva aqui.",
+  ajudaDoNome: "A área tem campo próprio; não a escreva aqui.",
   papel: "Papel",
   erroDoPapel: "Escolha o papel desta pessoa.",
   semMudanca: "Altere algum dado antes de salvar.",
@@ -259,7 +259,7 @@ export const FRASES_DO_FORMULARIO: FrasesDaTela = {
   AREA_INVALIDA: "Esta área não existe nesta organização ou está desativada.",
   PESSOA_COM_CONTA_NAO_EDITAVEL:
     "Esta pessoa tem conta no Resolve Aí e edita os próprios dados. O cadastro de quem tem conta vale em todas as organizações dela.",
-  VINCULO_NAO_ENCONTRADO: "Este vínculo não existe mais nesta organização.",
+  VINCULO_NAO_ENCONTRADO: "Esta pessoa não participa mais desta organização.",
   CAMPO_NAO_SUPORTADO: "Um dos campos enviados não é aceito por esta operação.",
   FORMATO_INVALIDO: "Confira os campos indicados.",
   CONTATO_DUPLICADO: "Este contato já está na lista. Confira os contatos marcados.",
@@ -273,16 +273,16 @@ export const FRASES_DO_FORMULARIO: FrasesDaTela = {
 export const FALHA = {
   aprovar: "Não foi possível aprovar o pedido",
   recusar: "Não foi possível recusar o pedido",
-  remover: "Não foi possível remover o vínculo",
+  remover: "Não foi possível remover da organização",
   encerrar: "Não foi possível encerrar o acesso",
-  cadastrar: "Não foi possível cadastrar a pessoa",
+  cadastrar: "Não foi possível cadastrar o participante",
   salvar: "Não foi possível salvar os dados",
 } as const;
 
 export function avisoDeAprovado(nome: string, papel: string, unidade: string | null): AvisoDeConclusao {
   return {
     titulo: `${nome} entrou como ${rotuloDoPapel(papel)}`,
-    descricao: unidade === null ? "Sem unidade registrada." : `Na unidade ${unidade}.`,
+    descricao: unidade === null ? "Sem área registrada." : `Na área ${unidade}.`,
   };
 }
 
@@ -291,7 +291,7 @@ export function avisoDeRecusado(nome: string): AvisoDeConclusao {
 }
 
 export function avisoDeRemovido(nome: string): AvisoDeConclusao {
-  return { titulo: `Vínculo de ${nome} removido`, descricao: "O cadastro da pessoa não é apagado." };
+  return { titulo: `${nome} saiu da organização`, descricao: "O cadastro da pessoa não é apagado." };
 }
 
 /** O aviso de sucesso de encerrar o acesso (item 84). A descrição diz o que ficou, e é o item inteiro. */
@@ -302,7 +302,10 @@ export function avisoDeAcessoEncerrado(nome: string): AvisoDeConclusao {
 export function avisoDeCadastrado(nome: string, papel: string): AvisoDeConclusao {
   return {
     titulo: `${nome} entrou como ${rotuloDoPapel(papel)}`,
-    descricao: "Sem conta: recebe atribuições e aparece como responsável.",
+    descricao:
+      papel === "encarregado"
+        ? "Sem conta: recebe atribuições e aparece como responsável."
+        : "Sem conta por enquanto. Para dar acesso, use Convidar na página da pessoa.",
   };
 }
 

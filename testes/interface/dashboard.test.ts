@@ -874,7 +874,7 @@ describe("vereditoDaIdade — acima de 30, e a oração dos 90 quando há algué
 describe("rodapeDaIdade — o que o quadro mede, sempre (59.6)", () => {
   it("escreve a primeira oração do 59 e o total", () => {
     expect(rodapeDaIdade(faixas(56, 18, 1, 0))).toBe(
-      "Há quanto tempo o que está em aberto espera, contando do registro: 75 ao todo, nos quatro status não terminais.",
+      "Há quanto tempo o que está em aberto espera, contando do registro: 75 ao todo, entre Aberta, Em análise, Em atendimento e Pausada.",
     );
   });
 

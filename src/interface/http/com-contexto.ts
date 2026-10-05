@@ -245,7 +245,7 @@ async function lenteDaRequisicao(
   repos: RepositoriosEscopados,
 ): Promise<LenteDeRotulo> {
   if (ctx.vinculo.pode("ocorrencia.ler_todas")) return LENTE_DO_GESTOR;
-  return lenteDoSolicitante(await lerRotulosDoSolicitante(repos.configuracao));
+  return lenteDoSolicitante(await lerRotulosDoSolicitante(repos.configuracao), ctx.pessoaId);
 }
 
 export function comContexto<C = undefined>(

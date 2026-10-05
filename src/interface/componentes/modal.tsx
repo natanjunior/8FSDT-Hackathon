@@ -172,7 +172,7 @@ export function BotaoDeCancelar({ enviando }: { enviando: boolean }) {
         className="border-linha text-interface min-h-11 rounded-sm px-4"
         {...{ [SAI_SEM_ACUSAR]: "" }}
       >
-        Cancelar
+        Voltar
       </Button>
     </DialogClose>
   );

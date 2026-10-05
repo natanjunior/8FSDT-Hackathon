@@ -65,7 +65,7 @@ export default async function MeusDados() {
           <dt className={ROTULO}>Nome</dt>
           <dd className="text-titulo-bloco text-tinta font-medium wrap-break-word">{nome}</dd>
           <dd className="text-meta text-tinta-suave">
-            É como os Gestores veem você, inclusive nas transições que você já registrou.
+            É como você aparece nas suas organizações, inclusive no que já fez nas ocorrências.
           </dd>
         </dl>
       </Cartao>
@@ -75,9 +75,9 @@ export default async function MeusDados() {
         <dl className="grid lg:grid-cols-2">
           <div className="flex flex-col gap-1.5 p-[15px] md:px-6 md:py-5">
             <dt className={ROTULO}>E-mail de entrada</dt>
-            <dd className="text-interface text-tinta break-all">{email ?? "Não informado pelo provedor"}</dd>
+            <dd className="text-interface text-tinta break-all">{email ?? "Sem e-mail"}</dd>
             <dd className="text-meta text-tinta-suave">
-              É com ele que você entra e recebe o link de recuperação de senha.
+              É com ele que você entra e recebe o link para redefinir a senha.
             </dd>
           </div>
           <div className="border-linha-suave grid grid-cols-[1fr_auto] items-center gap-x-3 gap-y-1.5 border-t p-[15px] md:px-6 md:py-5 lg:border-t-0 lg:border-l">
@@ -98,7 +98,7 @@ export default async function MeusDados() {
                   "border-linha text-interface min-h-11 rounded-sm px-4 has-[>svg]:px-4",
                 )}
               >
-                Receber link para trocar a senha
+                Receber link para redefinir a senha
                 <ArrowRight aria-hidden="true" />
               </Link>
             </dd>

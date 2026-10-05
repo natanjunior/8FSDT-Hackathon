@@ -36,7 +36,7 @@ export type ContagensDoRecorte = {
 
 /**
  * ***Compartilhadas comigo* não tem número desde o item 117.** O do item 88 contava as não abertas, e
- * passou a ser o do sino: um número só na tela. O selo *Não vista* continua na linha da aba.
+ * passou a ser o do sino: um número só na tela. O selo *Não lida* continua na linha da aba.
  *
  * **Minhas continua sem número:** para quem não lê todas, *Minhas* é o padrão, e um número ali seria o
  * mesmo que o `total` da página, dois centímetros ao lado.

@@ -38,7 +38,7 @@ const VALIDADE_EM_SEGUNDOS = 15 * 60;
 /**
  * **A marca de que a senha acabou de ser trocada** (item 116). Quando a ação apaga o pote, o Next
  * renderiza de novo `/definir-senha` na mesma resposta, e a página, sem recuperação em curso, mandaria
- * para o aviso de link encerrado junto do "Senha alterada". A marca diz à página que o fim foi feliz.
+ * para o aviso de link encerrado junto do "Senha redefinida". A marca diz à página que o fim foi feliz.
  * **Fora do prefixo**, porque `emCurso()` lê tudo o que começa com ele. Um minuto basta para a resposta
  * da ação e para o botão voltar logo depois.
  */

@@ -95,19 +95,19 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
   await entrar(helena, HELENA);
   await helena.waitForURL(/\/organizacao$/u);
   await expect(
-    helena.getByRole("heading", { name: "Em qual organização você quer trabalhar?" }),
+    helena.getByRole("heading", { name: "Qual organização você quer abrir?" }),
   ).toBeVisible();
   // **A porta para uma terceira organização** (critério 116.11): a face E sem organização ativa, e de volta.
-  await helena.getByRole("link", { name: "Entrar em outra organização" }).click();
+  await helena.getByRole("link", { name: "Pedir entrada em outra organização" }).click();
   await helena.waitForURL(/\/organizacao\?entrar-em-outra=true$/u);
-  await expect(helena.getByRole("heading", { name: "Entrar em outra organização", level: 1 })).toBeVisible();
+  await expect(helena.getByRole("heading", { name: "Pedir entrada em outra organização", level: 1 })).toBeVisible();
   await expect(
     helena.getByText("Pedir entrada em outra não tira você das organizações em que já participa."),
   ).toBeVisible();
   await helena.getByRole("link", { name: "Voltar" }).click();
   await helena.waitForURL(/\/organizacao$/u);
   await expect(
-    helena.getByRole("heading", { name: "Em qual organização você quer trabalhar?" }),
+    helena.getByRole("heading", { name: "Qual organização você quer abrir?" }),
   ).toBeVisible();
   // **O recibo da escolha** (critério 103.1): com o `PUT` retido, a linha apertada diz *Entrando…*, segura o
   // foco e fica ocupada; a outra fica inerte, sem roubar o foco.
@@ -357,7 +357,7 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
     falta:
       "a frase «O trabalho começa agora.» e o aviso de visibilidade entre o rótulo e o campo",
   });
-  await modalDeAtendimento.getByRole("button", { name: "Iniciar" }).click();
+  await modalDeAtendimento.getByRole("button", { name: "Iniciar atendimento" }).click();
   await esperarSituacao(marcos, "Em atendimento");
   cobre(test.info(), "4.3 · 41", {
     falta:
@@ -431,11 +431,11 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
     .click();
   await expect(modalDeAvaliacao.getByRole("radio", { name: "5, muito bom" })).toBeChecked();
   await expect(modalDeAvaliacao.getByText("5 de 5, muito bom", { exact: true })).toBeVisible();
-  await modalDeAvaliacao.getByLabel("Comentário (opcional)").fill(COMENTARIO_DA_AVALIACAO);
+  await modalDeAvaliacao.getByLabel("Quer contar mais? (opcional)").fill(COMENTARIO_DA_AVALIACAO);
   cobre(test.info(), "4.5 · 71", {
     criterio: "27",
     falta:
-      "o título da janela, a frase «Como foi a resolução?», as outras quatro notas do grupo e o botão Cancelar",
+      "o título da janela, a frase «Como foi o atendimento?», as outras quatro notas do grupo e o botão Voltar",
   });
   await modalDeAvaliacao.getByRole("button", { name: "Enviar avaliação" }).click();
   await expect(helena.getByRole("heading", { name: "Sua avaliação" })).toBeVisible();
@@ -531,7 +531,7 @@ test("o caminho crítico do enunciado, com autenticação real e a trilha confer
     await expect(item.locator("dl > div")).toHaveCount(5);
     await expect(valor(item, "novo status")).toContainText(registro.novo);
     await expect(valor(item, "status anterior")).toHaveText(registro.anterior);
-    await expect(valor(item, "autor")).toHaveText(registro.autor);
+    await expect(valor(item, "quem fez")).toHaveText(registro.autor);
     await expect(valor(item, "observação")).toHaveText(registro.observacao);
     // O carimbo com segundos, com o separador da regra de data. A asserção é de forma: conferir o valor
     // exato amarraria o teste ao relógio de quem o roda.
