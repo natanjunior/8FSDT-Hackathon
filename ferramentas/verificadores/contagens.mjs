@@ -202,7 +202,17 @@ const SUBCONJUNTOS = new Set([
 /** Mede um documento e devolve a lista de divergências, uma frase por divergência. */
 export function divergenciasDe(conteudo, verdade) {
   const divergencias = [];
-  const semCodigo = conteudo.replace(/```[\s\S]*?```/gu, "").replace(/`[^`\n]*`/gu, "");
+  /**
+   * **A ênfase sai antes da leitura, e ela já escondeu um número errado.**
+   *
+   * `**cinco** verificadores` tem o número e o substantivo separados por quatro asteriscos, e o padrão
+   * não os via como vizinhos. O README afirmou cinco quando eram dez, e o portão ficou verde. Os
+   * marcadores de ênfase são sintaxe, não conteúdo, então saem junto com o código.
+   */
+  const semCodigo = conteudo
+    .replace(/```[\s\S]*?```/gu, "")
+    .replace(/`[^`\n]*`/gu, "")
+    .replace(/[*_]/gu, "");
 
   for (const [, escrito, substantivo] of semCodigo.matchAll(CANDIDATO)) {
     const numero = numeroDe(escrito);

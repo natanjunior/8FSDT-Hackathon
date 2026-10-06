@@ -81,6 +81,6 @@ O vínculo de quem recebeu apaga em cascata; o de quem compartilhou, não, porqu
 conta como histórico. O caminho, aí, é revogar, que não apaga linha nenhuma e faz a pessoa readmitida
 voltar a ver o que já estava compartilhado com ela.
 
-O produto passa a ter **2** caminhos de exclusão na API, onde havia 1, e a licença dos dois é estreita pela
+O produto passa a ter **2** portas de exclusão na API, onde havia 1, e a licença dos dois é estreita pela
 mesma razão: nenhum apaga ocorrência, mensagem, categoria, área ou registro de transição. Um teste prende
 essa lista.
