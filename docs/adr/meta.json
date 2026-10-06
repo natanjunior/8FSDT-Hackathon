@@ -22,6 +22,7 @@
     "0019-o-qr-do-convite-entra-com-o-uqr",
     "0020-o-navegador-guarda-so-a-casca",
     "0021-o-convite-pessoal-e-a-segunda-operacao-sem-sessao",
-    "0022-o-email-sai-por-smtp-com-o-nodemailer"
+    "0022-o-email-sai-por-smtp-com-o-nodemailer",
+    "0023-uma-replica-sempre-de-pe"
   ]
 }
