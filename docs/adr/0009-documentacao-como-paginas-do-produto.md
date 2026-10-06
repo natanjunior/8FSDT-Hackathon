@@ -67,10 +67,8 @@ a revisão de uma alteração continua sendo markdown legível.
 
 **O que custa**
 
-- **Há duas passadas de Tailwind, e portanto CSS duplicado entre as duas entradas.** É o preço de trazer
-  um segundo sistema de design, e é pago só por quem abre a documentação.
-- **Os arquivos de documentação entram na imagem**, porque a construção precisa deles. Nada é lido em
-  tempo de execução.
+- **Há duas passadas de Tailwind, e portanto CSS duplicado**, pago só por quem abre a documentação.
+- **Os arquivos de documentação entram na imagem**, porque a construção precisa deles.
 - **Cada arquivo ganhou um cabeçalho com título e resumo**, que o repositório renderiza como uma tabela no
   topo. O valor precisa de aspas quando contém dois-pontos, e sem elas a construção falha.
 - **O endereço raiz da documentação não é uma página**, porque o índice do diretório é o `README`, que é

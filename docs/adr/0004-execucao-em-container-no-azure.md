@@ -78,8 +78,7 @@ uma cópia do repositório obtêm o token.
   conferido por máquina.
 - **Partida a frio com escala a zero.** Já estava declarada quando a plataforma era outra: muda a causa, e
   não o fato. Medida em 20,7 segundos.
-- **Preparação maior**, de cerca de um dia: o `Dockerfile` com a saída autocontida, a construção e a
-  publicação da imagem na esteira, e o passo de implantação.
+- **Preparação maior**, de cerca de um dia.
 - **Uma dependência a mais do formato de identificador que o GitHub emite** para a credencial federada.
   Ele se descobre lendo o registro de uma execução real, e não escrevendo o que se espera.
 

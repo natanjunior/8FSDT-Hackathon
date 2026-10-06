@@ -70,7 +70,7 @@ acessibilidade.
 
 **O que custa**
 
-- As exceções à regra de que o código dos componentes mora no repositório passam de três a cinco.
+- As exceções à regra do código no repositório passam de três a cinco.
 - Uma atualização de terceiro pode quebrar o retorno de ação e a busca. As versões fixas fazem da
   atualização uma decisão.
 - O pacote injeta a própria folha de estilo sem camada, e ela vence as classes utilitárias. O que o produto

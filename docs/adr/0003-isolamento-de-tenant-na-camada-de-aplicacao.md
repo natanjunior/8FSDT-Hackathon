@@ -79,18 +79,16 @@ regra de lint não as alcança: as duas escritas são legítimas.
 
 **O que se ganha**
 
-- Um ponto único para auditar, testar e revisar o isolamento.
-- A mesma pessoa alternando entre organizações, com papel diferente em cada, funciona sem contorção.
+- Um ponto só para auditar, testar e revisar o isolamento.
+- A mesma pessoa alternando entre organizações, com papel diferente em cada, funciona.
 - A garantia é exercida por teste sem banco, o que torna provável que o teste exista.
-- A RLS ainda protege contra o pior caso da plataforma, que é o navegador falando direto com o banco.
+- A RLS ainda protege contra o navegador falando direto com o banco.
 
 **O que custa**
 
 - **A garantia é do código, e não do banco.** Um caminho novo que ignore o repositório escopado vaza. A
-  defesa é dupla: a Aplicação não tem o que importar para construir uma consulta crua, e a regra de lint é
-  o alarme. Continua sendo o risco mais sério desta decisão, e por isso toda consulta nova passa pelo
-  repositório escopado como portão de tarefa.
-- **Acesso administrativo direto ao banco não tem isolamento.** Script de migração e consulta manual
-  escapam. Num produto com dados reais isso exigiria RLS completa.
-- **Trocar de organização vira operação explícita de sessão**, com custo de interface que uma aplicação de
-  organização única não teria.
+  defesa é dupla: a Aplicação não tem o que importar para construir uma consulta crua, e a regra de lint
+  é o alarme. É o risco mais sério desta decisão, e por isso toda consulta nova passa pelo repositório
+  escopado como portão de tarefa.
+- **Acesso administrativo direto ao banco não tem isolamento**, e com dados reais exigiria RLS completa.
+- **Trocar de organização vira operação explícita de sessão**, com custo de interface próprio.
