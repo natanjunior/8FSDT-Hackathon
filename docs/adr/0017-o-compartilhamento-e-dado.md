@@ -1,9 +1,9 @@
 ---
-title: "ADR-0017 · O compartilhamento é dado, e não permissão"
+title: "ADR-0017 · O compartilhamento é dado"
 description: "Abrir uma ocorrência a outra pessoa da organização nasce como linha numa tabela fora do agregado, e não como permissão nova: a leitura muda num lugar só, e a escrita passa a perguntar outra coisa."
 ---
 
-# ADR-0017 — O compartilhamento é dado, e não permissão
+# ADR-0017 — O compartilhamento é dado
 
 **Status:** Aceita · 27/09/2026 · Defende a [ADR-0003](0003-isolamento-de-tenant-na-camada-de-aplicacao.md)
 
@@ -65,15 +65,13 @@ em profundidade: a primária continua sendo o repositório escopado, que a
 
 ## Consequências
 
-A leitura do detalhe paga uma consulta a mais, no mesmo disparo paralelo que já buscava a trilha e os
-anexos.
+A leitura do detalhe paga uma consulta a mais, no disparo paralelo que já buscava a trilha.
 
 A aba *Compartilhadas comigo* troca o conjunto da página em vez de estreitá-lo, e por isso não conta como
 filtro: o vazio dela tem frase própria, e limpar filtros não tira ninguém da aba.
 
-**Quem recebeu vê a conversa do autor com os Gestores.** É consequência de *"vê o que o autor vê"*, e fica
-registrado porque é a única parte da ocorrência que não foi escrita para todo mundo. O que ele não tem é o
-campo de escrever.
+**Quem recebeu vê a conversa do autor com os Gestores**, e fica registrado porque é a única parte da
+ocorrência que não foi escrita para todo mundo. O que ele não tem é o campo de escrever.
 
 **Um Solicitante passa a poder descobrir nomes de outros participantes**, e até aqui ele não tinha leitura
 nenhuma de gente. A busca de quem pode receber devolve nome e papel, exige 2 letras e devolve no máximo

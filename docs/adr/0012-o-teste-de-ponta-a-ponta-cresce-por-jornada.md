@@ -81,9 +81,8 @@ por garantia estrutural, e a recusa de um teste de integração por endereço da
 
 **O que custa, e os números são medidos**
 
-- **O artefato mais lento do projeto passa de 23 s para 2 min 54 s**, e de 1 arquivo para 7. O mais longo
-  leva 46 s, contra um limite de 180 s por teste.
-- **A manutenção tem taxa conhecida**, e o módulo de localizadores decide o multiplicador.
-- **Nenhum deles roda sozinho**, e continuam dependendo da pilha local de pé e da semente aplicada. Um dos
-  7 só roda na máquina de quem desenvolve, porque lê a caixa de e-mail local que a esteira não sobe.
+- **O artefato mais lento do projeto passa de 23 s para 2 min 54 s**, e de 1 arquivo para 7.
+- **A manutenção tem taxa conhecida**, e o módulo de localizadores a segura.
+- **Nenhum deles roda sozinho**, e um dos 7 só roda na máquina de quem desenvolve, porque lê a caixa de
+  e-mail local que a esteira não sobe.
 - 6 itens do roteiro continuam sem prova, porque alcançá-los exigiria repetir a espinha do caminho crítico.

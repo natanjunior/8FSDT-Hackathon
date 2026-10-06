@@ -10,10 +10,8 @@ description: "Camada no primeiro nível e agregado no segundo, com as regras de 
 
 ## Contexto
 
-Nenhum documento do pacote decidia onde o código mora: o modelo de dados não decide camadas nem pastas, o
-contrato de API não escreve rota nem repositório, e o desenho de arquitetura tem a tabela de camadas e
-nada sobre arquivos. A tarefa seguinte era o esqueleto da aplicação, e é nela que a estrutura nasce.
-Decidir depois não seria decidir: seria refatorar.
+Nenhum documento do pacote decidia onde o código mora, e a tarefa seguinte era o esqueleto da aplicação,
+que é onde a estrutura nasce. Decidir depois não seria decidir: seria refatorar.
 
 Duas restrições moldam a escolha. O Next.js impõe o anel externo, porque as rotas de API ficam onde ele
 manda. E há um implementador, o que muda o cálculo entre uma estrutura que comunica e uma que se mantém.
@@ -48,9 +46,8 @@ src/
   composicao/                     ← monta o grafo de objetos; não decide regra
 ```
 
-As duas fusões de nome do desenho viram diretórios em vez de prosa: `app/` mais `src/interface/` são a
-camada Interface, e repositórios mais clientes são a Infraestrutura. A fronteira fica visível na árvore sem
-renomear camada nenhuma.
+As duas fusões de nome viram diretórios em vez de prosa: `app/` mais `src/interface/` são a camada
+Interface, e repositórios mais clientes são a Infraestrutura.
 
 ### As regras de importação
 
@@ -62,9 +59,9 @@ porta e recebe a implementação. É a regra que torna a inversão mecânica em 
 
 **O ponto de composição é importado apenas pelos caminhos declarados na configuração do lint.** Somado à
 regra anterior, o efeito deixa de ser convenção e passa a ser estrutura: uma rota que não passe pelo
-ajudante não tem porta, não tem consulta e não tem cliente, logo não tem como falar com o banco. Isso não
-depende de alguém lembrar de usar o ajudante; depende de não existir outro caminho. É a defesa estrutural
-do risco principal da [ADR-0003](0003-isolamento-de-tenant-na-camada-de-aplicacao.md).
+ajudante não tem porta, não tem consulta e não tem cliente, logo não tem como falar com o banco. É a
+defesa estrutural do risco principal da
+[ADR-0003](0003-isolamento-de-tenant-na-camada-de-aplicacao.md).
 
 **Entre módulos da mesma camada, só pela superfície pública.** Cada módulo expõe um `index.ts`, e ninguém
 alcança arquivo interno de outro.
@@ -87,10 +84,9 @@ para o arquivo, não.
 | Não declarar estrutura, deixando nascer no esqueleto | Era o estado anterior. O custo de decidir agora é uma tabela; o de decidir depois é mover arquivos com o histórico junto |
 | Espelhar os nomes dos anéis da Clean Architecture | Discordaria do vocabulário que o pacote inteiro usa. Um de-para custa uma tabela, em vez de uma refatoração de referências cruzadas |
 
-O que decidiu a favor da camada no topo: a regra de dependência só é verificável se a infraestrutura for um
-caminho; a regra de lint encolhe de uma camada inteira para um diretório, e passa a cobrir também
-armazenamento e contas, que a redação anterior não alcançava; e o Next.js exige uma rota por caminho, então
-a rota inchada não tem como se formar por acúmulo.
+O que decidiu a favor da camada no topo: a regra de dependência só é verificável se a infraestrutura for
+um caminho, e a regra de lint encolhe de uma camada inteira para um diretório, passando a cobrir também
+armazenamento e contas.
 
 ## Consequências
 
@@ -98,17 +94,15 @@ a rota inchada não tem como se formar por acúmulo.
 
 - A regra de dependência da [ADR-0005](0005-regra-de-dependencia-por-inversao.md) vira caminho de arquivo,
   que é o que uma regra de lint sabe conferir.
-- O esqueleto nasce com lugar para cada coisa, e ninguém precisa perguntar onde uma classe nova fica.
-- Um lugar só para os esquemas de validação, servindo ao mesmo tempo o formulário e a especificação da API.
+- O esqueleto nasce com lugar para cada coisa.
+- Um lugar só para os esquemas de validação, servindo o formulário e a especificação da API.
 
 **O que custa**
 
 - **A árvore não grita o domínio.** Quem abre o repositório vê camadas, e não ocorrências. É a perda real
   desta escolha, e está registrada acima como a alternativa que ficou de fora.
-- **Uma mudança num agregado toca quatro diretórios.** Com um implementador isso é atrito de navegação, e
-  não de coordenação, e a superfície pública por módulo o reduz.
-- **A estrutura é uma aposta feita antes do código.** Se o esqueleto mostrar que um diretório não paga, a
-  correção é outra decisão registrada, e não uma exceção silenciosa.
+- **Uma mudança num agregado toca quatro diretórios**, o que com um implementador é atrito de navegação.
+- **A estrutura é uma aposta feita antes do código**, e corrigi-la é outra decisão registrada.
 
 Só os agregados que têm comportamento ganham pasta em domínio e em aplicação. Pasta vazia criada por
 simetria não passa no critério de utilidade que esta decisão usa.

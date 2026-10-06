@@ -12,7 +12,7 @@ description: "As seis tabelas que carregam criado_em e atualizado_em passam a te
 Seis tabelas do esquema carregam o par `criado_em` e `atualizado_em`: `pessoas`, `organizacoes`,
 `vinculos`, `categorias`, `areas` e `contatos`. A primeira migração registrou que nenhum documento
 decidia quem mantém o segundo, o banco ou a aplicação, e deixou a questão aberta porque naquela fatia
-nada dava `UPDATE`. As duas migrações seguintes repetiram a mesma nota, em outras redações.
+nada dava `UPDATE`. As duas migrações seguintes repetiram a nota.
 
 Enquanto a questão ficou aberta, a resposta se acumulou por omissão: a aplicação passou a escrever
 `atualizado_em = now()` dentro de cada instrução, em sete lugares diferentes. Sete lugares é o número de

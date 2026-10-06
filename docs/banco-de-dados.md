@@ -1,15 +1,15 @@
 ---
 title: "Banco de dados"
-description: "As vinte e duas tabelas, como o esquema torna impossível uma ocorrência apontar para a categoria de outra organização, e por que a trilha não pode ser alterada."
+description: "As 22 tabelas, como o esquema torna impossível uma ocorrência apontar para a categoria de outra organização, e por que a trilha não pode ser alterada."
 ---
 
 # Banco de dados
 
-PostgreSQL, vinte e duas tabelas, migrações versionadas em arquivo e aplicadas pela esteira antes de a imagem
-nova subir. O esquema não é um espelho do código: ele carrega garantias próprias, e as que ele carrega são
+PostgreSQL, 22 tabelas, migrações versionadas em arquivo e aplicadas pela esteira antes de a imagem nova
+subir. O esquema não é um espelho do código: ele carrega garantias próprias, e as que ele carrega são
 as que não dependem de ninguém lembrar.
 
-## As vinte e duas tabelas
+## As 22 tabelas
 
 | Tabela | O que guarda |
 |---|---|
@@ -36,7 +36,7 @@ as que não dependem de ninguém lembrar.
 | `envios_de_convite` | cada convite que saiu por e-mail: o endereço daquele instante, o dia, e quem enviou |
 | `autorizacoes_de_upload` | o livro-caixa das credenciais de upload emitidas, para conter abuso |
 
-**Quem é quem, e onde.** A metade que responde antes de existir ocorrência:
+**Quem é quem.** A metade que responde antes de existir ocorrência:
 
 ```mermaid
 erDiagram
@@ -46,12 +46,18 @@ erDiagram
     PESSOAS ||--o{ PEDIDOS_DE_ENTRADA : "pede"
     ORGANIZACOES ||--o{ VINCULOS : "concede"
     ORGANIZACOES ||--o{ PEDIDOS_DE_ENTRADA : "recebe"
+```
+
+**O que a organização configura, e como se chama alguém para ela:**
+
+```mermaid
+erDiagram
+    direction LR
     ORGANIZACOES ||--o{ CATEGORIAS : "configura"
     ORGANIZACOES ||--o{ AREAS : "configura"
     ORGANIZACOES ||--o{ ETIQUETAS_PARTICIPANTE : "configura"
     VINCULOS ||--o{ VINCULOS_ETIQUETAS : "recebe"
     VINCULOS ||--o{ CONVITES_PESSOAIS : "convidado por"
-    CONVITES_PESSOAIS ||--o{ ENVIOS_DE_CONVITE : "saiu por e-mail"
 ```
 
 **A ocorrência, e o que gira em volta dela.** Todas as tabelas abaixo são escopadas à organização, e a
@@ -69,8 +75,8 @@ erDiagram
     OCORRENCIAS ||--o{ OCORRENCIAS : "origem"
 ```
 
-As mensagens penduram no canal de conversa, e não na ocorrência. A tabela do livro-caixa de autorizações
-de upload não aparece em nenhum dos dois desenhos: ela é global, ligada apenas à pessoa que pediu a
+As mensagens penduram no canal de conversa, e não na ocorrência. Cada convite pessoal guarda os envios de e-mail que saíram dele, numa tabela própria. A tabela do
+livro-caixa de autorizações de upload não aparece em desenho nenhum: ela é global, ligada apenas à pessoa que pediu a
 credencial, e existe para conter abuso.
 
 ## O escopo, garantido pelo esquema
