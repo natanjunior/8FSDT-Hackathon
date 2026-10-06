@@ -104,7 +104,7 @@ contas, e por isso nenhuma corrida muda o que a demonstração mostra.
 
 ## Os verificadores
 
-Seis programas conferem o que teste de código não alcança, e todos rodam na esteira.
+Dez verificadores conferem o que teste de código não alcança, e todos rodam na esteira.
 
 | Verificador | O que recusa |
 |---|---|
@@ -112,14 +112,16 @@ Seis programas conferem o que teste de código não alcança, e todos rodam na e
 | Contrato | divergência entre a especificação executável e as rotas que a realizam, operação por operação |
 | Links e referências | link relativo que não resolve e referência a seção que não existe |
 | Tom | os padrões de densidade, de aparato e de estrutura que a reescrita removeu, nos arquivos já reescritos |
-| Site publicado | link quebrado, diagrama que não desenhou, busca sem resultado e título repetido, no site de verdade |
+| Contagens | número escrito em prosa que não bate com a especificação, as migrações, a lista de telas ou o painel |
+| Estilo | peça de interface renderizada que não bate com a prancheta do desenho, medida num navegador |
 | Imagem | segredo assado em qualquer camada da imagem, lido do histórico de construção |
+| Site publicado | link quebrado, diagrama que não desenhou, busca sem resultado e título repetido, no site de verdade |
+| Autenticação publicada | configuração no provedor diferente da que o repositório declara |
+| Ambiente publicado | variável de execução declarada no repositório que não existe no serviço |
 
-Outros dois olham para a nuvem, e não para o repositório. Um compara a configuração de autenticação
-publicada com o que o repositório declara, porque a esteira publica migração e imagem, e nunca
-configuração. O outro confere, antes de cada implantação, que toda variável de execução declarada existe
-no serviço — uma variável declarada e nunca publicada deixou o envio de imagens quebrado por semanas sem
-que nada acusasse.
+Os três últimos olham para a nuvem, e não para o repositório. Eles existem porque a esteira publica
+migração e imagem, e nunca configuração: uma variável declarada e nunca publicada deixou o envio de
+imagens quebrado por semanas sem que nada acusasse.
 
 **Todo verificador prova que discrimina.** Cada um carrega um par de controles: um conteúdo que precisa ser
 recusado e outro, equivalente, que precisa passar. Um verificador que aceitasse tudo passaria por bom até

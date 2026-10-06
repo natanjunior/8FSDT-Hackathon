@@ -29,14 +29,12 @@ organizações passa por um ponto único. Ver **[O que está entregue](#o-que-es
 <https://ca-resolve-ai.jollypebble-46a227ca.chilecentral.azurecontainerapps.io>, as contas para entrar
 nele estão em **[A demonstração](#a-demonstração)**.
 
-Quem abre o endereço pela primeira vez depende de a aplicação já estar acordada, e uma sonda agendada a
-mantém assim nos dias em que alguém de fora vai abri-la. Quem volta pelo mesmo navegador vê a casca da
-aplicação na hora, enquanto o servidor inicia.
+A aplicação fica com uma réplica sempre de pé enquanto a avaliação durar, então quem abre o endereço não
+espera o servidor iniciar.
 
 O que ainda não existe é o que [O produto](docs/produto.md) corta em letra, com o motivo de cada corte:
 o acesso próprio do Encarregado e as capacidades que caem junto com ele, a nota interna e a conversa
-privada da atribuição, as notificações, a leitura sem rede. **Nenhum requisito do enunciado
-ficou de fora:** todo o corte recaiu sobre adições nossas.
+privada da atribuição, as notificações, a leitura sem rede.
 
 ## O que está entregue
 
@@ -100,8 +98,7 @@ desenvolvimento ([ADR-0004](docs/adr/0004-execucao-em-container-no-azure.md)).
 
 **O corte de escopo é verificável.** O [Atendimento ao enunciado](docs/atendimento-ao-enunciado.md)
 percorre exigência por exigência e diz onde cada uma é cumprida, e [O produto](docs/produto.md) diz o que
-ficou de fora e por quê. Nenhum requisito do enunciado ficou de fora: o corte recaiu inteiro sobre
-adições nossas.
+ficou de fora e por quê. Nenhum requisito do enunciado ficou de fora.
 
 ## Como rodar
 
@@ -114,7 +111,7 @@ organização sem sair da sessão.
 
 | Ferramenta | Para quê | Conferir com |
 |---|---|---|
-| **Node 24** | build, testes e verificadores | `node --version` |
+| **Node 22 ou mais** | build, testes e verificadores | `node --version`. A esteira roda a 24 |
 | **Docker** | a aplicação em container | `docker compose version` |
 | **Supabase CLI** | Postgres e autenticação locais | `supabase --version` |
 
@@ -143,9 +140,9 @@ Depois: **<http://localhost:3000>**.
 > O nome do cookie de sessão sai do host da **URL do provedor**, que é variável do servidor, então ele não
 > muda com a origem pela qual o navegador chega. Em produção nada disto aparece: lá o transporte é HTTPS.
 
-⚠️ As portas locais do Supabase não são as padrão do CLI (`54691` para a API, `54692` para o banco). O
-Windows reserva faixas de porta para o Hyper-V, e na máquina onde isto foi escrito a faixa reservada cobria
-as nove portas padrão. O motivo e como conferir a sua estão no cabeçalho de `supabase/config.toml`.
+⚠️ As portas locais do Supabase não são as padrão do CLI (`54691` para a API, `54692` para o banco),
+porque no Windows as faixas reservadas para o Hyper-V podem cobrir as padrão. Como conferir a sua está
+no cabeçalho de `supabase/config.toml`.
 
 Sem Docker, para o laço curto de quem implementa: `npm run dev`, mas aí a URL do provedor é
 `http://127.0.0.1:54691` no `.env.local`, e a aplicação abre em `http://127.0.0.1:3000`. Mesma regra: **um
@@ -180,9 +177,8 @@ O `npm run local` falha dizendo a causa; esta tabela é o que fazer com cada uma
 | `Falta o @azure/storage-blob` | `node_modules` incompleto | `npm ci` |
 
 Por que o `Healthy` do `docker compose ps` não é prova de nada aqui. O healthcheck roda **dentro** do
-container: ele responde *"o Azurite iniciou?"*, nunca *"o host alcança o Azurite?"*. Já aconteceu de o
-container ficar verde com `NetworkSettings.Ports` vazio: `docker port` devolvia nada, e a subida morria
-com `ECONNREFUSED` dez níveis dentro do SDK do Azure. Quem responde a segunda pergunta é o
+container: ele responde *"o Azurite iniciou?"*, nunca *"o host alcança o Azurite?"*, e um container
+pode ficar verde com a porta sem sair. Quem responde a segunda pergunta é o
 `ferramentas/ambiente-local.mjs`, que sonda `127.0.0.1:10000` do host depois do `up`. Os dois
 healthchecks ficaram: um pega Azurite que não iniciou, o outro pega porta que não saiu.
 
@@ -207,8 +203,12 @@ Cada peça, separada:
 | `npm run verificar:mermaid` | Todo bloco Mermaid parseia — **com controle diferencial**: um diagrama que tem de ser recusado e o mesmo diagrama, consertado, que tem de passar |
 | `npm run verificar:openapi` | As quatro regras mecânicas do contrato, mais `$ref` e `operationId`. A quarta é a única que compara o YAML com os `route.ts`: `requestBody.required: false` e `corpoOpcional` são a mesma afirmação em dois lugares, e discordar delas é o portão *"a especificação corresponde ao código"* aberto sem ninguém ver |
 | `npm run verificar:referencias` | Todo link relativo resolve; todo `§N` existe |
+| `npm run verificar:tom` | As regras de voz e de estrutura dos documentos entregues, **com par de controles**: um texto que tem de ser recusado e o mesmo texto, dentro das regras, que tem de passar |
+| `npm run verificar:contagens` | Todo número escrito em prosa que conte artefato — operações, caminhos, tabelas, migrações, telas, quadros, verificadores, decisões — contra a especificação, as migrações e o código |
 | `npm run verificar:estilo` | As peças do catálogo medidas no navegador contra os valores da prancheta (raio, altura, papel da escala, cor de fundo), **com controle diferencial**: uma peça sabidamente errada tem de ser recusada. Exige o Chromium do Playwright (`npx playwright install chromium`) |
 | `npm run verificar:imagem` | **Nenhum segredo assado na imagem** — `ARG`, `.env` numa camada, variável no ambiente, nome ou chave dentro do pacote do navegador. Exige Docker, e por isso não está no `npm run verificar`; no pipeline ele roda antes do `push`, porque imagem publicada com segredo dentro não se desfaz |
+| `npm run verificar:site` | O site publicado: nenhum link quebrado, todo diagrama desenhado, a busca respondendo e nenhum título repetido. Exige a aplicação de pé, local ou publicada |
+| `npm run verificar:ambiente` | Toda variável de execução declarada existe no serviço publicado. Exige credencial e rede |
 | `npm run verificar:auth` | A configuração de Auth publicada bate com a que este repositório declara — Site URL, lista de redirecionamento, confirmação de e-mail, assunto e corpo do e-mail de recuperação. Exige credencial e rede, e por isso não está no `npm run verificar`; é o mesmo tratamento do `verificar:imagem`. Ver *[Publicar](#publicar)* |
 
 O teste de integração roda num database só dele, `resolveai_teste`, criado pelo `npm run local`. Sem
@@ -255,7 +255,7 @@ esteira sobe o `docker compose` num runner limpo e bate na aplicação por HTTP,
 local` desta página, rodando numa máquina que nunca viu este projeto. É o que prova que não há estado local
 escondido, e é por isso que essa conferência não depende de ninguém lembrar.
 
-**Voltar atrás** é reapontar o tráfego para a revisão anterior do Container Apps: imediato, sem rebuild.
+**Voltar atrás** é reativar a revisão anterior do Container Apps e reapontar o tráfego para ela, sem rebuild.
 Migração destrutiva de esquema exige script de volta escrito à mão.
 
 #### O que vive só no painel do Supabase
@@ -267,9 +267,8 @@ push` em lugar nenhum deste repositório, de propósito. Ele empurraria o `confi
 locais incluídas, e `site_url` e `additional_redirect_urls` têm de divergir entre os ambientes.
 
 Consequência: estes quatro campos são digitados à mão, uma vez, no painel do projeto hospedado.
-Enquanto ninguém os digitou, a nuvem fica no padrão de fábrica, que é literalmente
-`http://localhost:3000`, e foi o que quebrou a confirmação de conta e a redefinição de senha em produção
-até que alguém os digitasse.
+Enquanto ninguém os digita, a nuvem fica no padrão de fábrica, `http://localhost:3000`, e a confirmação
+de conta e a redefinição de senha não funcionam em produção.
 
 | # | Onde, no painel | O que digitar |
 |---|---|---|
@@ -358,7 +357,7 @@ tempo de execução. Ela não está no código nem na imagem.
 | `src/dominio/` | Domínio | as regras. Não persiste, não conhece HTTP |
 | `src/infraestrutura/` | Infraestrutura | `clientes/` (o único lugar com SDK), `repositorios/`, `contexto/` (o ponto único de escopo) |
 | `src/composicao/` | — | monta o grafo de objetos; não decide regra |
-| `ferramentas/verificadores/` | — | **cinco** verificadores: os três de documentação que `npm run verificar:docs` roda, mais o da imagem, que exige Docker, e o do Auth publicado, que exige credencial e rede — os dois últimos rodam no pipeline |
+| `ferramentas/verificadores/` | — | São 10 verificadores ao todo, e [Testes](docs/testes.md) diz o que cada um recusa. O de estilo mora fora desta pasta, em `ferramentas/conferir-estilo.mjs` |
 | `supabase/migrations/` | — | o esquema, versionado |
 | `testes/` | — | `dominio/` e `aplicacao/` sem banco; `integracao/` com |
 

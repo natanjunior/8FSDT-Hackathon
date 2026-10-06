@@ -9,3 +9,7 @@ A superfície HTTP tem 48 operações em 33 caminhos.
 O esquema tem catorze tabelas, em onze migrações.
 
 O inventário lista dezesseis telas, e o painel abre com cinco quadros.
+
+O repositório tem cinco verificadores e nove decisões de arquitetura.
+
+E a pasta tem **cinco** verificadores, com o número em negrito para provar que a ênfase não esconde.

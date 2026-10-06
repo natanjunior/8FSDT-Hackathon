@@ -89,6 +89,29 @@ function dasTelas() {
   return { telas: tabela[1].trim().split(/\r?\n/u).filter((l) => l.startsWith("|")).length };
 }
 
+/**
+ * Os verificadores: os pontos de entrada `verificar:*` do `package.json`.
+ *
+ * O `verificar:docs` fica de fora porque é composto — ele chama os outros, e contá-lo somaria um
+ * programa que não existe. A pasta `ferramentas/verificadores/` não serve de fonte: o de estilo mora
+ * fora dela, e contar a pasta foi o que produziu a afirmação de oito quando eram dez.
+ */
+function dosScripts() {
+  const pacote = JSON.parse(ler(join(RAIZ, "package.json")));
+  const nomes = Object.keys(pacote.scripts ?? {}).filter(
+    (nome) => nome.startsWith("verificar:") && nome !== "verificar:docs",
+  );
+  return { verificadores: nomes.length };
+}
+
+/** As decisões de arquitetura: um arquivo por decisão, fora o índice da pasta. */
+function dasDecisoes() {
+  const arquivos = readdirSync(join(RAIZ, "docs/adr")).filter(
+    (nome) => nome.endsWith(".md") && nome !== "README.md",
+  );
+  return { decisoes: arquivos.length };
+}
+
 /** Os quadros do painel: os cartões numerados da tela. */
 function doPainel() {
   const tela = ler(join(RAIZ, "app/(casca)/dashboard/page.tsx"));
@@ -96,7 +119,14 @@ function doPainel() {
 }
 
 function verdadeDoRepositorio() {
-  return { ...daEspecificacao(), ...dasMigracoes(), ...dasTelas(), ...doPainel() };
+  return {
+    ...daEspecificacao(),
+    ...dasMigracoes(),
+    ...dasTelas(),
+    ...doPainel(),
+    ...dosScripts(),
+    ...dasDecisoes(),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -137,10 +167,12 @@ const SUBSTANTIVOS = [
   [/migra[çc][õo]es/u, "migracoes"],
   [/telas/u, "telas"],
   [/quadros/u, "quadros"],
+  [/verificadores/u, "verificadores"],
+  [/decis[õo]es de arquitetura/u, "decisoes"],
 ];
 
 const CANDIDATO =
-  /(\d{1,4}|[A-Za-zÀ-ÿ]+(?:\s+e\s+[A-Za-zÀ-ÿ]+)?)\s+(opera[çc][õo]es|caminhos|tabelas|migra[çc][õo]es|telas|quadros)\b/giu;
+  /(\d{1,4}|[A-Za-zÀ-ÿ]+(?:\s+e\s+[A-Za-zÀ-ÿ]+)?)\s+(opera[çc][õo]es|caminhos|tabelas|migra[çc][õo]es|telas|quadros|verificadores|decis[õo]es de arquitetura)\b/giu;
 
 /**
  * Recortes legítimos, declarados um por um.
@@ -170,7 +202,17 @@ const SUBCONJUNTOS = new Set([
 /** Mede um documento e devolve a lista de divergências, uma frase por divergência. */
 export function divergenciasDe(conteudo, verdade) {
   const divergencias = [];
-  const semCodigo = conteudo.replace(/```[\s\S]*?```/gu, "").replace(/`[^`\n]*`/gu, "");
+  /**
+   * **A ênfase sai antes da leitura, e ela já escondeu um número errado.**
+   *
+   * `**cinco** verificadores` tem o número e o substantivo separados por quatro asteriscos, e o padrão
+   * não os via como vizinhos. O README afirmou cinco quando eram dez, e o portão ficou verde. Os
+   * marcadores de ênfase são sintaxe, não conteúdo, então saem junto com o código.
+   */
+  const semCodigo = conteudo
+    .replace(/```[\s\S]*?```/gu, "")
+    .replace(/`[^`\n]*`/gu, "")
+    .replace(/[*_]/gu, "");
 
   for (const [, escrito, substantivo] of semCodigo.matchAll(CANDIDATO)) {
     const numero = numeroDe(escrito);
@@ -208,7 +250,8 @@ for (const caminho of documentos([".md"])) {
 notas.push(
   `a verdade medida: ${verdade.operacoes} operações em ${verdade.caminhos} caminhos · ` +
     `${verdade.tabelas} tabelas em ${verdade.migracoes} migrações · ` +
-    `${verdade.telas} telas · ${verdade.quadros} quadros`,
+    `${verdade.telas} telas · ${verdade.quadros} quadros · ` +
+    `${verdade.verificadores} verificadores · ${verdade.decisoes} decisões de arquitetura`,
 );
 
 // ---------------------------------------------------------------------------
@@ -217,7 +260,8 @@ notas.push(
 // ---------------------------------------------------------------------------
 
 const VERDADE_DO_CONTROLE = {
-  operacoes: 62, caminhos: 52, tabelas: 22, migracoes: 23, telas: 20, quadros: 7,
+  operacoes: 62, caminhos: 52, tabelas: 22, migracoes: 23,
+  telas: 20, quadros: 7, verificadores: 10, decisoes: 21,
 };
 
 const fixture = (nome) => join(RAIZ, "ferramentas/verificadores/fixtures", nome);

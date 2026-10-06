@@ -52,8 +52,8 @@ O trabalhador é escrito à mão e registrado só em produção.
 ## Consequências
 
 A volta à aplicação pinta uma tela preenchida enquanto o contêiner inicia. A espera pelo servidor continua
-a mesma, e a primeira visita num navegador continua sem trabalhador: quem a cobre é a sonda descrita em
-[Infraestrutura](../infraestrutura.md).
+a mesma, e a primeira visita num navegador continua sem trabalhador: quem a cobre é a réplica sempre de
+pé da [ADR-0023](0023-uma-replica-sempre-de-pe.md).
 
 Quando outra pessoa manteve o contêiner acordado, a casca pode aparecer por uma fração de segundo antes da
 tela. É o custo de decidir pela hora da última resposta vista por este navegador, que é a única informação

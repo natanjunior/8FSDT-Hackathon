@@ -1,14 +1,14 @@
 ---
 title: "Infraestrutura"
-description: "Onde cada peça roda, o que a imagem contém, a ordem da esteira de entrega, como se volta atrás, o que a franquia gratuita impõe e como subir a pilha na própria máquina."
+description: "Onde cada peça roda, o que a imagem contém, a ordem da esteira de entrega, como se volta atrás, por que uma réplica fica sempre de pé, o que a franquia gratuita impõe e como subir a pilha na própria máquina."
 ---
 
 # Infraestrutura
 
 Um contêiner com a aplicação inteira, PostgreSQL e autenticação gerenciados, e um armazenamento de objetos
-para as imagens. Quase tudo dentro de franquias gratuitas permanentes: o e-mail de conta e o
-armazenamento de imagens custam centavos no crédito de estudante. A mesma imagem roda na máquina de quem
-desenvolve e em produção.
+para as imagens. A maior parte cabe em franquias gratuitas permanentes, e o crédito de estudante paga o
+resto: a réplica da aplicação que fica sempre de pé, e os centavos do e-mail de conta e do armazenamento
+de imagens. A mesma imagem roda na máquina de quem desenvolve e em produção.
 
 ## Onde cada peça roda
 
@@ -62,6 +62,7 @@ flowchart TB
     IMG["Publicar a imagem<br/>com o verificador de segredo antes"]
     REV["Nova revisão no Container Apps"]
     TRAF["Apontar todo o tráfego para ela"]
+    DESAT["Desativar a revisão anterior<br/>se ela segura réplica"]
     SITE["Verificar a documentação publicada"]
 
     MERGE --> VER
@@ -70,7 +71,8 @@ flowchart TB
     MIG --> IMG
     IMG --> REV
     REV --> TRAF
-    TRAF --> SITE
+    TRAF --> DESAT
+    DESAT --> SITE
 ```
 
 **A ordem importa, e a migração vem antes da imagem.** Voltar atrás na aplicação é imediato; no banco, não
@@ -84,9 +86,12 @@ anterior.
 
 ## Voltar atrás
 
-O Container Apps guarda as revisões anteriores, e voltar é redirecionar o tráfego para uma delas: imediato
-e sem reconstruir. A prova de que o caminho de volta tem alvo é a revisão anterior continuar ativa com peso
-zero depois de cada entrega.
+O Container Apps guarda as revisões anteriores, e voltar é reativar uma delas e redirecionar o tráfego para
+ela, sem reconstruir nada. Depois de cada entrega, a esteira desativa a revisão anterior, porque com o
+mínimo de uma réplica ela continuaria rodando sem servir ninguém
+([ADR-0023](adr/0023-uma-replica-sempre-de-pe.md)). Desativada, ela continua guardada, e a volta leva o
+tempo de ela iniciar. Quando a revisão nova não responde na conferência da esteira, a anterior nem chega a
+ser desativada.
 
 Migração de banco é versionada em arquivo e não se desfaz sozinha, então mudança destrutiva de esquema
 exige o script de volta escrito à mão. É a razão de a ordem segura ser migração compatível primeiro,
@@ -116,24 +121,26 @@ A volta seria criar o projeto, aplicar as migrações e restaurar os dados com o
 restauração não foi ensaiada. O roteiro da cópia é testado na esteira com o contêiner e a API simulados,
 sem banco e sem o segredo; a cópia contra o banco publicado só se prova na primeira execução agendada.
 
-## O que a franquia gratuita impõe
+## A réplica sempre de pé
 
-Sem tráfego, a aplicação escala para zero réplicas; a primeira requisição depois de um período ocioso leva
-cerca de 20 segundos enquanto o contêiner inicia.
+Do envio do trabalho até o fim da avaliação, a aplicação roda com no mínimo uma réplica, e nenhuma visita
+espera o contêiner iniciar. Medida depois de mais de duas horas sem tráfego, a resposta ficou abaixo de um
+segundo.
 
-Nos dias em que alguém de fora vai abrir a aplicação, uma sonda no GitHub Actions a mantém acordada. Ela
-só lê duas páginas públicas que não consultam o banco, a tela de entrar e a documentação, e roda de dois
-jeitos. Na faixa, chama a cada cinco minutos nos dias e horários declarados numa linha do workflow
-`aquecer-a-aplicacao.yml`, o que torna a partida a frio rara nesse período. Na janela, disparada à mão,
-chama a cada dois minutos e segura a aplicação quente pela duração escolhida, até quatro horas. Uma
-janela custa um despertar, a partida a frio da primeira chamada, porque as seguintes chegam antes de o
-contêiner dormir. Fora das duas, a escala a zero volta. Cada hora de janela custa cerca de 1% da franquia
-mensal de computação e 60 minutos de execução do Actions; a faixa custa um minuto de Actions a cada cinco.
+A franquia mensal de computação cobre cerca de 100 horas dessa réplica, pouco mais de quatro dias. O resto
+sai do crédito de estudante. Sem tráfego, a réplica fica abaixo do limite de ociosidade da plataforma, e a
+hora ociosa custa US$ 0,0216, cerca de US$ 13 num mês inteiro. A assinatura tem limite de gasto: o crédito
+zerado a desliga, sem gerar fatura.
 
-Quem volta à aplicação pelo mesmo navegador tem a outra metade. O trabalhador de serviço guarda uma casca
+Sem o mínimo, a aplicação escala para zero réplicas cerca de cinco minutos depois da última requisição, e
+a primeira chamada seguinte leva por volta de 20 segundos enquanto o contêiner inicia. A decisão e as
+alternativas estão na [ADR-0023](adr/0023-uma-replica-sempre-de-pe.md).
+
+Quem volta à aplicação pelo mesmo navegador conta ainda com o trabalhador de serviço. Ele guarda uma casca
 sem dado nenhum e, quando a última resposta do servidor que ele viu tem mais de quatro minutos, a pinta na
-hora e a troca pela tela assim que o contêiner responde. A primeira visita num navegador ainda não tem
-trabalhador, e é a sonda que a cobre.
+hora e a troca pela tela assim que o servidor responde.
+
+## O que a franquia gratuita impõe
 
 O projeto de banco na franquia gratuita pausa depois de sete dias de inatividade, e uma pausa derruba a
 migração da entrega seguinte. A mitigação é uma consulta trivial agendada diariamente. Já foi semanal, e
