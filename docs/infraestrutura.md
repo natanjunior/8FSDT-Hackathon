@@ -56,15 +56,16 @@ Como a imagem é pública, nada disso pode estar nela. Um verificador confere an
 ```mermaid
 flowchart TB
     MERGE["Mesclagem em main"]
-    VER["Verificar<br/>lint, tipos, testes, documentação e site local"]
-    COMPOSE["Subir a pilha do zero<br/>num servidor limpo"]
-    AUTH["Conferir o Auth publicado<br/>cinco campos contra o repositório"]
-    MIG["Migrar o banco<br/>migrações versionadas"]
+    VER["Verificar"]
+    COMPOSE["Subir a pilha do zero"]
+    AUTH["Conferir o Auth publicado"]
+    MIG["Migrar o banco"]
     IMG["Publicar a imagem<br/>com o verificador de segredo antes"]
-    AMB["Conferir as variáveis de execução<br/>as declaradas existem no Container App"]
+    AMB["Conferir as variáveis de execução"]
     REV["Nova revisão no Container Apps"]
     TRAF["Apontar todo o tráfego para ela"]
-    DESAT["Desativar a revisão anterior<br/>se ela segura réplica"]
+    URL["Conferir que a URL responde"]
+    DESAT["Desativar as revisões sem tráfego<br/>que seguram réplica"]
     SITE["Verificar a documentação publicada"]
 
     MERGE --> VER
@@ -77,7 +78,8 @@ flowchart TB
     IMG --> AMB
     AMB --> REV
     REV --> TRAF
-    TRAF --> DESAT
+    TRAF --> URL
+    URL --> DESAT
     DESAT --> SITE
 ```
 
@@ -95,7 +97,9 @@ vez de depender de alguém lembrar de rodar um comando antes da mesclagem.
 **Criar revisão não move tráfego.** O ambiente roda em modo de revisões múltiplas, que é a precondição de
 poder voltar atrás sem reconstruir nada, e o preço desse modo é que a revisão nova nasce com peso zero. Sem
 o passo que aponta o tráfego, a esteira ficaria verde enquanto a URL continuasse servindo o código
-anterior.
+anterior. Depois dele a esteira confere duas coisas: que a URL pública responde, e que a documentação no
+ar não ganhou link quebrado. Entre as duas, as revisões que ficaram sem tráfego são desativadas, porque
+em modo múltiplo uma revisão antiga continuaria segurando a réplica que a entrega acabou de pagar.
 
 ## Voltar atrás
 
