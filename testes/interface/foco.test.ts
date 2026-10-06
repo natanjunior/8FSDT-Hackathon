@@ -5,13 +5,13 @@ import { fileURLToPath } from "node:url";
 
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { GraficoDeBarras } from "@/interface/componentes/grafico-de-barras";
 import { GraficoDoFluxoMensal } from "@/interface/componentes/grafico-do-fluxo-mensal";
 import { GraficoDoTempoDeResolucao } from "@/interface/componentes/grafico-do-tempo-de-resolucao";
 import { ID_DO_CONTEUDO, PularParaOConteudo } from "@/interface/componentes/pular-para-o-conteudo";
-import { useFormularioTocado } from "@/interface/ganchos/use-formulario-tocado";
+import { SAI_SEM_ACUSAR, saidaConta, useFormularioTocado } from "@/interface/ganchos/use-formulario-tocado";
 
 /**
  * **O guarda do foco de teclado — item 94.**
@@ -304,5 +304,143 @@ describe("o foco da recusa chega com a descrição pronta — critério 116.6", 
     expect(mensagemNoFoco).toBe(true);
     await act(async () => raiz.unmount());
     elemento.remove();
+  });
+});
+
+describe("a saída só conta depois de a pessoa agir — item 130", () => {
+  /** Um grupo de dois rádios, o diálogo em volta, e fora dele o que o menu deixa aberto atrás. */
+  function montarCena() {
+    const dialogo = document.createElement("div");
+    dialogo.setAttribute("role", "dialog");
+    const grupo = document.createElement("fieldset");
+    const primeiro = document.createElement("input");
+    primeiro.type = "radio";
+    const segundo = document.createElement("input");
+    segundo.type = "radio";
+    grupo.append(primeiro, segundo);
+    const voltar = document.createElement("button");
+    voltar.setAttribute(SAI_SEM_ACUSAR, "");
+    const observacao = document.createElement("textarea");
+    dialogo.append(grupo, observacao, voltar);
+    const menuAtras = document.createElement("div");
+    menuAtras.setAttribute("role", "menu");
+    document.body.append(dialogo, menuAtras);
+    return { dialogo, grupo, segundo, voltar, observacao, menuAtras };
+  }
+
+  it("antes do gesto, o foco que sai sem destino logo depois de a janela montar não conta (critério 130.4)", () => {
+    const { grupo, dialogo, menuAtras } = montarCena();
+    expect(saidaConta(grupo, null, false)).toBe(false);
+    dialogo.remove();
+    menuAtras.remove();
+  });
+
+  it("antes do gesto, o foco que vai para o menu deixado atrás também não conta (achado A1)", () => {
+    const { grupo, dialogo, menuAtras } = montarCena();
+    expect(saidaConta(grupo, menuAtras, false)).toBe(false);
+    dialogo.remove();
+    menuAtras.remove();
+  });
+
+  it("antes do gesto, nem o foco para o próximo campo conta", () => {
+    const { grupo, observacao, dialogo, menuAtras } = montarCena();
+    expect(saidaConta(grupo, observacao, false)).toBe(false);
+    dialogo.remove();
+    menuAtras.remove();
+  });
+
+  it("depois do gesto, o próximo campo conta, e o fundo da página também (a regra do 75)", () => {
+    const { grupo, observacao, dialogo, menuAtras } = montarCena();
+    expect(saidaConta(grupo, observacao, true)).toBe(true);
+    expect(saidaConta(grupo, null, true)).toBe(true);
+    dialogo.remove();
+    menuAtras.remove();
+  });
+
+  it("depois do gesto, o vizinho do grupo e o botão de saída continuam não contando (critério 130.5)", () => {
+    const { grupo, segundo, voltar, dialogo, menuAtras } = montarCena();
+    expect(saidaConta(grupo, segundo, true)).toBe(false);
+    expect(saidaConta(grupo, voltar, true)).toBe(false);
+    dialogo.remove();
+    menuAtras.remove();
+  });
+});
+
+describe("o gesto, ligado ao gancho — item 130", () => {
+  function Formulario({ aoMontar }: { aoMontar: (recomecar: () => void) => void }) {
+    const formulario = useFormularioTocado({ campos: { motivo: "motivo" }, erros: { motivo: "Escolha o motivo." } });
+    aoMontar(formulario.recomecar);
+    const erro = formulario.erroDe("motivo");
+    return createElement(
+      "div",
+      null,
+      createElement("fieldset", { id: "motivo", onBlur: formulario.aoSair("motivo") }, createElement("input", { type: "radio", id: "primeiro" })),
+      createElement("textarea", { id: "observacao" }),
+      erro === undefined ? null : createElement("p", { id: "erro" }, erro),
+    );
+  }
+
+  async function montar() {
+    const elemento = document.createElement("div");
+    document.body.append(elemento);
+    const raiz = createRoot(elemento);
+    let recomecar: () => void = () => undefined;
+    await act(async () => raiz.render(createElement(Formulario, { aoMontar: (funcao) => { recomecar = funcao; } })));
+    const sairDoGrupo = async () => {
+      await act(async () => document.getElementById("primeiro")?.focus());
+      await act(async () => document.getElementById("observacao")?.focus());
+    };
+    const desmontar = async () => {
+      await act(async () => raiz.unmount());
+      elemento.remove();
+    };
+    return { sairDoGrupo, recomecar: () => act(async () => recomecar()), desmontar };
+  }
+
+  const gesto = (tipo: "pointerdown" | "keydown") =>
+    act(async () => {
+      document.dispatchEvent(tipo === "keydown" ? new KeyboardEvent("keydown", { key: "Tab" }) : new Event("pointerdown"));
+    });
+
+  it("o foco que se move sozinho, sem gesto, não acende o erro", async () => {
+    const cena = await montar();
+    await cena.sairDoGrupo();
+    expect(document.getElementById("erro")).toBeNull();
+    await cena.desmontar();
+  });
+
+  it("depois de uma tecla, sair do grupo acende o erro (critério 130.3)", async () => {
+    const cena = await montar();
+    await gesto("keydown");
+    await cena.sairDoGrupo();
+    expect(document.getElementById("erro")?.textContent).toBe("Escolha o motivo.");
+    await cena.desmontar();
+  });
+
+  it("depois de um toque, sair do grupo acende o erro", async () => {
+    const cena = await montar();
+    await gesto("pointerdown");
+    await cena.sairDoGrupo();
+    expect(document.getElementById("erro")?.textContent).toBe("Escolha o motivo.");
+    await cena.desmontar();
+  });
+
+  it("o gesto que abre a janela não vale dentro dela: recomeçar zera o gesto", async () => {
+    const cena = await montar();
+    await gesto("keydown");
+    await cena.recomecar();
+    await cena.sairDoGrupo();
+    expect(document.getElementById("erro")).toBeNull();
+    await cena.desmontar();
+  });
+
+  it("desmontado, o gancho larga os dois ouvintes do documento", async () => {
+    const remover = vi.spyOn(document, "removeEventListener");
+    const cena = await montar();
+    await cena.desmontar();
+    const tipos = remover.mock.calls.map(([tipo]) => tipo);
+    expect(tipos).toContain("pointerdown");
+    expect(tipos).toContain("keydown");
+    remover.mockRestore();
   });
 });
