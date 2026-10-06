@@ -5,7 +5,7 @@
 #    publica no ghcr.io → Container Apps cria uma revisão nova
 #
 #  **A ordem entre migrar e publicar não é estética.** O rollback da aplicação é
-#  imediato (reapontar o tráfego para a revisão anterior, sem rebuild); o do
+#  imediato (reativar a revisão anterior e reapontar o tráfego, sem rebuild); o do
 #  banco não é. Então a ordem segura é **migração compatível primeiro, código
 #  depois** — e o passo de migração falhando interrompe a cadeia, que é o
 #  comportamento desejado: *código novo sobre esquema velho é o modo de falha
@@ -567,8 +567,8 @@ jobs:
 
       # **Em modo de múltiplas revisões, criar revisão não move tráfego.** O
       # modo é o que torna verdadeiro o caminho de volta que a `arquitetura.md`
-      # §9 e o `definition-of-done.md` descrevem — *reapontar o tráfego para a
-      # revisão anterior, sem rebuild* —, e o preço dele é este passo. Sem ele o
+      # §9 e o `definition-of-done.md` descrevem — *reativar a revisão anterior
+      # e reapontar o tráfego, sem rebuild* —, e o preço dele é este passo. Sem ele o
       # deploy sobe, a URL continua servindo a revisão velha e o `curl` do fim
       # do emprego passa: **o modo de falha mais traiçoeiro deste arquivo é o
       # que fica verde.**
@@ -608,6 +608,35 @@ jobs:
           done
           echo "A URL pública não respondeu 200 em /entrar. Reaponte o tráfego para a revisão anterior."
           exit 1
+
+      # **Revisão sem tráfego com mínimo de réplicas acima de zero cobra sem
+      # servir ninguém** (ADR-0023). A revisão nova copia o mínimo da anterior,
+      # e em modo `Multiple` a anterior continua ativa com peso zero: com
+      # mínimo 1, cada entrega deixaria mais uma réplica de pé. O teste de
+      # 04/10/2026 mostrou isso ao vivo, com a revisão velha a 0% de tráfego e
+      # uma réplica rodando.
+      #
+      # **Vem depois da conferência da URL, e não antes.** Se a revisão nova não
+      # responde, este passo não roda e a anterior continua ativa, como alvo de
+      # volta. Desativada, ela não se perde: voltar atrás passa a ser reativá-la
+      # e apontar o tráfego, ainda sem rebuild.
+      #
+      # Com mínimo 0 a consulta volta vazia e o passo não faz nada; o filtro de
+      # peso zero impede que ele derrube a revisão que está servindo.
+      - name: desativar as revisões sem tráfego que seguram réplica
+        run: |
+          for revisao in $(az containerapp revision list \
+              --name "${{ vars.AZURE_CONTAINER_APP }}" \
+              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+              --query "[?properties.active && properties.trafficWeight==\`0\` && properties.template.scale.minReplicas>\`0\`].name" \
+              -o tsv); do
+            echo "desativando $revisao"
+            az containerapp revision deactivate \
+              --name "${{ vars.AZURE_CONTAINER_APP }}" \
+              --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+              --revision "$revisao"
+            echo "- $revisao desativada (sem tráfego, mínimo acima de zero)" >> "$GITHUB_STEP_SUMMARY"
+          done
 
       # A mesma conferência do emprego `verificar`, agora contra o que está no
       # ar. Ela só lê: vermelho aqui não desfaz nada, e avisa que a revisão

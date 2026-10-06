@@ -3475,8 +3475,8 @@ paths:
       operationId: obterDashboard
       summary: Indicadores de gestão
       description: |
-        Os indicadores do painel, em **uma requisição** — o dashboard é uma tela, e a aplicação escala a
-        zero: cinco requisições poderiam significar cinco esperas de partida a frio.
+        Os indicadores do painel, em **uma requisição** — o dashboard é uma tela, e cinco requisições
+        seriam cinco idas ao servidor e ao banco para desenhá-la.
 
         O corte que organiza os números: **a listagem responde *o que eu faço agora*; o dashboard responde
         *o que eu mudo no mês*.** Por isso `backlogPorStatus` e `abertasPorCategoria` são fotografia de
