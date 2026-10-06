@@ -111,7 +111,7 @@ O que o produto faz, e o desafio não pediu.
 **Operação**
 
 - Verificadores que comparam o site e a autenticação no ar com o que o repositório declara ([Testes](testes.md))
-- Aquecimento agendado, com faixa de hora e de dia ([Infraestrutura](infraestrutura.md))
+- Uma réplica sempre de pé durante o período da avaliação ([Infraestrutura](infraestrutura.md))
 - Consulta diária que mantém o banco acordado ([Infraestrutura](infraestrutura.md))
 - Revisões múltiplas, com volta sem reconstruir, e partida a frio medida ([Infraestrutura](infraestrutura.md))
 
