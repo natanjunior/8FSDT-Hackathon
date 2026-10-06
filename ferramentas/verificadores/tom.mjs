@@ -52,6 +52,7 @@ const DOCUMENTOS = new Set([
   "docs/adr/0020-o-navegador-guarda-so-a-casca.md",
   "docs/adr/0021-o-convite-pessoal-e-a-segunda-operacao-sem-sessao.md",
   "docs/adr/0022-o-email-sai-por-smtp-com-o-nodemailer.md",
+  "docs/adr/0023-uma-replica-sempre-de-pe.md",
   "docs/adr/README.md",
   "docs/api.md",
   "docs/atendimento-ao-enunciado.md",

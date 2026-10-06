@@ -99,16 +99,15 @@ O detalhe do modelo está em [Domínio e regras](dominio.md).
 | Supabase Auth | contas e sessões são problema resolvido por terceiros, comprado em vez de construído |
 | Azure Blob Storage | a imagem por ocorrência, sem teto de arquivo e sem custo relevante |
 | Docker, com a mesma imagem em produção | a conteinerização que o desafio exige, sem ambiente de desenvolvimento diferente do publicado |
-| Azure Container Apps | publicação em nuvem dentro de uma franquia gratuita permanente |
+| Azure Container Apps | publicação em nuvem com franquia gratuita, e uma réplica sempre de pé paga pelo crédito de estudante |
 | GitHub Actions e GitHub Container Registry | a esteira e o registro da imagem, no mesmo lugar onde o código mora |
 | Tailwind CSS com shadcn/ui | o risco de usabilidade: foco, teclado e leitores de tela corretos sem construí-los |
 | Vitest e Playwright | a máquina de estados testável em milissegundos, e o caminho crítico exercido num navegador |
 
-A partida a frio tem duas metades, cobertas por peças diferentes. A primeira visita depende de o contêiner
-já estar acordado, e é a sonda descrita em [Infraestrutura](infraestrutura.md) que o mantém assim nos dias
-em que alguém de fora vai abrir a aplicação. No retorno pelo mesmo navegador, o trabalhador de serviço
-pinta a casca guardada na hora e a troca pela tela quando o servidor responde. A espera pelo servidor
-continua a mesma; o que muda é a tela em que ela acontece
+Enquanto a avaliação durar, o contêiner mantém uma réplica sempre de pé, e a primeira visita não espera o
+servidor iniciar ([ADR-0023](adr/0023-uma-replica-sempre-de-pe.md)). Sem esse mínimo, a aplicação dorme
+quando fica sem tráfego. Aí, no retorno pelo mesmo navegador, o trabalhador de serviço pinta a casca
+guardada na hora e a troca pela tela quando o servidor responde
 ([ADR-0020](adr/0020-o-navegador-guarda-so-a-casca.md)).
 
 Cada escolha tem alternativa rejeitada registrada nas
@@ -129,14 +128,14 @@ flowchart TB
 ```
 
 **Publicar é mesclar.** A esteira verifica, aplica as migrações do banco, constrói a imagem, publica e cria
-uma revisão nova, nessa ordem — porque voltar atrás na aplicação é imediato e no banco não é. Voltar atrás
-é reapontar o tráfego para a revisão anterior, sem reconstruir nada.
+uma revisão nova, nessa ordem — porque a aplicação volta atrás sem reconstruir nada, e o banco não. Voltar
+atrás é reativar a revisão anterior e reapontar o tráfego para ela.
 
 **O ambiente local sobe a pilha inteira em contêiner**, com o mesmo `Dockerfile` que vai para a produção. O
 que roda na máquina de quem desenvolve é o que roda no ar, e é a esteira quem prova isso, subindo a pilha
 do zero num servidor limpo a cada entrega.
 
-A ordem dos passos, o caminho de volta e o que a franquia gratuita impõe estão em
+A ordem dos passos, o caminho de volta, a réplica sempre de pé e o que a franquia gratuita impõe estão em
 [Infraestrutura](infraestrutura.md).
 
 O passo a passo de como rodar está no

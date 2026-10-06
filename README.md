@@ -29,9 +29,8 @@ organizações passa por um ponto único. Ver **[O que está entregue](#o-que-es
 <https://ca-resolve-ai.jollypebble-46a227ca.chilecentral.azurecontainerapps.io>, as contas para entrar
 nele estão em **[A demonstração](#a-demonstração)**.
 
-Quem abre o endereço pela primeira vez depende de a aplicação já estar acordada, e uma sonda agendada a
-mantém assim nos dias em que alguém de fora vai abri-la. Quem volta pelo mesmo navegador vê a casca da
-aplicação na hora, enquanto o servidor inicia.
+A aplicação fica com uma réplica sempre de pé enquanto a avaliação durar, então quem abre o endereço não
+espera o servidor iniciar.
 
 O que ainda não existe é o que [O produto](docs/produto.md) corta em letra, com o motivo de cada corte:
 o acesso próprio do Encarregado e as capacidades que caem junto com ele, a nota interna e a conversa
@@ -255,7 +254,7 @@ esteira sobe o `docker compose` num runner limpo e bate na aplicação por HTTP,
 local` desta página, rodando numa máquina que nunca viu este projeto. É o que prova que não há estado local
 escondido, e é por isso que essa conferência não depende de ninguém lembrar.
 
-**Voltar atrás** é reapontar o tráfego para a revisão anterior do Container Apps: imediato, sem rebuild.
+**Voltar atrás** é reativar a revisão anterior do Container Apps e reapontar o tráfego para ela, sem rebuild.
 Migração destrutiva de esquema exige script de volta escrito à mão.
 
 #### O que vive só no painel do Supabase

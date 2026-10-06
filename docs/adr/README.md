@@ -15,7 +15,7 @@ alternativas rejeitadas e as consequências, inclusive as ruins.
 | [0001](0001-historico-de-transicoes-como-conceito-de-dominio.md) | O histórico de transições é conceito de domínio, e não auditoria de infraestrutura | Aceita |
 | [0002](0002-stack-e-plataforma.md) | Next.js com aplicação instalável, APIs próprias e Supabase | Parcialmente substituída pela 0004 |
 | [0003](0003-isolamento-de-tenant-na-camada-de-aplicacao.md) | Isolamento entre organizações na camada de aplicação, com RLS como defesa em profundidade | Parcialmente substituída pela 0018 |
-| [0004](0004-execucao-em-container-no-azure.md) | Execução em contêiner no Azure Container Apps, com registro no GitHub Container Registry | Aceita |
+| [0004](0004-execucao-em-container-no-azure.md) | Execução em contêiner no Azure Container Apps, com registro no GitHub Container Registry | Parcialmente substituída pela 0023 |
 | [0005](0005-regra-de-dependencia-por-inversao.md) | A regra de dependência é garantida por inversão, e o lint é a verificação | Aceita |
 | [0006](0006-organizacao-de-modulos.md) | Organização de módulos: camada no primeiro nível, agregado no segundo | Aceita |
 | [0007](0007-camada-de-interface-com-shadcn-ui.md) | Camada de interface com shadcn/ui sobre Tailwind, com o código dos componentes no repositório | Parcialmente substituída pela 0010 |
@@ -33,6 +33,7 @@ alternativas rejeitadas e as consequências, inclusive as ruins.
 | [0020](0020-o-navegador-guarda-so-a-casca.md) | O navegador guarda só a casca, e a saída a apaga | Aceita |
 | [0021](0021-o-convite-pessoal-e-a-segunda-operacao-sem-sessao.md) | O convite pessoal mostra o nome da pessoa sem sessão, pela segunda leitura que o lint fecha | Aceita |
 | [0022](0022-o-email-sai-por-smtp-com-o-nodemailer.md) | O convite sai por e-mail, por SMTP com o nodemailer, num provedor que não divide cota com a recuperação de senha | Aceita |
+| [0023](0023-uma-replica-sempre-de-pe.md) | Uma réplica fica sempre de pé enquanto a avaliação durar, paga pelo crédito de estudante | Aceita |
 
 A 0005 e a 0006 se leem melhor em par: a primeira decide como a dependência é invertida, e a segunda
 decide onde os arquivos ficam para que essa inversão vire caminho de arquivo que uma regra de lint sabe

@@ -99,7 +99,7 @@ O que o produto faz, e o desafio não pediu.
 - Um sexto estado, `Pausada`, com motivo obrigatório ([Domínio e regras](dominio.md))
 - O escopo por organização num ponto único, obrigado por regra de lint ([Segurança](seguranca.md))
 - A trilha protegida também por gatilho do banco, que recusa alteração ([Banco de dados](banco-de-dados.md))
-- 21 decisões de arquitetura registradas, com as alternativas rejeitadas ([Registros de Decisão](adr/))
+- 22 decisões de arquitetura registradas, com as alternativas rejeitadas ([Registros de Decisão](adr/))
 
 **Engenharia**
 

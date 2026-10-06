@@ -5,7 +5,12 @@ description: "Azure Container Apps com registro no GitHub Container Registry, e 
 
 # ADR-0004 — Execução em contêiner no Azure Container Apps, com registro no GitHub Container Registry
 
-**Status:** Aceita · 20/08/2026 · Substitui parcialmente a [ADR-0002](0002-stack-e-plataforma.md)
+**Status:** Parcialmente substituída pela [ADR-0023](0023-uma-replica-sempre-de-pe.md) · 05/10/2026
+· Status original: Aceita · 20/08/2026 · Substitui parcialmente a [ADR-0002](0002-stack-e-plataforma.md)
+
+> A [ADR-0023](0023-uma-replica-sempre-de-pe.md) substitui daqui a escala a zero enquanto a avaliação
+> durar: uma réplica fica sempre de pé, paga pelo crédito de estudante. Permanecem válidos o Container
+> Apps, o registro de imagem, o armazenamento de anexo e a credencial federada.
 
 ## Contexto
 
