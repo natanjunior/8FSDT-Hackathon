@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { cobre } from "./cobertura";
 import {
@@ -105,6 +105,21 @@ const MOTIVOS_DE_PAUSA = [
   "Aguardando um terceiro",
 ];
 
+/**
+ * **A janela acabou de abrir e ninguém agiu: nenhuma frase de erro e nenhuma borda de inválido** (item
+ * 130). O piscar acontece enquanto a janela entra, então a asserção espera as animações dela terminarem;
+ * sem essa espera, `toHaveCount(0)` passaria antes de o erro ter tido tempo de aparecer.
+ */
+async function esperarJanelaLimpa(modal: Locator, mensagens: readonly string[]): Promise<void> {
+  await modal.evaluate((elemento) =>
+    Promise.all(elemento.getAnimations({ subtree: true }).map((animacao) => animacao.finished)),
+  );
+  await expect(modal.locator("[data-invalido]")).toHaveCount(0);
+  for (const mensagem of mensagens) await expect(modal.getByText(mensagem)).toHaveCount(0);
+}
+
+const ERROS_DA_PAUSA = ["Escolha o motivo.", "Escreva a observação."] as const;
+
 test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, lidos pelos dois lados", async ({
   browser,
 }) => {
@@ -188,7 +203,23 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
   // os dois erros em palavra. Escolher o motivo apaga o primeiro e deixa o segundo de pé: é a prova de
   // que os dois campos são cobrados, e não só um.
   // -------------------------------------------------------------------------
+  // **Fechar não acusa — critério 130.5.** O foco vai ao grupo pelo programa, e o mouse desce no botão de
+  // saída sem subir: é aí que o foco deixa o grupo, e o `SAI_SEM_ACUSAR` tem de segurar. Soltar fecha.
+  for (const saida of ["Voltar", "Fechar"] as const) {
+    const janela = await abrirNoMenu(marcos, "Pausar");
+    await esperarJanelaLimpa(janela, ERROS_DA_PAUSA);
+    await janela.getByRole("radio").first().focus();
+    await janela.getByRole("button", { name: saida, exact: true }).hover();
+    await marcos.mouse.down();
+    await expect(janela.getByText("Escolha o motivo.")).toHaveCount(0);
+    await marcos.mouse.up();
+    await fecharOMenu(marcos);
+  }
+
   const modalDePausa = await abrirNoMenu(marcos, "Pausar");
+  // **A janela nasce limpa — critério 130.1.** O C09 do vídeo filmava *"Escolha o motivo."* em vermelho
+  // neste instante, antes de qualquer toque.
+  await esperarJanelaLimpa(modalDePausa, ERROS_DA_PAUSA);
   await expect(modalDePausa.getByRole("heading", { name: "Pausar" })).toBeVisible();
   await expect(modalDePausa.getByText("O que a ocorrência está esperando.")).toBeVisible();
 
@@ -205,6 +236,13 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
     falta:
       "o botão Cancelar do rodapé, o rótulo de Observação sem a palavra opcional, e a ordem do aviso antes do campo",
   });
+
+  // **A regra do 75 continua — critério 130.3.** Sair do grupo pelo teclado, sem escolher, acusa o grupo e
+  // só ele: a observação ainda não foi alcançada.
+  await modalDePausa.getByRole("radio").first().focus();
+  await marcos.keyboard.press("Tab");
+  await expect(modalDePausa.getByText("Escolha o motivo.")).toBeVisible();
+  await expect(modalDePausa.getByText("Escreva a observação.")).toHaveCount(0);
 
   await modalDePausa.getByRole("button", { name: "Pausar" }).click();
   await expect(modalDePausa.getByText("Escolha o motivo.")).toBeVisible();
@@ -343,6 +381,7 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
   // ao lado — nunca só em opacidade, que é o compromisso A-5.
   // -------------------------------------------------------------------------
   const modalDeReatribuicao = await abrirNoMenu(marcos, "Reatribuir");
+  await esperarJanelaLimpa(modalDeReatribuicao, ["Escolha o responsável."]);
   await expect(modalDeReatribuicao.getByRole("heading", { name: "Reatribuir" })).toBeVisible();
   await expect(
     modalDeReatribuicao.getByText(
@@ -409,6 +448,7 @@ test("a ocorrência que para no meio: pausar, retomar, reatribuir e cancelar, li
   // observação dele é o Solicitante.
   // -------------------------------------------------------------------------
   const modalDeCancelamento = await abrirNoMenu(marcos, "Cancelar");
+  await esperarJanelaLimpa(modalDeCancelamento, ERROS_DA_PAUSA);
   await expect(
     modalDeCancelamento.getByRole("heading", { name: "Cancelar a ocorrência" }),
   ).toBeVisible();
