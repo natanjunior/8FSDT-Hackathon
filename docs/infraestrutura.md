@@ -58,22 +58,35 @@ flowchart TB
     MERGE["Mesclagem em main"]
     VER["Verificar<br/>lint, tipos, testes, documentação e site local"]
     COMPOSE["Subir a pilha do zero<br/>num servidor limpo"]
+    AUTH["Conferir o Auth publicado<br/>cinco campos contra o repositório"]
     MIG["Migrar o banco<br/>migrações versionadas"]
     IMG["Publicar a imagem<br/>com o verificador de segredo antes"]
+    AMB["Conferir as variáveis de execução<br/>as declaradas existem no Container App"]
     REV["Nova revisão no Container Apps"]
     TRAF["Apontar todo o tráfego para ela"]
     DESAT["Desativar a revisão anterior<br/>se ela segura réplica"]
     SITE["Verificar a documentação publicada"]
 
     MERGE --> VER
-    VER --> COMPOSE
+    MERGE --> COMPOSE
+    MERGE --> AUTH
+    VER --> MIG
     COMPOSE --> MIG
+    AUTH --> MIG
     MIG --> IMG
-    IMG --> REV
+    IMG --> AMB
+    AMB --> REV
     REV --> TRAF
     TRAF --> DESAT
     DESAT --> SITE
 ```
+
+**As três conferências do começo correm juntas**, e a migração espera as três. Uma delas olha para fora
+da máquina: a do Auth publicado compara o que o provedor de autenticação serve com o que o repositório
+declara, e uma divergência ali interrompe a entrega antes de qualquer mudança no banco. A conferência das
+variáveis de execução faz o mesmo papel do outro lado, depois da imagem e antes da revisão nova: o que o
+`.env.example` declara precisa existir no Container App, ou a aplicação sobe e quebra só no caminho que
+usa a variável que falta.
 
 **A ordem importa, e a migração vem antes da imagem.** Voltar atrás na aplicação é imediato; no banco, não
 é. Quem aplica a migração é a própria esteira, num passo que falha em voz alta e interrompe a cadeia, em
