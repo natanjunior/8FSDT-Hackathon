@@ -67,14 +67,13 @@ e um teste de vazamento por consulta testaria a mesma função dezenas de vezes.
 
 - O custo por tarefa é um arquivo curto ou nenhum.
 - A verificação de cada envio continua em torno de um minuto, porque nada do que é caro entrou nela.
-- O portão que exige que uma organização não veja o dado de outra deixa de depender de alguém reescrever o
-  cenário, que é a forma pela qual um portão passa a ser marcado sem ser cumprido.
+- O portão do isolamento deixa de depender de alguém reescrever o cenário, que é a forma pela qual um
+  portão passa a ser marcado sem ser cumprido.
 
 **O que custa**
 
 - **A camada de Interface fica praticamente sem cobertura**, e é o buraco desta decisão. O que o limita é
-  desenho: essa camada está restrita a traduzir HTTP e validar formato, e o esquema que ela usa é o mesmo
-  que gera a especificação da API, conferida por verificador.
+  desenho: essa camada traduz HTTP e valida formato, e nada mais.
 - **Um defeito de integração entre duas camadas pode chegar até o teste de ponta a ponta.** É o preço de
   não haver faixa média. O que o reduz é que as fronteiras entre camadas aqui são poucas e declaradas.
 - **O teste de ponta a ponta só pôde existir quando o caminho crítico existiu**, porque o último elo do

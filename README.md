@@ -49,7 +49,7 @@ Cada linha se confere no próprio repositório, é o que a coluna da direita diz
 | A `Ocorrência`, com o ciclo de vida inteiro | os **dez comandos** — `analisar` · `atribuir-responsavel` · `iniciar-atendimento` · `pausar` · `retomar` · `registrar-solucao-aplicada` · `resolver` · `cancelar` · `alterar-prioridade` · `avaliar` | `src/dominio/` e `app/api/ocorrencias/` |
 | **A superfície HTTP** | **62 operações em 52 caminhos** | [`docs/api/openapi.yaml`](docs/api/openapi.yaml), conferido contra o código por `npm run verificar:openapi` |
 | **As telas** | as **vinte** de [Telas](docs/telas.md) — a de vínculo sem permissões como estado, e não como endereço próprio | `app/` |
-| **O esquema** | **14 tabelas**, em onze migrações | `supabase/migrations/` |
+| **O esquema** | **22 tabelas**, em 23 migrações | `supabase/migrations/` |
 | **A demonstração** | duas organizações e **cinco meses** de ocorrências, escritas pelas mesmas portas que o produto usa | `semente/` |
 | **A esteira** | `docker compose` local, imagem no `ghcr.io`, migração aplicada antes do deploy, revisão nova no Azure Container Apps | [[`.github/workflows/entrega.yml`](.github/workflows/entrega.yml)](.github/workflows/entrega.yml) |
 | **Os testes** | domínio e aplicação sem banco · isolamento contra Postgres · um de ponta a ponta, num navegador, contra a pilha real | `testes/` |
@@ -66,7 +66,7 @@ Cada linha se confere no próprio repositório, é o que a coluna da direita diz
 | [Segurança](docs/seguranca.md) | O isolamento entre organizações, quem entra, e o que acontece com dado pessoal |
 | [Infraestrutura](docs/infraestrutura.md) | Onde cada peça roda, a ordem da esteira, e o caminho de volta |
 | [Testes](docs/testes.md) | O que cada tipo de teste protege, e os verificadores |
-| [Banco de dados](docs/banco-de-dados.md) | As catorze tabelas, e o que o esquema garante sozinho |
+| [Banco de dados](docs/banco-de-dados.md) | As 22 tabelas, e o que o esquema garante sozinho |
 | [A API](docs/api.md) · [openapi.yaml](docs/api/openapi.yaml) | As convenções da superfície HTTP, e a especificação executável |
 | [Telas](docs/telas.md) | O que cada tela responde, e como se navega entre elas |
 | [Registros de Decisão](docs/adr/) | As decisões de arquitetura, no formato Nygard, com as alternativas rejeitadas |
@@ -182,7 +182,7 @@ O `npm run local` falha dizendo a causa; esta tabela é o que fazer com cada uma
 Por que o `Healthy` do `docker compose ps` não é prova de nada aqui. O healthcheck roda **dentro** do
 container: ele responde *"o Azurite iniciou?"*, nunca *"o host alcança o Azurite?"*. Já aconteceu de o
 container ficar verde com `NetworkSettings.Ports` vazio: `docker port` devolvia nada, e a subida morria
-com `ECONNREFUSED` dez quadros dentro do SDK do Azure. Quem responde a segunda pergunta é o
+com `ECONNREFUSED` dez níveis dentro do SDK do Azure. Quem responde a segunda pergunta é o
 `ferramentas/ambiente-local.mjs`, que sonda `127.0.0.1:10000` do host depois do `up`. Os dois
 healthchecks ficaram: um pega Azurite que não iniciou, o outro pega porta que não saiu.
 

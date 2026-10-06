@@ -5,8 +5,9 @@ description: "As convenções da superfície HTTP: de onde vem a organização, 
 
 # A API
 
-A superfície HTTP tem 62 operações, e todas elas estão navegáveis na
-[referência executável](/documentacao/api/referencia), com os campos de entrada e de saída de cada uma.
+A superfície HTTP inteira está navegável na
+[referência executável](/documentacao/api/referencia), com os campos de entrada e de saída de cada
+operação.
 Esta página não repete essa lista: ela explica as convenções que valem para todas, e as decisões que a
 referência mostra sem justificar.
 

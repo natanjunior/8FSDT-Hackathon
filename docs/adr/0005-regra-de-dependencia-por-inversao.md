@@ -75,25 +75,21 @@ estrutura era o estado anterior.
 
 - O teste de aplicação sem banco passa a ser possível como escrito: substituir o repositório é passar
   outro argumento.
-- A ADR-0003 ganha o mecanismo que lhe faltava, e o repositório escopado deixa de ser convenção de chamada
-  para virar contrato.
+- A ADR-0003 ganha o mecanismo que lhe faltava: o repositório escopado vira contrato.
 - O lint fica mais estreito e mais verdadeiro: um diretório, em vez de uma camada.
-- Nenhuma linha de banco atravessa para dentro, e o vazamento fica fechado por assinatura em vez de por
-  revisão.
+- Nenhuma linha de banco atravessa para dentro, fechada por assinatura em vez de por revisão.
 - Trocar de provedor de banco passa a ser trocar uma implementação da porta.
 
 **O que custa**
 
-- **Toda função de aplicação ganha um parâmetro.** É ruído em todas as assinaturas para um benefício que
-  aparece no teste e na troca de provedor.
+- **Toda função de aplicação ganha um parâmetro**, para um benefício que aparece no teste.
 - **O ponto de composição pode crescer.** Se virar um arquivo enorme, o problema mudou de lugar em vez de
   sumir. Ele monta um grafo de objetos, e não regra, e a [ADR-0006](0006-organizacao-de-modulos.md) o
   isola num diretório próprio, onde fica visível.
-- **A porta é mais uma coisa a manter em sincronia** com a implementação, e quem cobra isso é o
-  compilador, então o custo é de leitura.
+- **A porta é mais uma coisa a manter em sincronia**, e quem cobra isso é o compilador.
 
-Esta decisão não escolhe ORM, e o critério para quando essa escolha vier é o tipo de retorno: o do ORM não
-pode ser o que atravessa a porta. Onde os arquivos ficam é a [ADR-0006](0006-organizacao-de-modulos.md).
+Esta decisão não escolhe ORM: o critério, quando a escolha vier, é que o tipo do ORM não atravessa a
+porta.
 
 ## Fontes
 

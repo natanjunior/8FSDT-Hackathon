@@ -27,7 +27,7 @@ alternativas rejeitadas e as consequências, inclusive as ruins.
 | [0014](0014-o-campo-de-codigo-entra-com-o-input-otp.md) | O campo de código entra com o input-otp, em oito casas | Aceita |
 | [0015](0015-o-seletor-de-faixa-entra-com-o-react-day-picker.md) | O seletor de faixa de datas entra com o react-day-picker | Aceita |
 | [0016](0016-o-relogio-de-atualizacao-passa-a-ser-do-banco.md) | O relógio de atualização das seis tabelas passa a ser escrito por gatilho do banco | Aceita |
-| [0017](0017-o-compartilhamento-e-dado-e-nao-permissao.md) | O compartilhamento de uma ocorrência é dado numa tabela fora do agregado, e não permissão nova | Aceita |
+| [0017](0017-o-compartilhamento-e-dado.md) | O compartilhamento de uma ocorrência é dado numa tabela fora do agregado | Aceita |
 | [0018](0018-a-primeira-operacao-sem-sessao.md) | O convite lê o nome da organização sem sessão, por uma porta que o lint fecha em dois arquivos | Substituída pela 0021 |
 | [0019](0019-o-qr-do-convite-entra-com-o-uqr.md) | O QR do convite entra com o uqr, desenhado no servidor | Aceita |
 | [0020](0020-o-navegador-guarda-so-a-casca.md) | O navegador guarda só a casca, e a saída a apaga | Aceita |

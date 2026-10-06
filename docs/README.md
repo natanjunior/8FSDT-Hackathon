@@ -37,9 +37,10 @@ Para quem vai **manter, avaliar ou estender** a solução.
 | [Segurança](seguranca.md) | O isolamento entre organizações, quem entra, o que cada um pode, e o que acontece com foto, localização e conta excluída |
 | [Infraestrutura](infraestrutura.md) | Onde cada peça roda, o que a imagem contém, a ordem da esteira e como subir a pilha na própria máquina |
 | [Testes](testes.md) | O que cada tipo de teste protege, os verificadores e o portão que bloqueia a entrega |
-| [Banco de dados](banco-de-dados.md) | As catorze tabelas, e o que o esquema garante sozinho |
+| [Banco de dados](banco-de-dados.md) | As 22 tabelas, e o que o esquema garante sozinho |
 | [A API](api.md) | As convenções da superfície HTTP: sessão, organização, erros e upload |
 | [Telas](telas.md) | O que cada tela responde, o que oferece e como se navega entre elas |
+| [O painel](painel.md) | Os sete quadros, a pergunta que cada um responde, e como se lê cada número |
 | [Decisões de arquitetura](adr/) | Uma decisão por arquivo, com o contexto, as alternativas rejeitadas e as consequências |
 | [Como contribuir](https://github.com/natanjunior/8FSDT-Hackathon/blob/main/CONTRIBUTING.md) | O que uma tarefa precisa cumprir para entrar e para fechar |
 
