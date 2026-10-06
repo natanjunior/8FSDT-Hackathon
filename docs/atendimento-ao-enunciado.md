@@ -77,3 +77,44 @@ O desafio deixa seis pontos em aberto, e cada um virou regra escrita:
 | Quem é o responsável | [Domínio e regras](dominio.md) |
 | Quais indicadores entram no dashboard | [O produto](produto.md) |
 | Quais categorias existem | [Domínio e regras](dominio.md) |
+
+## Além do enunciado
+
+O que o produto faz, e o desafio não pediu.
+
+**Produto**
+
+- Várias organizações na mesma instalação, sem que uma veja o dado da outra ([Segurança](seguranca.md))
+- Entrada por código da organização e por QR colado na área ([Telas](telas.md))
+- Convite pessoal por link ou por e-mail, um a um ou em massa ([O produto](produto.md))
+- A pessoa que o Gestor cadastrou se funde com a conta de quem aceita o convite ([Banco de dados](banco-de-dados.md))
+- Compartilhamento de uma ocorrência, só para leitura, com outra pessoa ([O produto](produto.md))
+- Indicador de novidade no cabeçalho, contado por organização ativa ([Telas](telas.md))
+- Etiquetas de participante, e rótulos de estado configuráveis pela organização ([Telas](telas.md))
+- Exportação das listas em CSV ([Telas](telas.md))
+- Configuração de categorias e de áreas pela própria organização ([Telas](telas.md))
+
+**Domínio e arquitetura**
+
+- Um sexto estado, `Pausada`, com motivo obrigatório ([Domínio e regras](dominio.md))
+- O escopo por organização num ponto único, obrigado por regra de lint ([Segurança](seguranca.md))
+- A trilha protegida também por gatilho do banco, que recusa alteração ([Banco de dados](banco-de-dados.md))
+- 21 decisões de arquitetura registradas, com as alternativas rejeitadas ([Registros de Decisão](adr/))
+
+**Engenharia**
+
+- Um portão único, `npm run verificar`, antes de cada envio ([Testes](testes.md))
+- Dez verificadores, cada um com um controle que prova que ele discrimina ([Testes](testes.md))
+- Um verificador que recusa segredo assado na imagem publicada ([Testes](testes.md))
+- Cobertura medida na integração contínua ([Testes](testes.md))
+
+**Operação**
+
+- Verificadores que comparam o site e a autenticação no ar com o que o repositório declara ([Testes](testes.md))
+- Aquecimento agendado, com faixa de hora e de dia ([Infraestrutura](infraestrutura.md))
+- Consulta diária que mantém o banco acordado ([Infraestrutura](infraestrutura.md))
+- Revisões múltiplas, com volta sem reconstruir, e partida a frio medida ([Infraestrutura](infraestrutura.md))
+
+**Interface**
+
+- Celular e tela grande no mesmo produto, para qualquer papel, com tema claro e escuro ([Telas](telas.md))
