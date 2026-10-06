@@ -112,7 +112,7 @@ paths:
         **Funciona sem organização ativa** — é o que sustenta a tela de escolha de organização e a tela de
         quem ainda não entrou em nenhuma. A lista de vínculos parte de `vinculos`, nunca de `pessoas`.
 
-        *Fundação técnica: isolamento por organização em ponto único · `NOSSO` (D2, D3, ADR-0003).*
+        *Fundação técnica: isolamento por organização em ponto único (ADR-0003).*
       responses:
         "200":
           description: Contexto da sessão.
@@ -170,7 +170,7 @@ paths:
         **Sem `403`:** permissão é atributo do Vínculo, e este endpoint roda sem vínculo. **Sem `404`:** a
         Pessoa é a da sessão. **Sem `409`:** não há unicidade sobre `nome`.
 
-        *Capacidade: corrigir os próprios dados · `NOSSO` (PA-26). Não exige organização ativa — é um dos
+        *Capacidade: corrigir os próprios dados. Não exige organização ativa — é um dos
         cinco endpoints fora do escopo (contrato, §4.4), e o único deles que uma tela de dentro da
         organização consome.*
         *Sem comando correspondente no Event Storming — lacuna registrada (contrato, §13).*
@@ -257,7 +257,7 @@ paths:
       summary: Criar a organização (auto-serviço)
       description: |
         Cria a organização, **vincula quem chamou como Gestor inicial** e deixa a nova organização ativa na
-        sessão. É o bootstrap da D26: o primeiro Gestor não teria quem o aprovasse.
+        sessão. É o bootstrap da criação por auto-serviço: o primeiro Gestor não teria quem o aprovasse.
 
         Dois efeitos acontecem aqui por **política** (POL-01), sem chamada do cliente: as **sete
         categorias-semente** do desafio e as **áreas-semente** com os tipos *comum* e *privativa*.
@@ -266,7 +266,7 @@ paths:
         O `codigoPublico` é **gerado pelo servidor** — ele vive em cartaz de elevador e é digitado à mão, e
         deixar o cliente escolher permitiria adivinhação dirigida.
 
-        *Capacidade: criar a organização por auto-serviço · `NOSSO`. Comando: `Registrar organização`.*
+        *Capacidade: criar a organização por auto-serviço. Comando: `Registrar organização`.*
         *Não exige organização ativa — é um dos cinco endpoints fora do escopo (contrato, §4.4). E também
         não a recusa: um Gestor de uma organização pode fundar outra, e a nova fica ativa pelo `Set-Cookie`
         da própria resposta.*
@@ -323,7 +323,7 @@ paths:
         `atualizado_por_pessoa_id` —, a mesma de `categorias` e `areas`. O nome não entra na trilha de
         configuração, que é só das regras (`/configuracao`).
 
-        *Capacidade: corrigir o nome da organização · `NOSSO`. Permissão: `organizacao.configurar`.*
+        *Capacidade: corrigir o nome da organização. Permissão: `organizacao.configurar`.*
         *Sem comando correspondente no Event Storming — lacuna registrada (contrato, §13).*
       parameters:
         - $ref: "#/components/parameters/OrganizacaoAfirmada"
@@ -368,7 +368,7 @@ paths:
 
         **O Solicitante não lê a configuração.** O efeito dela chega a ele pronto, em `acoesDisponiveis`.
 
-        *Capacidade: configurar as regras do atendimento · `NOSSO`. Permissão: `organizacao.configurar`.*
+        *Capacidade: configurar as regras do atendimento. Permissão: `organizacao.configurar`.*
       parameters:
         - $ref: "#/components/parameters/OrganizacaoAfirmada"
       responses:
@@ -409,7 +409,7 @@ paths:
         **não aceita alteração nem remoção**.
 
         Com o limite em `em_atendimento`, o Solicitante autor cancela a própria também em `Em atendimento`
-        e em `Pausada`; `em_analise` é o padrão de toda organização, e é o valor da D12.2. O Gestor
+        e em `Pausada`; `em_analise` é o padrão de toda organização. O Gestor
         cancela em qualquer estado não terminal, qualquer que seja o valor.
 
         Com `exigirSolucaoAoResolver` ligado, resolver sem solução responde `422` (ver `/resolver`).
@@ -418,7 +418,7 @@ paths:
         ciclo; o padrão aparece nela como texto vazio. Um texto igual ao padrão não é customização, e não
         deixa rastro.
 
-        *Capacidade: configurar as regras do atendimento · `NOSSO`. Permissão: `organizacao.configurar`.*
+        *Capacidade: configurar as regras do atendimento. Permissão: `organizacao.configurar`.*
       parameters:
         - $ref: "#/components/parameters/OrganizacaoAfirmada"
       requestBody:
@@ -495,7 +495,7 @@ paths:
         da Persona 1B (contrato, §4.4). A resposta traz apenas o nome da
         organização — o código é público, mas isso não autoriza ler quem está lá dentro.
 
-        *Capacidade: pedir entrada com o código, aguardando aprovação · `NOSSO`.*
+        *Capacidade: pedir entrada com o código, aguardando aprovação.*
         *Sem comando correspondente no Event Storming — lacuna registrada (contrato, C-5).*
       requestBody:
         required: true
@@ -562,7 +562,7 @@ paths:
       description: |
         Lista os pedidos da organização ativa. É o modelo de leitura que precede `aprovar` e `recusar`.
 
-        *Capacidade: Gestor aprova ou recusa o pedido de entrada · `NOSSO`. Permissão: `vinculo.gerir`.*
+        *Capacidade: Gestor aprova ou recusa o pedido de entrada. Permissão: `vinculo.gerir`.*
       parameters:
         - name: situacao
           in: query
@@ -808,12 +808,12 @@ paths:
       operationId: aprovarPedidoDeEntrada
       summary: Aprovar o pedido e criar o vínculo
       description: |
-        Cria o **Vínculo** com o papel escolhido. É aqui que a invariante da D25 se fecha: *"o Vínculo só
+        Cria o **Vínculo** com o papel escolhido. É aqui que a invariante se fecha: *"o Vínculo só
         passa a existir com aprovação do Gestor"*.
         Quando a Pessoa já teve vínculo nesta organização e ele foi revogado, é o mesmo vínculo que volta a
         valer, com o papel e a unidade desta aprovação.
 
-        *Capacidade: Gestor aprova ou recusa · `NOSSO`. Permissão: `vinculo.gerir`.*
+        *Capacidade: Gestor aprova ou recusa. Permissão: `vinculo.gerir`.*
       parameters:
         - $ref: "#/components/parameters/PedidoId"
         - $ref: "#/components/parameters/OrganizacaoAfirmada"
@@ -870,7 +870,7 @@ paths:
         Marca o pedido como recusado. **Não cria nada.** Um pedido recusado pode ser refeito pela Pessoa —
         bloquear para sempre seria mais restritivo do que qualquer decisão registrada (suposição S-A12).
 
-        *Capacidade: Gestor aprova ou recusa · `NOSSO`. Permissão: `vinculo.gerir`.*
+        *Capacidade: Gestor aprova ou recusa. Permissão: `vinculo.gerir`.*
       parameters:
         - $ref: "#/components/parameters/PedidoId"
         - $ref: "#/components/parameters/OrganizacaoAfirmada"
@@ -925,7 +925,7 @@ paths:
         **É também a lista de candidatos a responsável**, porque a atribuição aponta para *qualquer Pessoa
         com vínculo na organização*. Não há — e não deve haver — endpoint de busca de pessoas.
 
-        *Capacidade: cadastro de Encarregados · `NOSSO`. Permissão: `vinculo.gerir`.*
+        *Capacidade: cadastro de Encarregados. Permissão: `vinculo.gerir`.*
         *Contato é dado pessoal sob o RNF10 e **só aparece aqui**, em nenhum outro endpoint do contrato.*
         *Telefone sai em **E.164** — é o formato que um link de WhatsApp consome sem tratamento.*
       parameters:
@@ -993,7 +993,7 @@ paths:
         organização. O custo (linhas duplicadas para o mesmo ser humano em organizações diferentes) é
         coerente com o modelo, que **não** impõe unicidade global de e-mail em `contatos`.
 
-        *Capacidade: cadastro de Encarregados, sem conta · `NOSSO`. Comando: `Cadastrar pessoa`.*
+        *Capacidade: cadastro de Encarregados, sem conta. Comando: `Cadastrar pessoa`.*
       parameters:
         - $ref: "#/components/parameters/OrganizacaoAfirmada"
       requestBody:
@@ -1090,7 +1090,7 @@ paths:
 
         **`papel` não é alterável aqui** — promover alguém a Gestor não é capacidade desta entrega.
 
-        *Capacidade: cadastro de Encarregados (o **U** do CRUD) · `NOSSO`. Permissão: `vinculo.gerir`.*
+        *Capacidade: cadastro de Encarregados (o **U** do CRUD). Permissão: `vinculo.gerir`.*
       parameters:
         - $ref: "#/components/parameters/PessoaId"
         - $ref: "#/components/parameters/OrganizacaoAfirmada"
@@ -1168,7 +1168,7 @@ paths:
         Para encerrar o acesso de quem **tem** histórico a operação é outra, `revogarVinculo`, e ela
         preserva o registro.
 
-        *Capacidade: remover vínculo sem histórico · `NOSSO` (D25, PA-25). Permissão: `vinculo.gerir`.*
+        *Capacidade: remover vínculo sem histórico. Permissão: `vinculo.gerir`.*
       parameters:
         - $ref: "#/components/parameters/PessoaId"
         - $ref: "#/components/parameters/OrganizacaoAfirmada"
@@ -1547,7 +1547,7 @@ paths:
         Lista as categorias. É a leitura que precede o registro de ocorrência — e é onde se confirma que a
         **semente das sete categorias do desafio** foi criada junto com a organização (POL-01).
 
-        *Capacidade: editar categorias · `ENUNCIADO · aberto`. Qualquer vínculo ativo pode ler.*
+        *Capacidade: editar categorias. Qualquer vínculo ativo pode ler.*
       parameters:
         - name: ativa
           in: query
@@ -1581,8 +1581,7 @@ paths:
       operationId: criarCategoria
       summary: Criar categoria
       description: |
-        *Capacidade: editar categorias · `ENUNCIADO · aberto` (o desafio dá sete exemplos e autoriza
-        "outras situações definidas pelo grupo"). Comando: `Criar categoria`. Permissão: `organizacao.configurar`.*
+        *Capacidade: editar categorias. Comando: `Criar categoria`. Permissão: `organizacao.configurar`.*
       parameters:
         - $ref: "#/components/parameters/OrganizacaoAfirmada"
       requestBody:
@@ -1621,7 +1620,7 @@ paths:
         máquina de estados, ou que obrigue a gravar registro de transição, muda por comando nomeado; o
         resto é `PATCH`.* Nenhum campo aqui tem estado anterior a validar.
 
-        *Capacidade: editar categorias · `ENUNCIADO · aberto`. Permissão: `organizacao.configurar`.*
+        *Capacidade: editar categorias. Permissão: `organizacao.configurar`.*
       parameters:
         - $ref: "#/components/parameters/CategoriaId"
         - $ref: "#/components/parameters/OrganizacaoAfirmada"
@@ -1744,7 +1743,7 @@ paths:
         Lista as áreas com o **tipo** de cada uma. É a leitura que precede o registro: *Localização* é uma
         Área mais um complemento em texto.
 
-        *Capacidade: editar áreas · `NOSSO`. Qualquer vínculo ativo pode ler.*
+        *Capacidade: editar áreas. Qualquer vínculo ativo pode ler.*
       parameters:
         - name: ativa
           in: query
@@ -1778,10 +1777,10 @@ paths:
       summary: Criar área
       description: |
         **`tipo` é obrigatório e não tem padrão.** Um padrão implícito escolheria a visibilidade das
-        ocorrências em silêncio — que é exatamente o que a D10 recusa ao dizer que a visibilidade é
+        ocorrências em silêncio — que é exatamente o que a regra recusa: a visibilidade é
         *derivação, não configuração*.
 
-        *Capacidade: editar áreas · `NOSSO`. Comando: `Definir áreas do local`. Permissão: `organizacao.configurar`.*
+        *Capacidade: editar áreas. Comando: `Definir áreas do local`. Permissão: `organizacao.configurar`.*
       parameters:
         - $ref: "#/components/parameters/OrganizacaoAfirmada"
       requestBody:
@@ -1814,13 +1813,13 @@ paths:
       summary: Renomear, reclassificar ou desativar área
       description: |
         **Reclassificar o tipo muda o futuro e não mexe no passado.** Cada ocorrência guarda uma cópia
-        congelada do tipo da Área no momento do registro (emenda à D10): reclassificar de *privativa* para
+        congelada do tipo da Área no momento do registro: reclassificar de *privativa* para
         *comum* **não** expõe retroativamente ocorrências registradas sob expectativa de privacidade.
 
         A resposta traz `ocorrenciasComTipoAnterior` para que a interface possa dizer isso ao Gestor em
         português, em vez de deixá-lo adivinhar.
 
-        *Capacidade: editar áreas · `NOSSO`. Permissão: `organizacao.configurar`.*
+        *Capacidade: editar áreas. Permissão: `organizacao.configurar`.*
       parameters:
         - $ref: "#/components/parameters/AreaId"
         - $ref: "#/components/parameters/OrganizacaoAfirmada"
@@ -1996,7 +1995,7 @@ paths:
         que permite a alguém autenticado consumir armazenamento externo **sem criar registro de domínio
         nenhum**; todos os outros criam linha em tabela e já esbarram nas regras do próprio domínio.
 
-        *Capacidade: anexar uma imagem, comprimida no próprio celular · `ENUNCIADO · aberto` (S6) + RNF8.*
+        *Capacidade: anexar uma imagem, comprimida no próprio celular + RNF8.*
         *Não é comando do Event Storming: é decomposição técnica de `Registrar ocorrência`.*
       parameters:
         - $ref: "#/components/parameters/OrganizacaoAfirmada"
@@ -2103,9 +2102,9 @@ paths:
         aqui é imagem, porque a autorização não emite outro. A lista é a forma permanente; o teto é o
         escopo, e mora aqui — **não no banco**, que não tem restrição alguma de quantidade.
 
-        *Capacidades: registrar com título, descrição e categoria · `ENUNCIADO · literal` (S3, S4);
-        informar a localização · `ENUNCIADO · aberto` (S5) + D10; anexar uma imagem · `ENUNCIADO · aberto`
-        (S6). Comando: `Registrar ocorrência`. Permissão: `ocorrencia.registrar` — Solicitante e Gestor.*
+        *Capacidades: registrar com título, descrição e categoria;
+        informar a localização; anexar uma imagem. Comando: `Registrar ocorrência`.
+        Permissão: `ocorrencia.registrar` — Solicitante e Gestor.*
       parameters:
         - $ref: "#/components/parameters/OrganizacaoAfirmada"
       requestBody:
@@ -2220,8 +2219,8 @@ paths:
 
         **O envelope traz contagens**, todas sob a mesma visibilidade que a listagem aplica.
 
-        *Capacidades: listar todas as ocorrências · `ENUNCIADO · aberto` (G1); filtrar por categoria,
-        status e prioridade · `ENUNCIADO · literal` (G2); ver as minhas ocorrências · `ENUNCIADO · aberto` (S7).*
+        *Capacidades: listar todas as ocorrências; filtrar por categoria,
+        status e prioridade; ver as minhas ocorrências.*
       parameters:
         - name: status
           in: query
@@ -2472,7 +2471,7 @@ paths:
         **`404` quando a ocorrência não é visível a quem pediu**, seja porque é de outra organização, seja
         porque é de outro Solicitante: o que você não pode ver não existe para você.
 
-        *Capacidade: listar/consultar ocorrências · `ENUNCIADO · aberto` (G1, S7).*
+        *Capacidade: listar/consultar ocorrências.*
       parameters:
         - $ref: "#/components/parameters/OcorrenciaId"
         - $ref: "#/components/parameters/OrganizacaoAfirmada"
@@ -2501,8 +2500,7 @@ paths:
         Não confundir com a **trilha de auditoria**: a trilha é só transições, com os nomes internos, e é a
         fonte; a linha do tempo é a apresentação dela somada à conversa e às atribuições.
 
-        *Capacidades: ver a linha do tempo · `ENUNCIADO · aberto` (S9); rótulos em linguagem de gente ·
-        `NOSSO`. Modelo de leitura: "linha do tempo da ocorrência" (passo 7).*
+        *Capacidades: ver a linha do tempo; rótulos em linguagem de gente. Modelo de leitura: "linha do tempo da ocorrência" (passo 7).*
       parameters:
         - $ref: "#/components/parameters/OcorrenciaId"
         - $ref: "#/components/parameters/OrganizacaoAfirmada"
@@ -2561,7 +2559,7 @@ paths:
         do agregado e nasce como **efeito** de um comando. Se um dia aparecer escrita aqui, a garantia
         central do produto terá sido perdida.
 
-        *Capacidade: agregado com máquina de estados e trilha imutável · `ENUNCIADO · literal` (F4–F6) · ADR-0001.*
+        *Capacidade: agregado com máquina de estados e trilha imutável · ADR-0001.*
       parameters:
         - $ref: "#/components/parameters/OcorrenciaId"
         - $ref: "#/components/parameters/OrganizacaoAfirmada"
@@ -2605,7 +2603,7 @@ paths:
         a autorização é feita aqui, **a cada leitura** — é a ocorrência que decide quem vê, nunca a posse
         de um link.
 
-        *Capacidade: anexar uma imagem · `ENUNCIADO · aberto` (S6).*
+        *Capacidade: anexar uma imagem.*
       parameters:
         - $ref: "#/components/parameters/OcorrenciaId"
         - $ref: "#/components/parameters/AnexoId"
@@ -2657,7 +2655,7 @@ paths:
         Os outros dois canais (nota interna e conversa da atribuição) são evolução prevista e terão caminho
         próprio; expor um `tipo` polimórfico agora criaria dois valores inalcançáveis.
 
-        *Capacidade: comentar com os Gestores dentro da ocorrência · `ENUNCIADO · aberto` (S8, G6) + D9.*
+        *Capacidade: comentar com os Gestores dentro da ocorrência.*
       parameters:
         - $ref: "#/components/parameters/OcorrenciaId"
         - $ref: "#/components/parameters/Limite"
@@ -2700,7 +2698,7 @@ paths:
         Consequência declarada: dois toques criam dois comentários; esta é a única operação de escrita do
         contrato que não é protegida por repetição.
 
-        *Capacidade: comentar com os Gestores · `ENUNCIADO · aberto` (S8, G6) + D9.*
+        *Capacidade: comentar com os Gestores.*
         *Comando: `Enviar mensagem no canal`. Permissão: `ocorrencia.comentar`.*
       parameters:
         - $ref: "#/components/parameters/OcorrenciaId"
@@ -2746,7 +2744,7 @@ paths:
 
         **Estado da ocorrência não importa:** resolvida e cancelada continuam compartilháveis.
 
-        *Capacidade: compartilhar uma ocorrência com quem é da organização · `NOSSO` (item 87).*
+        *Capacidade: compartilhar uma ocorrência com quem é da organização.*
         *Permissão na porta: `ocorrencia.ler_propria`; a regra fina é sobre o recurso.*
       parameters:
         - $ref: "#/components/parameters/OcorrenciaId"
@@ -2830,7 +2828,7 @@ paths:
         **`204` também quando a linha não existe**, pela mesma razão do `200` do `POST`: duas abas
         desfazendo o mesmo não veem erro.
 
-        *Capacidade: compartilhar uma ocorrência com quem é da organização · `NOSSO` (item 87).*
+        *Capacidade: compartilhar uma ocorrência com quem é da organização.*
       parameters:
         - $ref: "#/components/parameters/OcorrenciaId"
         - $ref: "#/components/parameters/PessoaId"
@@ -2862,7 +2860,7 @@ paths:
         O mínimo de duas letras e o teto de vinte itens limitam, sem impedir, que um participante descubra
         os nomes dos outros. Está declarado em `docs/seguranca.md`.
 
-        *Capacidade: compartilhar uma ocorrência com quem é da organização · `NOSSO` (item 87).*
+        *Capacidade: compartilhar uma ocorrência com quem é da organização.*
       parameters:
         - $ref: "#/components/parameters/OcorrenciaId"
         - name: busca
@@ -2916,7 +2914,7 @@ paths:
         `observacao` é **opcional** aqui: é avanço rotineiro, e exigir texto onde não há decisão a
         justificar produz "ok" e mata o dado.
 
-        *Capacidade: analisar · `ENUNCIADO · literal` (F2). Comando: `Analisar`. Permissão: `ocorrencia.analisar` — Gestor.*
+        *Capacidade: analisar. Comando: `Analisar`. Permissão: `ocorrencia.analisar` — Gestor.*
       parameters:
         - $ref: "#/components/parameters/OcorrenciaId"
         - $ref: "#/components/parameters/OrganizacaoAfirmada"
@@ -2960,7 +2958,7 @@ paths:
         `observacao: { type: string, maxLength: 1000 }` e o exemplo a trazia preenchida; o produto a recusa
         com `422` desde o item 17, critério 17.6. Item 16 da fila da frente de documentação.)*
 
-        *Capacidade: alterar a prioridade · `ENUNCIADO · aberto` (G3) + D6. Comando: `Alterar prioridade`.
+        *Capacidade: alterar a prioridade. Comando: `Alterar prioridade`.
         Permissão: `ocorrencia.alterar_prioridade` — Gestor.*
       parameters:
         - $ref: "#/components/parameters/OcorrenciaId"
@@ -3050,8 +3048,8 @@ paths:
         invariante 7: registro fechado não recebe escrita nova. **`aberta` entra de propósito**, porque a
         auto-atribuição em um clique acontece na triagem, e proibi-la ali transformaria um clique em dois.
 
-        *Capacidades: atribuir o responsável · `ENUNCIADO · aberto` (G4) + D21; auto-atribuição em um
-        clique · `NOSSO`; reatribuir · `NOSSO`. Comandos: `Atribuir responsável`, `Reatribuir`.
+        *Capacidades: atribuir o responsável; auto-atribuição em um
+        clique; reatribuir. Comandos: `Atribuir responsável`, `Reatribuir`.
         Permissão: `ocorrencia.atribuir` — Gestor.*
       parameters:
         - $ref: "#/components/parameters/OcorrenciaId"
@@ -3122,7 +3120,7 @@ paths:
         responsável, `409 RESPONSAVEL_NAO_ATRIBUIDO` — a única pré-condição de estado do contrato que não
         é sobre o `status`.
 
-        *Capacidade: iniciar o atendimento · `ENUNCIADO · literal` (F2) + D21. Comando: `Iniciar atendimento`.
+        *Capacidade: iniciar o atendimento. Comando: `Iniciar atendimento`.
         Permissão: `ocorrencia.iniciar_atendimento` — Gestor.*
       parameters:
         - $ref: "#/components/parameters/OcorrenciaId"
@@ -3176,9 +3174,9 @@ paths:
 
         `Pausada` é acréscimo nosso ao ciclo de vida, e existe porque **é onde o trabalho se perde hoje**:
         nomear a espera é o que permite vigiá-la. Por isso **motivo e observação são obrigatórios** —
-        aqui há uma decisão a justificar, e é o caso em que a D23 exige texto.
+        aqui há uma decisão a justificar, e é o caso em que a regra exige texto.
 
-        *Capacidade: pausar com motivo estruturado · `NOSSO`. Comando: `Pausar`.
+        *Capacidade: pausar com motivo estruturado. Comando: `Pausar`.
         Permissão: `ocorrencia.pausar` — Gestor (e o responsável atribuído, quando ele tiver acesso próprio).*
       parameters:
         - $ref: "#/components/parameters/OcorrenciaId"
@@ -3215,7 +3213,7 @@ paths:
         `statusAnterior` do registro de pausa e volta para lá (invariante 6). Não há campo para isso — é
         um dividendo direto de a trilha ser conceito de domínio.
 
-        *Capacidade: retomar, voltando ao status anterior · `NOSSO`. Comando: `Retomar`.
+        *Capacidade: retomar, voltando ao status anterior. Comando: `Retomar`.
         Permissão: `ocorrencia.retomar` — Gestor.*
       parameters:
         - $ref: "#/components/parameters/OcorrenciaId"
@@ -3255,7 +3253,7 @@ paths:
         antes de o atendimento começar não há trabalho a descrever. Nos dois terminais, a recusa é a da
         invariante 7.
 
-        *Capacidade: registrar a solução aplicada · `ENUNCIADO · aberto` (G7) + D22.
+        *Capacidade: registrar a solução aplicada.
         Comando: `Registrar solução aplicada`. Permissão: `ocorrencia.registrar_solucao` — Gestor.*
       parameters:
         - $ref: "#/components/parameters/OcorrenciaId"
@@ -3291,14 +3289,14 @@ paths:
         **Só o Gestor resolve, sempre.** É a regra de autorização mais firme do produto — apareceu idêntica
         nas duas personas da pesquisa: *"sempre eu que decido que acabou"*.
 
-        Aceita `solucaoAplicada` no mesmo corpo, para que o formulário induzido pela D22 seja uma
+        Aceita `solucaoAplicada` no mesmo corpo, para que o formulário induzido seja uma
         requisição só. O registro de transição continua sendo **um**.
 
         Se a organização exige a solução, resolver sem ela, no corpo ou já registrada, responde `422`
         (`/configuracao`). Sem a regra ligada, que é o padrão, resolver sem solução continua respondendo
         `200`.
 
-        *Capacidade: resolver · `ENUNCIADO · literal` (F2). Comando: `Resolver`.
+        *Capacidade: resolver. Comando: `Resolver`.
         Permissão: `ocorrencia.resolver` — **Gestor apenas**.*
       parameters:
         - $ref: "#/components/parameters/OcorrenciaId"
@@ -3358,7 +3356,7 @@ paths:
         a ocorrência original é evolução prevista — enviar o campo devolve `422 CAMPO_NAO_SUPORTADO`, e é
         assim que o contrato reserva o lugar sem fingir que a capacidade existe.
 
-        *Capacidade: cancelar com motivo estruturado e observação · `ENUNCIADO · literal` (F3) + D12.
+        *Capacidade: cancelar com motivo estruturado e observação.
         Comando: `Cancelar`. Permissões: `ocorrencia.cancelar_propria` · `ocorrencia.cancelar_qualquer`.*
       parameters:
         - $ref: "#/components/parameters/OcorrenciaId"
@@ -3425,7 +3423,7 @@ paths:
         Três recusas: quem não é o autor (`403`), ocorrência que não está resolvida (`409`) e segunda
         avaliação (`409`) — a avaliação é `0..1` por ocorrência.
 
-        *Capacidade: avaliar a resolução · `ENUNCIADO · aberto` (S10) + D1. Comando: `Avaliar resolução`.
+        *Capacidade: avaliar a resolução. Comando: `Avaliar resolução`.
         Permissão: `ocorrencia.avaliar` — **só o Solicitante autor**.*
       parameters:
         - $ref: "#/components/parameters/OcorrenciaId"
