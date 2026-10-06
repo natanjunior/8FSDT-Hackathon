@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FocusEvent, type FocusEventHandler, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FocusEvent, type FocusEventHandler, type FormEvent } from "react";
 import { flushSync } from "react-dom";
 
 /**
@@ -15,11 +15,15 @@ import { flushSync } from "react-dom";
  * senha."* em `/entrar` na primeira tecla do e-mail. Mexer em controle que não é campo não mexe no estado
  * (a busca pelo nome do modal de atribuição filtra a lista e não é valor enviado).
  *
- * **Quando a saída conta** (`saidaConta`): não conta se o foco foi para dentro do próprio campo (a seta
- * entre as opções de um grupo) ou para a lista que ele controla por `aria-controls` (o `Select` de T-04,
- * cuja lista mora num portal); não conta se foi para um link ou para um elemento com `SAI_SEM_ACUSAR`
- * (Cancelar e o X dos modais), porque sair da tela ou fechar o modal não é alcançar o próximo campo.
- * Conta em todo o resto, inclusive quando o foco vai para o fundo da página.
+ * **Quando a saída conta** (`saidaConta`): **nunca antes do primeiro gesto da pessoa** (item 130). Gesto é
+ * `pointerdown` ou `keydown` em qualquer lugar do documento, desde que o formulário montou ou recomeçou;
+ * antes dele, todo foco que se move é do programa — o foco automático do diálogo, a armadilha de foco que o
+ * devolve, o menu que ficou aberto atrás — e nenhum é a pessoa deixando o campo. `recomecar()` zera o
+ * gesto, e por isso o clique que abre uma janela não vale dentro dela. Depois do gesto: não conta se o foco
+ * foi para dentro do próprio campo (a seta entre as opções de um grupo) ou para a lista que ele controla por
+ * `aria-controls` (o `Select` de T-04, cuja lista mora num portal); não conta se foi para um link ou para um
+ * elemento com `SAI_SEM_ACUSAR` (Cancelar e o X dos modais), porque sair da tela ou fechar o modal não é
+ * alcançar o próximo campo. Conta em todo o resto, inclusive quando o foco vai para o fundo da página.
  *
  * **Quem calcula os erros é quem usa o gancho**, a partir dos valores de agora: pelo estado, nos
  * componentes controlados (`erros`), ou pelo `FormData` do `<form>`, nos não controlados (`validar`).
@@ -106,7 +110,8 @@ export function primeiroComProblema(campos: readonly string[], erros: ErrosDeCam
 }
 
 /** Se o foco que foi de `de` para `para` conta como a pessoa sair do campo. Ver o cabeçalho. */
-function saidaConta(de: Element, para: EventTarget | null): boolean {
+export function saidaConta(de: Element, para: EventTarget | null, pessoaAgiu: boolean): boolean {
+  if (!pessoaAgiu) return false;
   if (!(para instanceof Element)) return true;
   if (de.contains(para)) return false;
   const controlada = de.getAttribute("aria-controls");
@@ -170,6 +175,22 @@ export function useFormularioTocado(opcoes: OpcoesDoFormulario): FormularioTocad
   const [errosLidos, setErrosLidos] = useState<ErrosDeCampo>({});
   const erros = opcoes.validar === undefined ? opcoes.erros : errosLidos;
 
+  // **O gesto mora numa referência, e não no estado:** ele não pinta nada, só decide a próxima saída. É
+  // lido e escrito só dentro de tratadores de evento.
+  const pessoaAgiu = useRef(false);
+  useEffect(() => {
+    const marcar = () => {
+      pessoaAgiu.current = true;
+    };
+    // **Captura**, para o gesto ser anotado antes de qualquer tratador da página mover o foco.
+    document.addEventListener("pointerdown", marcar, true);
+    document.addEventListener("keydown", marcar, true);
+    return () => {
+      document.removeEventListener("pointerdown", marcar, true);
+      document.removeEventListener("keydown", marcar, true);
+    };
+  }, []);
+
   const aplicar = (evento: EventoDeInteracao) => {
     setEstado((anterior) => interagir(anterior, evento, nomes));
   };
@@ -193,10 +214,15 @@ export function useFormularioTocado(opcoes: OpcoesDoFormulario): FormularioTocad
     // `currentTarget`, e nunca `target`: num grupo, `target` é a opção que perdeu o foco, e a seta para a
     // opção vizinha contaria como saída.
     aoSair: (campo) => (evento) => {
-      if (saidaConta(evento.currentTarget, evento.relatedTarget)) aplicar({ tipo: "saiu", campo });
+      if (saidaConta(evento.currentTarget, evento.relatedTarget, pessoaAgiu.current)) {
+        aplicar({ tipo: "saiu", campo });
+      }
     },
     tentarEnviar,
-    recomecar: () => aplicar({ tipo: "recomecou" }),
+    recomecar: () => {
+      pessoaAgiu.current = false;
+      aplicar({ tipo: "recomecou" });
+    },
     aoMudarNoFormulario: (evento) => {
       if (opcoes.validar !== undefined) setErrosLidos(opcoes.validar(new FormData(evento.currentTarget)));
       const alvo = evento.target;
@@ -206,7 +232,7 @@ export function useFormularioTocado(opcoes: OpcoesDoFormulario): FormularioTocad
     aoSairNoFormulario: (evento) => {
       if (opcoes.validar !== undefined) setErrosLidos(opcoes.validar(new FormData(evento.currentTarget)));
       const alvo = evento.target;
-      if (ehCampoDoFormulario(alvo) && saidaConta(alvo, evento.relatedTarget)) {
+      if (ehCampoDoFormulario(alvo) && saidaConta(alvo, evento.relatedTarget, pessoaAgiu.current)) {
         aplicar({ tipo: "saiu", campo: alvo.name });
       }
     },
