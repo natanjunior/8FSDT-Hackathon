@@ -14,7 +14,8 @@ import {
   rotuloDaFaixa,
 } from "@/interface/componentes/faixa-de-periodo";
 import type { DashboardLido } from "@/aplicacao/dashboard";
-import type { StatusOcorrencia } from "@/dominio/ocorrencia";
+import { STATUS, type StatusOcorrencia } from "@/dominio/ocorrencia";
+import { COR_PADRAO_DA_BARRA, corDoStatusNaBarra, degrauDaEscala } from "@/interface/componentes/cor-das-barras";
 import { duracaoEmTexto, SEM_DURACAO } from "@/interface/componentes/duracao";
 import {
   chaveDaDupla,
@@ -1084,5 +1085,51 @@ describe("tetoDoEixo — o comprimento como parte de um todo", () => {
 describe("fraseDoDenominadorDasDuplas — o todo do quadro 4, impresso", () => {
   it("as registradas do período", () => {
     expect(fraseDoDenominadorDasDuplas(117)).toBe("Parte das 117 registradas no período.");
+  });
+});
+
+describe("degrauDaEscala — a escala dos quadros 2 e 7 (critério 134.8)", () => {
+  it("a primeira barra é o --chart-1 cheio, e cada seguinte desce um degrau", () => {
+    expect([0, 1, 2, 3, 4].map((i) => degrauDaEscala(i).cor)).toStrictEqual([
+      "var(--chart-1)",
+      "var(--chart-1-2)",
+      "var(--chart-1-3)",
+      "var(--chart-1-4)",
+      "var(--chart-1-5)",
+    ]);
+  });
+
+  it("com mais barras que degraus, o último se repete, e nunca sai cor vazia", () => {
+    expect(degrauDaEscala(5).cor).toBe("var(--chart-1-5)");
+    expect(degrauDaEscala(12).cor).toBe("var(--chart-1-5)");
+  });
+
+  it("índice negativo é o primeiro degrau", () => {
+    expect(degrauDaEscala(-1).cor).toBe("var(--chart-1)");
+  });
+
+  it("a escala não tem contorno", () => {
+    expect(degrauDaEscala(0).contorno).toBeUndefined();
+  });
+});
+
+describe("corDoStatusNaBarra — o quadro 6 veste o selo (critério 134.9)", () => {
+  it("o mapa do critério, status a status", () => {
+    expect(corDoStatusNaBarra("aberta")).toStrictEqual({ cor: "var(--accent)" });
+    expect(corDoStatusNaBarra("pausada")).toStrictEqual({ cor: "var(--atencao)", contorno: "var(--ink-soft)" });
+    expect(corDoStatusNaBarra("em_analise")).toStrictEqual({ cor: "var(--ink-soft)" });
+    expect(corDoStatusNaBarra("em_atendimento")).toStrictEqual({ cor: "var(--info)" });
+    expect(corDoStatusNaBarra("resolvida")).toStrictEqual({ cor: "var(--ok)" });
+    expect(corDoStatusNaBarra("cancelada")).toStrictEqual({ cor: "var(--ink-soft)" });
+  });
+
+  it("todo status do domínio tem cor própria no mapa", () => {
+    for (const status of STATUS) {
+      expect(corDoStatusNaBarra(status).cor, status).not.toBe(COR_PADRAO_DA_BARRA);
+    }
+  });
+
+  it("status que o mapa não conhece cai na cor padrão, e a barra continua aparecendo", () => {
+    expect(corDoStatusNaBarra("arquivada")).toStrictEqual({ cor: COR_PADRAO_DA_BARRA });
   });
 });
