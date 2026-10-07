@@ -229,8 +229,8 @@ const PECAS = [
     esperado: {
       "font-size": "11.5px",
       "font-weight": "600",
-      color: "token(--ink)",
-      "background-color": "token(--chrome)",
+      color: "token(--marca-foreground)",
+      "background-color": "token(--accent)",
     },
   },
   {
