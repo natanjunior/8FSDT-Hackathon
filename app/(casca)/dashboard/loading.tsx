@@ -26,10 +26,10 @@ export default function EsperandoODashboard() {
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[minmax(13rem,0.9fr)_3fr]">
-          <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1 lg:content-start">
-            <div className="bg-secondary h-28 animate-pulse rounded-lg" />
-            <div className="bg-secondary h-28 animate-pulse rounded-lg" />
-            <div className="bg-secondary h-28 animate-pulse rounded-lg" />
+          <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
+            <div className="bg-secondary h-28 animate-pulse rounded-lg lg:h-auto" />
+            <div className="bg-secondary h-28 animate-pulse rounded-lg lg:h-auto" />
+            <div className="bg-secondary h-28 animate-pulse rounded-lg lg:h-auto" />
           </div>
           <div className="bg-secondary h-96 animate-pulse rounded-lg" />
         </div>

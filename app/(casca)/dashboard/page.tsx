@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ExternalLink } from "lucide-react";
 
 import { NaoAutenticado } from "@/aplicacao/contexto";
 import { atalhosDaJanela, verDashboard, type AtalhosDaJanela } from "@/aplicacao/dashboard";
@@ -9,6 +10,7 @@ import {
   CartaoDeIndicador,
   rotulosDosMeses,
 } from "@/interface/componentes/blocos-do-dashboard";
+import { corDoStatusNaBarra, degrauDaEscala } from "@/interface/componentes/cor-das-barras";
 import { duracaoEmTexto } from "@/interface/componentes/duracao";
 import {
   chaveDaDupla,
@@ -108,6 +110,7 @@ import { projetarDashboard, type DashboardProjetado } from "@/interface/projecoe
  *
  * **Alvo primário: tela grande** — é a única tela do inventário em que isso é escolha e não concessão.
  * Abaixo de `lg` os cartões viram faixa de três acima do quadro 1; abaixo de `sm`, tudo empilha.
+ * A partir de `lg` os três repartem a altura do quadro 1, e a coluna fecha com ele (item 134).
  */
 export const dynamic = "force-dynamic";
 
@@ -183,7 +186,7 @@ export default async function Dashboard({
         {/* O que recua enquanto o período troca (item 103): tudo abaixo do filtro. */}
         <ConteudoDoPainel>
           <div className="grid gap-4 lg:grid-cols-[minmax(13rem,0.9fr)_3fr]">
-            <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1 lg:content-start">
+            <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
               <EmAbertoAgora dashboard={dashboard} />
               <SaldoDoPeriodo saldo={saldo} />
               <AMaisVelha dashboard={dashboard} />
@@ -286,7 +289,8 @@ function SaldoDoPeriodo({ saldo }: { saldo: Saldo }) {
 
 /**
  * O terceiro cartão: **a idade da mais velha, e o título dela como link**. O título é o que torna o número
- * acionável; um agregado não se abre, uma ocorrência sim.
+ * acionável; um agregado não se abre, uma ocorrência sim. Abre em aba nova (item 134): o painel fica onde
+ * estava.
  */
 function AMaisVelha({ dashboard }: { dashboard: DashboardProjetado }) {
   const [maisVelha] = dashboard.maisVelhasEmAberto;
@@ -301,9 +305,13 @@ function AMaisVelha({ dashboard }: { dashboard: DashboardProjetado }) {
         ) : (
           <Link
             href={`/ocorrencias/${maisVelha.id}`}
+            target="_blank"
+            rel="noreferrer"
             className={cn("text-tinta-marca break-words underline underline-offset-4", CAMADA_DO_TITULO)}
           >
             {maisVelha.titulo}
+            <span className="sr-only">, abre em nova aba</span>
+            <ExternalLink aria-hidden="true" className="text-tinta-suave ml-1 inline size-3.5 align-baseline" />
           </Link>
         )
       }
@@ -379,6 +387,8 @@ function EntradasESaidas({
  *
  * **O tempo em pausa não tem indicador próprio**: a lista mostra o status de cada uma, e quem lê *Pausada*
  * quatro vezes seguidas vê a pausa esquecida sem número novo.
+ *
+ * A escala desce do `--chart-1` pela posição da barra (item 134).
  */
 function EmAbertoPorIdade({ dashboard }: { dashboard: DashboardProjetado }) {
   const titulo = "Em aberto por idade";
@@ -419,12 +429,16 @@ function EmAbertoPorIdade({ dashboard }: { dashboard: DashboardProjetado }) {
             >
               <Link
                 href={`/ocorrencias/${ocorrencia.id}`}
+                target="_blank"
+                rel="noreferrer"
                 className={cn(
                   "text-tinta-marca min-w-0 flex-1 break-words underline underline-offset-4",
                   CAMADA_DO_TITULO,
                 )}
               >
                 {ocorrencia.titulo}
+                <span className="sr-only">, abre em nova aba</span>
+                <ExternalLink aria-hidden="true" className="text-tinta-suave ml-1 inline size-3.5 align-baseline" />
               </Link>
               <SeloDeStatus status={ocorrencia.status} rotulo={ocorrencia.statusRotulo} />
               <span className="text-tinta-suave text-meta tabular-nums">
@@ -437,11 +451,12 @@ function EmAbertoPorIdade({ dashboard }: { dashboard: DashboardProjetado }) {
       <GraficoDeBarras
         larguraDoRotulo={120}
         listaParaLeitor={false}
-        barras={faixas.map((faixa) => ({
+        barras={faixas.map((faixa, indice) => ({
           chave: String(faixa.deDias),
           rotulo: rotuloDaFaixaDeIdade(faixa),
           valor: faixa.quantidade,
           texto: String(faixa.quantidade),
+          ...degrauDaEscala(indice),
         }))}
       />
       <p className="text-tinta-suave text-corpo">{rodapeDaIdade(faixas)}</p>
@@ -614,6 +629,8 @@ function EmAbertoPorCategoria({ dashboard }: { dashboard: DashboardProjetado }) 
  *
  * **Ele conta TUDO o que a organização registrou**, inclusive o que terminou, e o rodapé diz isso: é o
  * que o distingue dos quadros 2 e 5 (critério 56.4).
+ *
+ * Veste a cor de cada selo, e é a única exceção à paleta posicional (item 134).
  */
 function OcorrenciasPorStatus({ dashboard }: { dashboard: DashboardProjetado }) {
   return (
@@ -630,6 +647,7 @@ function OcorrenciasPorStatus({ dashboard }: { dashboard: DashboardProjetado }) 
           rotulo: linha.statusRotulo,
           valor: linha.quantidade,
           texto: String(linha.quantidade),
+          ...corDoStatusNaBarra(linha.status),
         }))}
       />
       <p className="text-tinta-suave text-corpo">
@@ -648,7 +666,8 @@ function OcorrenciasPorStatus({ dashboard }: { dashboard: DashboardProjetado }) 
  * período tem e que nenhuma foi avaliada, o que é do item 81. **As cinco barras ficam, a zero**, pela
  * razão de 32.3: a estrutura ensina o que vai ser medido. Nota 5 em cima, como quem lê espera.
  *
- * O eixo das notas vai até as resolvidas, o mesmo denominador da frase (item 110).
+ * O eixo das notas vai até as resolvidas, o mesmo denominador da frase (item 110). A escala desce do
+ * `--chart-1` pela posição da barra (item 134).
  */
 function Satisfacao({ dashboard }: { dashboard: DashboardProjetado }) {
   const avaliacoes = dashboard.mediaDasAvaliacoes;
@@ -671,11 +690,12 @@ function Satisfacao({ dashboard }: { dashboard: DashboardProjetado }) {
       <GraficoDeBarras
         larguraDoRotulo={72}
         denominador={avaliacoes.resolvidas}
-        barras={[...avaliacoes.distribuicao].reverse().map((nota) => ({
+        barras={[...avaliacoes.distribuicao].reverse().map((nota, indice) => ({
           chave: String(nota.nota),
           rotulo: rotuloDaNota(nota.nota),
           valor: nota.quantidade,
           texto: String(nota.quantidade),
+          ...degrauDaEscala(indice),
         }))}
       />
     </Cartao>

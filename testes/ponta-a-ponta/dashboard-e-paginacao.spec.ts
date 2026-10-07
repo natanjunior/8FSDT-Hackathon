@@ -396,8 +396,11 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   if (totalEmAberto > 0) {
     await expect(maisVelha).toContainText(/\d+ dias?/u);
     await expect(maisVelha.getByRole("link")).toHaveAttribute("href", /^\/ocorrencias\//u);
+    await expect(maisVelha.getByRole("link")).toHaveAttribute("target", "_blank");
+    await expect(maisVelha.getByRole("link")).toHaveAccessibleName(/, abre em nova aba$/u);
   } else {
     await expect(maisVelha).toContainText("nada em aberto");
+    await expect(maisVelha.getByRole("link")).toHaveCount(0);
   }
 
   cobre(test.info(), "7.2 · 8", {
@@ -486,14 +489,19 @@ test("o dashboard e a paginação contra a semente, com a linha de novidades", a
   expect(quantasVelhas).toBeLessThanOrEqual(5);
   for (let i = 0; i < quantasVelhas; i += 1) {
     await expect(maisVelhas.nth(i).getByRole("link")).toHaveAttribute("href", /^\/ocorrencias\//u);
+    await expect(maisVelhas.nth(i).getByRole("link")).toHaveAttribute("target", "_blank");
+    await expect(maisVelhas.nth(i).getByRole("link")).toHaveAccessibleName(/, abre em nova aba$/u);
     await expect(maisVelhas.nth(i)).toContainText(/\d+ dias?$/u);
   }
 
-  // **Clicar no título leva à ocorrência**, e o voltar do navegador devolve o painel.
-  await maisVelhas.first().getByRole("link").click();
-  await helena.waitForURL(/\/ocorrencias\/[^/?]+$/u);
-  await helena.goBack();
-  await helena.waitForURL(/\/dashboard$/u);
+  // **Clicar no título abre a ocorrência numa aba nova** (item 134), e o painel fica onde estava.
+  const [abaNova] = await Promise.all([
+    helena.context().waitForEvent("page"),
+    maisVelhas.first().getByRole("link").click(),
+  ]);
+  await abaNova.waitForURL(/\/ocorrencias\/[^/?]+$/u);
+  await abaNova.close();
+  await expect(helena).toHaveURL(/\/dashboard$/u);
 
   // **As quatro faixas se leem pela tabela do `Ver dados`**, e não pela lista para leitor de tela: este
   // quadro tem `Ver dados`, e por isso a dispensa.

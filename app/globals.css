@@ -185,22 +185,25 @@
 
   /* A tinta da ação principal, sobre o laranja da marca. **Não inverte entre temas**, e é por isso
      que não pode ser `var(--ink)`: ela inverte, e no claro daria 4,23:1. Este mede **4,61:1 no
-     claro e 6,64:1 no escuro**, convertendo o `oklch` para luminância relativa. Um consumidor
-     só — a variante `marca` do botão. Item 44d, critério 8. */
+     claro e 6,64:1 no escuro**, convertendo o `oklch` para luminância relativa. É a tinta escura
+     sobre fundo de marca, âmbar, verde, azul e tinta suave. Item 44d, critério 8. */
   --marca-foreground: oklch(0.1808 0.0095 255.6419);
 
   /* ---- A paleta categórica, e o que sobrou do inventário ------------------
      O gráfico de T-07 se liga a var(--chart-1) e var(--chart-2) — duas linhas,
-     registradas e resolvidas, desde o item 57. O --chart-4 veste as barras de
-     valor único desde o item 105; o --chart-3 fica medido e sem consumidor.
-     Os valores
-     do autor do tema não serviam como paleta categórica — --chart-3 tinha
-     croma 0,06 e lia como cinza, e --chart-1 e --chart-3 ficavam a cinco graus
-     de matiz um do outro. Estes foram medidos: croma acima de 0,10 nos três
-     coloridos, ΔEok de pelo menos 0,15 entre cada par, e 3:1 contra a
-     superfície do próprio modo. Quem os segura é o testes/interface/tema.test.ts.
-     O --chart-4 é o cinza que era o chão da pilha: croma 0,015, e a
-     luminosidade dele vai na direção da tinta do modo.
+     registradas e resolvidas, desde o item 57. Desde o item 134 o --chart-1
+     veste também as barras: cheio nos quadros 4 e 5, e abrindo a escala dos
+     quadros 2 e 7, que desce até --chart-1-5 perdendo croma (um cinza quente
+     no fim). O quadro 6 veste as cores do status, e é a exceção. O --chart-3
+     e o --chart-4 ficam medidos e sem consumidor.
+     Os valores do autor do tema não serviam como paleta categórica: o
+     --chart-3 tinha croma 0,06 e lia como cinza, e o --chart-1 e o --chart-3
+     ficavam a cinco graus de matiz um do outro. Estes foram medidos: croma
+     acima de 0,10 nos três coloridos, ΔEok de pelo menos 0,15 entre cada par,
+     e 3:1 contra a superfície do próprio modo. Quem os segura é o
+     testes/interface/tema.test.ts. O --chart-4 é o cinza que era o chão da
+     pilha: croma 0,015, e a luminosidade dele vai na direção da tinta do
+     modo; está medido e sem consumidor desde o item 134.
      O --chart-5 continua sem consumidor e fica no valor do autor do tema.
      As sombras são diferentes: shadow-xs JÁ tem consumidor — o input.tsx e a
      variante outline do button.tsx. A entrada do Recharts está na ADR-0010. */
@@ -209,7 +212,11 @@
   --chart-3: oklch(0.5207 0.1259 152.1651);
   --chart-4: oklch(0.4000 0.0150 264.2756);
   --chart-5: oklch(0.7288 0.1150 84.3842);
-
+  /* A escala do --chart-1 (item 134): os quadros 2 e 7, pela posição da barra. */
+  --chart-1-2: oklch(0.5868 0.1037 47.8902);
+  --chart-1-3: oklch(0.6112 0.0791 47.8902);
+  --chart-1-4: oklch(0.6356 0.0546 47.8902);
+  --chart-1-5: oklch(0.6600 0.0300 47.8902);
 
   --shadow-2xs: 0px 1px 4px -1px hsl(220.0000 15.7895% 11.1765% / 0.04);
   --shadow-xs: 0px 1px 4px -1px hsl(220.0000 15.7895% 11.1765% / 0.04);
@@ -263,7 +270,10 @@
     --chart-3: oklch(0.5990 0.1193 152.4834);
     --chart-4: oklch(0.7200 0.0150 264.2756);
     --chart-5: oklch(0.7959 0.1048 86.4619);
-
+    --chart-1-2: oklch(0.6077 0.1124 45.6654);
+    --chart-1-3: oklch(0.5951 0.0849 45.6654);
+    --chart-1-4: oklch(0.5826 0.0575 45.6654);
+    --chart-1-5: oklch(0.5700 0.0300 45.6654);
 
     --shadow-2xs: 0px 1px 3px 0px hsl(0 0% 10.1961% / 0.05);
     --shadow-xs: 0px 1px 3px 0px hsl(0 0% 10.1961% / 0.05);
@@ -303,7 +313,10 @@
   --chart-3: oklch(0.5990 0.1193 152.4834);
   --chart-4: oklch(0.7200 0.0150 264.2756);
   --chart-5: oklch(0.7959 0.1048 86.4619);
-
+  --chart-1-2: oklch(0.6077 0.1124 45.6654);
+  --chart-1-3: oklch(0.5951 0.0849 45.6654);
+  --chart-1-4: oklch(0.5826 0.0575 45.6654);
+  --chart-1-5: oklch(0.5700 0.0300 45.6654);
 
   --shadow-2xs: 0px 1px 3px 0px hsl(0 0% 10.1961% / 0.05);
   --shadow-xs: 0px 1px 3px 0px hsl(0 0% 10.1961% / 0.05);
@@ -360,6 +373,10 @@
   --chart-3: oklch(0.7800 0.1100 152.0000);
   --chart-4: oklch(0.9000 0.0100 264.0000);
   --chart-5: oklch(0.8400 0.1100 86.0000);
+  --chart-1-2: oklch(0.7600 0.0975 47.0000);
+  --chart-1-3: oklch(0.7400 0.0750 47.0000);
+  --chart-1-4: oklch(0.7200 0.0525 47.0000);
+  --chart-1-5: oklch(0.7000 0.0300 47.0000);
 
   --shadow-2xs: 0px 1px 3px 0px hsl(0 0% 10.1961% / 0.05);
   --shadow-xs: 0px 1px 3px 0px hsl(0 0% 10.1961% / 0.05);

@@ -14,7 +14,8 @@ import {
   rotuloDaFaixa,
 } from "@/interface/componentes/faixa-de-periodo";
 import type { DashboardLido } from "@/aplicacao/dashboard";
-import type { StatusOcorrencia } from "@/dominio/ocorrencia";
+import { STATUS, type StatusOcorrencia } from "@/dominio/ocorrencia";
+import { COR_PADRAO_DA_BARRA, corDoStatusNaBarra, degrauDaEscala } from "@/interface/componentes/cor-das-barras";
 import { duracaoEmTexto, SEM_DURACAO } from "@/interface/componentes/duracao";
 import {
   chaveDaDupla,
@@ -52,7 +53,9 @@ import {
 } from "@/interface/componentes/indicadores-do-painel";
 import {
   celulasDoTempo,
+  rotuloDaSerie,
   SEM_RESOLUCAO_NO_MES,
+  umaCasa,
   unidadeDoEixo,
   vereditoDoTempo,
   type MesDoTempoDeResolucao,
@@ -553,6 +556,19 @@ describe("unidadeDoEixo — segue a magnitude do maior valor desenhado", () => {
     [604, { divisor: 24, sufixo: "d" }],
   ])("%f h → %o", (maior, esperado) => {
     expect(unidadeDoEixo(maior)).toStrictEqual(esperado);
+  });
+});
+
+describe("umaCasa e rotuloDaSerie — o que o tooltip do quadro 3 escreve", () => {
+  it("arredonda a uma casa, e o buraco continua buraco", () => {
+    expect(umaCasa(77 / 24)).toBe(3.2);
+    expect(umaCasa(3.04)).toBe(3);
+    expect(umaCasa(null)).toBeNull();
+  });
+
+  it("o nome da série leva a unidade do eixo", () => {
+    expect(rotuloDaSerie("p90", { divisor: 24, sufixo: "d" })).toBe("p90 (d)");
+    expect(rotuloDaSerie("Mediana", { divisor: 1, sufixo: "h" })).toBe("Mediana (h)");
   });
 });
 
@@ -1084,5 +1100,112 @@ describe("tetoDoEixo — o comprimento como parte de um todo", () => {
 describe("fraseDoDenominadorDasDuplas — o todo do quadro 4, impresso", () => {
   it("as registradas do período", () => {
     expect(fraseDoDenominadorDasDuplas(117)).toBe("Parte das 117 registradas no período.");
+  });
+});
+
+describe("degrauDaEscala — a escala dos quadros 2 e 7 (critério 134.8)", () => {
+  it("a primeira barra é o --chart-1 cheio, e cada seguinte desce um degrau", () => {
+    expect([0, 1, 2, 3, 4].map((i) => degrauDaEscala(i).cor)).toStrictEqual([
+      "var(--chart-1)",
+      "var(--chart-1-2)",
+      "var(--chart-1-3)",
+      "var(--chart-1-4)",
+      "var(--chart-1-5)",
+    ]);
+  });
+
+  it("com mais barras que degraus, o último se repete, e nunca sai cor vazia", () => {
+    expect(degrauDaEscala(5).cor).toBe("var(--chart-1-5)");
+    expect(degrauDaEscala(12).cor).toBe("var(--chart-1-5)");
+  });
+
+  it("índice negativo é o primeiro degrau", () => {
+    expect(degrauDaEscala(-1).cor).toBe("var(--chart-1)");
+  });
+
+  it("a escala não tem contorno", () => {
+    expect(degrauDaEscala(0).contorno).toBeUndefined();
+  });
+});
+
+describe("corDoStatusNaBarra — o quadro 6 veste o selo (critério 134.9)", () => {
+  it("o mapa do critério, status a status", () => {
+    expect(corDoStatusNaBarra("aberta")).toStrictEqual({ cor: "var(--accent)" });
+    expect(corDoStatusNaBarra("pausada")).toStrictEqual({ cor: "var(--atencao)", contorno: "var(--ink-soft)" });
+    expect(corDoStatusNaBarra("em_analise")).toStrictEqual({ cor: "var(--ink-soft)" });
+    expect(corDoStatusNaBarra("em_atendimento")).toStrictEqual({ cor: "var(--info)" });
+    expect(corDoStatusNaBarra("resolvida")).toStrictEqual({ cor: "var(--ok)" });
+    expect(corDoStatusNaBarra("cancelada")).toStrictEqual({ cor: "var(--ink-soft)" });
+  });
+
+  it("todo status do domínio tem cor própria no mapa", () => {
+    for (const status of STATUS) {
+      expect(corDoStatusNaBarra(status).cor, status).not.toBe(COR_PADRAO_DA_BARRA);
+    }
+  });
+
+  it("a cor da barra é a do selo: o selo mudar de cor sem a barra é o defeito que este teste pega", () => {
+    const selo = ler("src/interface/componentes/selo-de-status.tsx");
+    const tabela: ReadonlyArray<readonly [string, string, string]> = [
+      ["aberta", "bg-marca", "var(--accent)"],
+      ["pausada", "bg-atencao", "var(--atencao)"],
+      ["em_analise", "bg-tinta-suave", "var(--ink-soft)"],
+      ["em_atendimento", "bg-info", "var(--info)"],
+      ["resolvida", "text-ok", "var(--ok)"],
+      ["cancelada", "text-tinta-suave", "var(--ink-soft)"],
+    ];
+    for (const [status, classe, token] of tabela) {
+      const linha = new RegExp(`^\\s*${status}: "([^"]*)"`, "mu").exec(selo)?.[1] ?? "";
+      expect(linha.split(/\s+/u), status).toContain(classe);
+      expect(corDoStatusNaBarra(status).cor, status).toBe(token);
+    }
+  });
+
+  it("status que o mapa não conhece cai na cor padrão, e a barra continua aparecendo", () => {
+    expect(corDoStatusNaBarra("arquivada")).toStrictEqual({ cor: COR_PADRAO_DA_BARRA });
+  });
+});
+
+describe("os gráficos de T-07 respondem ao ponteiro (critério 134.6)", () => {
+  it("com o tooltip do catálogo, como o quadro 1", () => {
+    for (const arquivo of ["grafico-de-barras", "grafico-do-fluxo-mensal", "grafico-do-tempo-de-resolucao"]) {
+      expect(ler(`src/interface/componentes/${arquivo}.tsx`), arquivo).toContain(
+        "<ChartTooltip content={<ChartTooltipContent />} />",
+      );
+    }
+  });
+});
+
+describe("o painel do item 134", () => {
+  const pagina = ler("app/(casca)/dashboard/page.tsx");
+  const funcao = (nome: string): string =>
+    new RegExp(`function ${nome}\\([\\s\\S]*?\\n\\}\\r?\\n`, "u").exec(pagina)?.[0] ?? "";
+
+  it("os três cartões repartem a altura do quadro 1, sem altura fixa (critério 134.4)", () => {
+    expect(pagina).toContain('<div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">');
+    expect(pagina).not.toContain("lg:content-start");
+    // O esqueleto acompanha, para o conteúdo não saltar ao chegar.
+    const esqueleto = ler("app/(casca)/dashboard/loading.tsx");
+    expect(esqueleto).not.toContain("lg:content-start");
+    expect(esqueleto.match(/h-28 animate-pulse rounded-lg lg:h-auto/gu)).toHaveLength(3);
+  });
+
+  it("os dois links de ocorrência abrem em aba nova, e dizem isso (critério 134.5)", () => {
+    for (const nome of ["AMaisVelha", "EmAbertoPorIdade"]) {
+      const corpo = funcao(nome);
+      expect(corpo, nome).toMatch(/href=\{`\/ocorrencias\/\$\{[^}]+\}`\}\s*target="_blank"\s*rel="noreferrer"/u);
+      expect(corpo, nome).toContain('<span className="sr-only">, abre em nova aba</span>');
+      expect(corpo, nome).toMatch(/<ExternalLink aria-hidden="true"/u);
+    }
+  });
+
+  it("as cores: escala no 2 e no 7, status no 6, padrão no 4 e no 5 (critérios 134.7 a 134.9)", () => {
+    expect(funcao("EmAbertoPorIdade")).toContain("degrauDaEscala(indice)");
+    expect(funcao("Satisfacao")).toContain("degrauDaEscala(indice)");
+    expect(funcao("OcorrenciasPorStatus")).toContain("corDoStatusNaBarra(linha.status)");
+    expect(funcao("EmAbertoPorCategoria")).not.toBe("");
+    expect(funcao("OQueEstaVoltando")).not.toBe("");
+    expect(funcao("EmAbertoPorCategoria")).not.toMatch(/\bcor:/u);
+    expect(funcao("OQueEstaVoltando")).not.toMatch(/\bcor:/u);
   });
 });
