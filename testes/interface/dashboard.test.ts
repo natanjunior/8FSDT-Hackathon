@@ -1143,3 +1143,35 @@ describe("os gráficos de T-07 respondem ao ponteiro (critério 134.6)", () => {
     }
   });
 });
+
+describe("o painel do item 134", () => {
+  const pagina = ler("app/(casca)/dashboard/page.tsx");
+  const funcao = (nome: string): string =>
+    new RegExp(`function ${nome}\\([\\s\\S]*?\\n\\}\\r?\\n`, "u").exec(pagina)?.[0] ?? "";
+
+  it("os três cartões repartem a altura do quadro 1, sem altura fixa (critério 134.4)", () => {
+    expect(pagina).toContain('<div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">');
+    expect(pagina).not.toContain("lg:content-start");
+    // O esqueleto acompanha, para o conteúdo não saltar ao chegar.
+    const esqueleto = ler("app/(casca)/dashboard/loading.tsx");
+    expect(esqueleto).not.toContain("lg:content-start");
+    expect(esqueleto.match(/h-28 animate-pulse rounded-lg lg:h-auto/gu)).toHaveLength(3);
+  });
+
+  it("os dois links de ocorrência abrem em aba nova, e dizem isso (critério 134.5)", () => {
+    for (const nome of ["AMaisVelha", "EmAbertoPorIdade"]) {
+      const corpo = funcao(nome);
+      expect(corpo, nome).toMatch(/href=\{`\/ocorrencias\/\$\{[^}]+\}`\}\s*target="_blank"\s*rel="noreferrer"/u);
+      expect(corpo, nome).toContain('<span className="sr-only">, abre em nova aba</span>');
+      expect(corpo, nome).toMatch(/<ExternalLink aria-hidden="true"/u);
+    }
+  });
+
+  it("as cores: escala no 2 e no 7, status no 6, padrão no 4 e no 5 (critérios 134.7 a 134.9)", () => {
+    expect(funcao("EmAbertoPorIdade")).toContain("degrauDaEscala(indice)");
+    expect(funcao("Satisfacao")).toContain("degrauDaEscala(indice)");
+    expect(funcao("OcorrenciasPorStatus")).toContain("corDoStatusNaBarra(linha.status)");
+    expect(funcao("EmAbertoPorCategoria")).not.toMatch(/\bcor:/u);
+    expect(funcao("OQueEstaVoltando")).not.toMatch(/\bcor:/u);
+  });
+});
