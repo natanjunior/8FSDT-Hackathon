@@ -2,7 +2,7 @@
 
 import { CartesianGrid, LabelList, Line, LineChart, XAxis, YAxis } from "recharts";
 
-import type { UnidadeDoEixo } from "@/interface/componentes/tempo-de-resolucao";
+import { rotuloDaSerie, umaCasa, type UnidadeDoEixo } from "@/interface/componentes/tempo-de-resolucao";
 import {
   ChartContainer,
   ChartTooltip,
@@ -31,8 +31,8 @@ import {
  * **`aria-hidden`, sem legenda e sem animação**, pelas razões do gráfico do fluxo. A alternativa textual
  * é a tabela do `Ver dados`.
  *
- * **O tooltip é o do quadro 1** (item 134), só de ponteiro: o valor sai na unidade do eixo, que está escrita
- * nos rótulos dele.
+ * **O tooltip é o do quadro 1** (item 134), só de ponteiro: o valor sai arredondado a uma casa, na unidade
+ * do eixo, e a unidade vai no nome da série (`p90 (d)`).
  *
  * **`accessibilityLayer={false}` escrito à mão**, pela razão de `grafico-do-fluxo-mensal.tsx`: no
  * Recharts 3 a camada vem ligada e torna o `svg` focável, e foco dentro de `aria-hidden` é defeito.
@@ -40,10 +40,10 @@ import {
 
 export type PontoDoTempo = { rotulo: string; mediana: number | null; p90: number | null };
 
-const CONFIGURACAO: ChartConfig = {
-  p90: { label: "p90", color: "var(--chart-1)" },
-  mediana: { label: "Mediana", color: "var(--chart-2)" },
-};
+const configuracaoDe = (unidade: UnidadeDoEixo): ChartConfig => ({
+  p90: { label: rotuloDaSerie("p90", unidade), color: "var(--chart-1)" },
+  mediana: { label: rotuloDaSerie("Mediana", unidade), color: "var(--chart-2)" },
+});
 
 /** A distância do ponto ao texto, em px: o `●` em `meta` tem cerca de 8 px, e o resto é respiro. */
 const RECUO_DO_TEXTO = 12;
@@ -80,10 +80,10 @@ export function GraficoDoTempoDeResolucao({
   return (
     <ChartContainer
       aria-hidden
-      config={CONFIGURACAO}
+      config={configuracaoDe(unidade)}
       className="aspect-auto h-56 w-full [&_.recharts-cartesian-axis-tick_text]:text-meta"
     >
-      <LineChart accessibilityLayer={false} data={[...pontos]} margin={{ top: 24, right: 120 + RECUO_DO_TEXTO, bottom: 0, left: 4 }}>
+      <LineChart accessibilityLayer={false} data={pontos.map((ponto) => ({ ...ponto, mediana: umaCasa(ponto.mediana), p90: umaCasa(ponto.p90) }))} margin={{ top: 24, right: 120 + RECUO_DO_TEXTO, bottom: 0, left: 4 }}>
         <CartesianGrid vertical={false} />
         <XAxis dataKey="rotulo" tickLine={false} axisLine={false} tickMargin={8} interval={0} />
         <YAxis

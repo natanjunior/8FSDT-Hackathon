@@ -59,6 +59,16 @@ export function unidadeDoEixo(maiorEmHoras: number): UnidadeDoEixo {
   return { divisor: 1 / 60, sufixo: "min" };
 }
 
+/** Uma casa decimal, para o que o tooltip escreve; o buraco (`null`) continua buraco. */
+export function umaCasa(valor: number | null): number | null {
+  return valor === null ? null : Math.round(valor * 10) / 10;
+}
+
+/** O nome da série com a unidade do eixo: `p90 (d)`. É o que o tooltip escreve ao lado do número. */
+export function rotuloDaSerie(nome: string, unidade: UnidadeDoEixo): string {
+  return `${nome} (${unidade.sufixo})`;
+}
+
 /**
  * **O veredito fala do mês mais recente que teve resolução.** Com p90, a mediana e o p90 em palavra;
  * com amostra pequena, as durações uma a uma, porque p90 de três pontos é valor que ninguém observou.

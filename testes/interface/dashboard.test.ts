@@ -53,7 +53,9 @@ import {
 } from "@/interface/componentes/indicadores-do-painel";
 import {
   celulasDoTempo,
+  rotuloDaSerie,
   SEM_RESOLUCAO_NO_MES,
+  umaCasa,
   unidadeDoEixo,
   vereditoDoTempo,
   type MesDoTempoDeResolucao,
@@ -554,6 +556,19 @@ describe("unidadeDoEixo — segue a magnitude do maior valor desenhado", () => {
     [604, { divisor: 24, sufixo: "d" }],
   ])("%f h → %o", (maior, esperado) => {
     expect(unidadeDoEixo(maior)).toStrictEqual(esperado);
+  });
+});
+
+describe("umaCasa e rotuloDaSerie — o que o tooltip do quadro 3 escreve", () => {
+  it("arredonda a uma casa, e o buraco continua buraco", () => {
+    expect(umaCasa(77 / 24)).toBe(3.2);
+    expect(umaCasa(3.04)).toBe(3);
+    expect(umaCasa(null)).toBeNull();
+  });
+
+  it("o nome da série leva a unidade do eixo", () => {
+    expect(rotuloDaSerie("p90", { divisor: 24, sufixo: "d" })).toBe("p90 (d)");
+    expect(rotuloDaSerie("Mediana", { divisor: 1, sufixo: "h" })).toBe("Mediana (h)");
   });
 });
 
@@ -1129,6 +1144,23 @@ describe("corDoStatusNaBarra — o quadro 6 veste o selo (critério 134.9)", () 
     }
   });
 
+  it("a cor da barra é a do selo: o selo mudar de cor sem a barra é o defeito que este teste pega", () => {
+    const selo = ler("src/interface/componentes/selo-de-status.tsx");
+    const tabela: ReadonlyArray<readonly [string, string, string]> = [
+      ["aberta", "bg-marca", "var(--accent)"],
+      ["pausada", "bg-atencao", "var(--atencao)"],
+      ["em_analise", "bg-tinta-suave", "var(--ink-soft)"],
+      ["em_atendimento", "bg-info", "var(--info)"],
+      ["resolvida", "text-ok", "var(--ok)"],
+      ["cancelada", "text-tinta-suave", "var(--ink-soft)"],
+    ];
+    for (const [status, classe, token] of tabela) {
+      const linha = new RegExp(`^\\s*${status}: "([^"]*)"`, "mu").exec(selo)?.[1] ?? "";
+      expect(linha.split(/\s+/u), status).toContain(classe);
+      expect(corDoStatusNaBarra(status).cor, status).toBe(token);
+    }
+  });
+
   it("status que o mapa não conhece cai na cor padrão, e a barra continua aparecendo", () => {
     expect(corDoStatusNaBarra("arquivada")).toStrictEqual({ cor: COR_PADRAO_DA_BARRA });
   });
@@ -1171,6 +1203,8 @@ describe("o painel do item 134", () => {
     expect(funcao("EmAbertoPorIdade")).toContain("degrauDaEscala(indice)");
     expect(funcao("Satisfacao")).toContain("degrauDaEscala(indice)");
     expect(funcao("OcorrenciasPorStatus")).toContain("corDoStatusNaBarra(linha.status)");
+    expect(funcao("EmAbertoPorCategoria")).not.toBe("");
+    expect(funcao("OQueEstaVoltando")).not.toBe("");
     expect(funcao("EmAbertoPorCategoria")).not.toMatch(/\bcor:/u);
     expect(funcao("OQueEstaVoltando")).not.toMatch(/\bcor:/u);
   });

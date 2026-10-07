@@ -16,7 +16,8 @@
  * `--marca`, e o token que existe como variável é o `--accent`.
  *
  * **O contorno de *Pausada*** (respostas.md P2): o âmbar mede 1,90:1 no branco, e o contorno em tinta suave
- * é quem passa o piso de 3:1. É o mesmo sinal que o marcador de *Pausada* tem na régua do ciclo.
+ * é quem passa o piso de 3:1. É a mesma tinta do contorno do marcador de *Pausada* na régua do
+ * ciclo, contínua aqui porque numa barra de 22 px o tracejado vira textura.
  */
 
 export type CorDaBarra = { cor: string; contorno?: string };
