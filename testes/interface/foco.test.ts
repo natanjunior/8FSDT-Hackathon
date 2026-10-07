@@ -86,6 +86,14 @@ describe("o contorno da base volta a valer — critérios 94.1, 94.2 e 94.3", ()
     expect(culpados, AVISO).toEqual([]);
   });
 
+  it("nenhum consumidor recoloca a borda da casa ativa do código, que o catálogo tirou (critério 134.2)", () => {
+    // A sonda do 134 mediu duas marcas na casa ativa: o anel do `input-otp` e a borda que o
+    // `campo-de-codigo.tsx` repunha por cima. O anel é a marca; a borda fica a de repouso.
+    const RECOLORE = /\b(?:focus-visible|has-\[:focus-visible\]|data-\[active=true\]):border-(?!destructive\b)[\w-]+/u;
+    const culpados = arquivos(COMPONENTES).filter((caminho) => RECOLORE.test(semComentarios(ler(caminho))));
+    expect(culpados, AVISO).toEqual([]);
+  });
+
   it("o input-otp e o calendar guardam o anel, que é a marca deles (critério 134.2)", () => {
     expect(semComentarios(ler(`${UI}/input-otp.tsx`))).toContain("data-[active=true]:ring-2 data-[active=true]:ring-ring");
     expect(semComentarios(ler(`${UI}/calendar.tsx`))).toContain("has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring");
