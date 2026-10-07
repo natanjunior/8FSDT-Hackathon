@@ -2,9 +2,15 @@
 
 import { Bar, BarChart, LabelList, Rectangle, XAxis, YAxis, type RectangleProps } from "recharts";
 
-import { ChartContainer, type ChartConfig } from "@/interface/componentes/ui/chart";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/interface/componentes/ui/chart";
 import { useIsMobile } from "@/interface/ganchos/use-mobile";
 
+import { COR_PADRAO_DA_BARRA } from "./cor-das-barras";
 import { tetoDoEixo } from "./teto-do-eixo";
 
 /**
@@ -13,10 +19,14 @@ import { tetoDoEixo } from "./teto-do-eixo";
  * ============================================================================
  *
  * **Bar horizontal do catálogo, com `LabelList`** (item 73): a idade, o que está voltando, a categoria, o
- * status e as notas. Toda barra é `--chart-4`, o cinza medido da paleta, **nenhuma cor semântica**, e o
- * valor vem escrito à direita de cada barra, então a comparação não depende de ler comprimento. **Não é
- * `--chart-1`** (item 105): o laranja da série tem a matiz da marca, e vinte barras dele faziam da cor da
- * ação uma textura. O `--chart-1` fica nas duas linhas, onde precisa de identidade contra o `--chart-2`.
+ * status e as notas. **Toda barra é `--chart-1` por padrão** (item 134, que desfez o cinza do 105 com o
+ * produto na tela), e o quadro pode passar a cor de cada barra: a escala posicional nos quadros 2 e 7, as
+ * cores do status no 6 (`cor-das-barras.ts`). O valor vem escrito à direita de cada barra, então a
+ * comparação nunca depende de ler cor nem comprimento. **A cor viaja no dado, no campo `fill`**, e é de lá
+ * que o `shape` e o quadradinho do tooltip a leem.
+ *
+ * **O tooltip é só de ponteiro** (item 134): o SVG segue `aria-hidden`, e quem usa teclado tem o número
+ * escrito e a lista.
  *
  * **O que o Recharts 3 cobra, e a validação já mediu:** o `layout="vertical"` fica no `BarChart` e **não se
  * repete no `<Bar>`**, que é quebra documentada da v3; o eixo de valor é `XAxis type="number" hide`; e o
@@ -51,9 +61,13 @@ export type BarraDoGrafico = {
   valor: number;
   /** O que o `LabelList` escreve à direita da barra. */
   texto: string;
+  /** A cor da barra, um `var(--…)`. Sem ela, o `--chart-1`. Quem escolhe é o quadro (item 134). */
+  cor?: string;
+  /** O contorno, só onde o preenchimento não passa 3:1 sozinho: a *Pausada* do quadro 6. */
+  contorno?: string;
 };
 
-const CONFIGURACAO: ChartConfig = { valor: { label: "Quantidade", color: "var(--chart-4)" } };
+const CONFIGURACAO: ChartConfig = { valor: { label: "Quantidade", color: COR_PADRAO_DA_BARRA } };
 const ALTURA_DA_LINHA = 36;
 const ALTURA_DA_BARRA = 22;
 /** Largura média de um caractere do papel `meta`, em px — é o que reserva a margem do texto de valor. */
@@ -100,7 +114,7 @@ export function GraficoDeBarras({
       >
         <BarChart
           accessibilityLayer={false}
-          data={[...barras]}
+          data={barras.map((barra) => ({ ...barra, fill: barra.cor ?? COR_PADRAO_DA_BARRA }))}
           layout="vertical"
           margin={{ top: 4, right: maiorTexto * LARGURA_DO_CARACTERE + 16, bottom: 4, left: 0 }}
         >
@@ -126,13 +140,21 @@ export function GraficoDeBarras({
                 : true
             }
           />
+          <ChartTooltip content={<ChartTooltipContent />} />
           <Bar
             dataKey="valor"
-            fill="var(--color-valor)"
             radius={4}
             barSize={ALTURA_DA_BARRA}
             isAnimationActive={false}
-            shape={(props: RectangleProps) => <Rectangle {...props} radius={4} />}
+            shape={(props: RectangleProps & { payload?: BarraDoGrafico & { fill: string } }) => (
+              <Rectangle
+                {...props}
+                radius={4}
+                fill={props.payload?.fill ?? COR_PADRAO_DA_BARRA}
+                stroke={props.payload?.contorno ?? "none"}
+                strokeWidth={props.payload?.contorno === undefined ? 0 : 1}
+              />
+            )}
           >
             <LabelList
               dataKey="texto"

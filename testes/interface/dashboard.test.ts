@@ -1133,3 +1133,13 @@ describe("corDoStatusNaBarra — o quadro 6 veste o selo (critério 134.9)", () 
     expect(corDoStatusNaBarra("arquivada")).toStrictEqual({ cor: COR_PADRAO_DA_BARRA });
   });
 });
+
+describe("os gráficos de T-07 respondem ao ponteiro (critério 134.6)", () => {
+  it("com o tooltip do catálogo, como o quadro 1", () => {
+    for (const arquivo of ["grafico-de-barras", "grafico-do-fluxo-mensal"]) {
+      expect(ler(`src/interface/componentes/${arquivo}.tsx`), arquivo).toContain(
+        "<ChartTooltip content={<ChartTooltipContent />} />",
+      );
+    }
+  });
+});
