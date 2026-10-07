@@ -20,6 +20,10 @@ mais velha. **O saldo responde à pergunta da página**, se a fila está crescen
 escrito e nunca pela cor, porque saldo positivo pode ser a organização começando a usar o produto. Saiu
 quer dizer resolvida ou cancelada.
 
+![Topo do painel: o período escolhido, os três números em coluna e o primeiro quadro ao lado](capturas/painel-topo.png)
+
+**Data da captura:** 06/10/2026, na demonstração que acompanha o produto, e não em uso real.
+
 ## Os sete quadros
 
 Abaixo vêm sete quadros, e cada um escreve a pergunta de decisão que responde:
@@ -33,6 +37,8 @@ Abaixo vêm sete quadros, e cada um escreve a pergunta de decisão que responde:
 | 5 | Em aberto por categoria | Onde está o trabalho que não terminou? |
 | 6 | Ocorrências por status | Como se distribui tudo o que já foi registrado? |
 | 7 | Satisfação | Quem foi atendido ficou satisfeito? |
+
+![Os quadros 2 a 7 do painel, em duas colunas](capturas/painel-quadros.png)
 
 ## A forma de cada gráfico
 
