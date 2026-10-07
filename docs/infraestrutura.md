@@ -101,6 +101,18 @@ anterior. Depois dele a esteira confere duas coisas: que a URL pública responde
 ar não ganhou link quebrado. Entre as duas, as revisões que ficaram sem tráfego são desativadas, porque
 em modo múltiplo uma revisão antiga continuaria segurando a réplica que a entrega acabou de pagar.
 
+O desenho acima é a forma. Abaixo está uma execução dela, disparada por uma mesclagem em `main`.
+
+![Grafo dos empregos da esteira, com as três conferências do começo lado a lado e o tempo medido de cada emprego](capturas/esteira-grafo.png)
+
+![A execução inteira, concluída com sucesso em 9m43, com os seis empregos verdes na lateral](capturas/esteira-execucao.png)
+
+**Data da captura:** 06/10/2026, execução 42.
+
+O tempo é dominado pelas duas conferências longas do começo, e elas correm lado a lado: o custo é o da
+mais lenta, e não o da soma das três. Menos de dez minutos da mesclagem até a URL no ar é a ordem de
+grandeza que deixa entregar várias vezes num mesmo dia.
+
 ## Voltar atrás
 
 O Container Apps guarda as revisões anteriores, e voltar é reativar uma delas e redirecionar o tráfego para

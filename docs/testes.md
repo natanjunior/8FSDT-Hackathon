@@ -57,6 +57,20 @@ não escreveu, ou que não carrega regra.
 Um número sem data envelhece sem avisar. Este é remedido quando o pacote da entrega fecha, junto das
 outras medidas feitas à mão.
 
+A esteira remede a cada entrega e publica o resultado no sumário do emprego, sem recorte nenhum. Na
+execução abaixo, os 3037 testes de 68 arquivos passaram, e o total ficou em 50,87% de linhas
+sobre 422 arquivos. A tabela acima vem do mesmo comando, lida por recorte e duas semanas antes.
+
+![Sumário do emprego Verificar: 68 arquivos de teste e 3037 testes, todos passando, e a tabela de cobertura com 50,87% de linhas no total](capturas/portao-testes-e-cobertura.png)
+
+**Data da captura:** 06/10/2026, execução 42.
+
+Essa conta cobre o que a instrumentação alcança, o teste unitário e o de integração numa execução só; a
+jornada no navegador fica fora, como já fica na tabela. Nenhum piso faz o emprego falhar, e isso é
+decisão: um limiar que o projeto não alcança reprovaria a entrega por uma métrica que ninguém pediu, e
+quem responde pela garantia é a forma da suíte, que a
+[ADR-0008](adr/0008-a-suite-de-testes-segue-a-garantia.md) desenhou.
+
 ## O isolamento tem suíte própria
 
 O portão que exige que uma organização não veja o dado de outra é cobrado toda vez que uma tarefa toca
