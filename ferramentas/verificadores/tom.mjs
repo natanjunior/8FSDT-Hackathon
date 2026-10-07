@@ -381,6 +381,71 @@ for (const caminho of documentos([".md"])) {
   for (const violacao of violacoesDe(ler(caminho), eu, true)) falhas.push(`${eu} — ${violacao}`);
 }
 
+// ---------------------------------------------------------------------------
+// A regra 4 nos artefatos ENTREGUES que não são Markdown.
+//
+// O `docs/api/openapi.yaml` é entregue e renderizado em `/documentacao/api/referencia`, e passou um mês
+// fora de todo verificador: este lê `.md`, e o de contrato confere a especificação contra as rotas.
+// Ninguém lia a prosa dele, e ela guardava 24 `NOSSO`, 22 `ENUNCIADO` e as referências de requisito e de
+// decisão que moram em `trabalho/`, fora da entrega (item 131).
+//
+// **Só a regra 4 vale aqui**, mais as citações de processo. Contar negrito e travessão numa
+// especificação não diz nada sobre a voz dela, e cobrar teto de bloco de citação diria menos ainda.
+// ---------------------------------------------------------------------------
+
+const ENTREGUES_FORA_DO_MARKDOWN = ["docs/api/openapi.yaml"];
+
+/**
+ * Os identificadores que moram em `trabalho/` e não chegam a quem lê a entrega.
+ *
+ * Eles ficam FORA do `APARATO` de propósito: lá valeriam para todo documento, e `D1` ou `F2` numa frase
+ * de `docs/` seria falso positivo caro. Aqui o alcance é um arquivo nomeado, onde a forma é sempre
+ * citação.
+ */
+const CITACAO_DE_PROCESSO = [
+  ["decisão de produto", /\bD\d+(?:\.\d+)?\b/gu],
+  ["requisito do levantamento", /\b(?:S\d+|G\d+|F\d+|PA-\d+)\b/gu],
+];
+
+function citacoesDe(conteudo) {
+  const achadas = [];
+  for (const [nome, padrao] of [...APARATO, ...CITACAO_DE_PROCESSO]) {
+    const quantas = (conteudo.match(padrao) ?? []).length;
+    if (quantas > 0) achadas.push(`${quantas} de ${nome}`);
+  }
+  return achadas;
+}
+
+for (const caminho of ENTREGUES_FORA_DO_MARKDOWN) {
+  conferidos += 1;
+  const achadas = citacoesDe(ler(join(RAIZ, caminho)));
+  if (achadas.length > 0) falhas.push(`${caminho} — regra 4: ${achadas.join(" · ")}`);
+}
+
+/**
+ * O controle, no molde dos outros: a MESMA frase com e sem a citação.
+ *
+ * A de cima tem de acusar três coisas; a de baixo, nenhuma. E as duas trazem `ADR-0001`, que é entregue
+ * e **não pode** ser acusada — é isso que separa "some a citação da fonte inacessível" de "some toda
+ * referência".
+ */
+const COM_CITACAO = "Capacidade: alterar a prioridade · `NOSSO` (G3) + D6. Ver a ADR-0001.";
+const SEM_CITACAO = "Capacidade: alterar a prioridade. Ver a ADR-0001.";
+const comCitacao = citacoesDe(COM_CITACAO);
+const semCitacao = citacoesDe(SEM_CITACAO);
+
+if (comCitacao.length !== 3 || semCitacao.length > 0) {
+  falhas.push(
+    `CONTROLE DOS ENTREGUES FALHOU — a frase com citação deu ${comCitacao.length} achados ` +
+      `(tem de ser 3) e a frase sem citação deu ${semCitacao.length}, que tem de ser zero.`,
+  );
+} else {
+  notas.push(
+    `regra 4 estendida a ${ENTREGUES_FORA_DO_MARKDOWN.length} artefato entregue fora do Markdown, ` +
+      "e a ADR atravessa o controle, porque ela é entregue",
+  );
+}
+
 /**
  * A guarda da lista, e ela fecha nos dois sentidos.
  *

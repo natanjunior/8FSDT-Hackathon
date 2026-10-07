@@ -56,24 +56,39 @@ Como a imagem é pública, nada disso pode estar nela. Um verificador confere an
 ```mermaid
 flowchart TB
     MERGE["Mesclagem em main"]
-    VER["Verificar<br/>lint, tipos, testes, documentação e site local"]
-    COMPOSE["Subir a pilha do zero<br/>num servidor limpo"]
-    MIG["Migrar o banco<br/>migrações versionadas"]
+    VER["Verificar"]
+    COMPOSE["Subir a pilha do zero"]
+    AUTH["Conferir o Auth publicado"]
+    MIG["Migrar o banco"]
     IMG["Publicar a imagem<br/>com o verificador de segredo antes"]
+    AMB["Conferir as variáveis de execução"]
     REV["Nova revisão no Container Apps"]
     TRAF["Apontar todo o tráfego para ela"]
-    DESAT["Desativar a revisão anterior<br/>se ela segura réplica"]
+    URL["Conferir que a URL responde"]
+    DESAT["Desativar as revisões sem tráfego<br/>que seguram réplica"]
     SITE["Verificar a documentação publicada"]
 
     MERGE --> VER
-    VER --> COMPOSE
+    MERGE --> COMPOSE
+    MERGE --> AUTH
+    VER --> MIG
     COMPOSE --> MIG
+    AUTH --> MIG
     MIG --> IMG
-    IMG --> REV
+    IMG --> AMB
+    AMB --> REV
     REV --> TRAF
-    TRAF --> DESAT
+    TRAF --> URL
+    URL --> DESAT
     DESAT --> SITE
 ```
+
+**As três conferências do começo correm juntas**, e a migração espera as três. Uma delas olha para fora
+da máquina: a do Auth publicado compara o que o provedor de autenticação serve com o que o repositório
+declara, e uma divergência ali interrompe a entrega antes de qualquer mudança no banco. A conferência das
+variáveis de execução faz o mesmo papel do outro lado, depois da imagem e antes da revisão nova: o que o
+`.env.example` declara precisa existir no Container App, ou a aplicação sobe e quebra só no caminho que
+usa a variável que falta.
 
 **A ordem importa, e a migração vem antes da imagem.** Voltar atrás na aplicação é imediato; no banco, não
 é. Quem aplica a migração é a própria esteira, num passo que falha em voz alta e interrompe a cadeia, em
@@ -82,16 +97,35 @@ vez de depender de alguém lembrar de rodar um comando antes da mesclagem.
 **Criar revisão não move tráfego.** O ambiente roda em modo de revisões múltiplas, que é a precondição de
 poder voltar atrás sem reconstruir nada, e o preço desse modo é que a revisão nova nasce com peso zero. Sem
 o passo que aponta o tráfego, a esteira ficaria verde enquanto a URL continuasse servindo o código
-anterior.
+anterior. Depois dele a esteira confere duas coisas: que a URL pública responde, e que a documentação no
+ar não ganhou link quebrado. Entre as duas, as revisões sem tráfego que seguram réplica são desativadas,
+porque em modo múltiplo uma revisão antiga continuaria segurando a réplica que a entrega acabou de
+pagar.
+
+O desenho acima é a forma. Abaixo está uma execução dela, disparada por uma mesclagem em `main`.
+
+![Grafo dos empregos da esteira, com as três conferências do começo lado a lado e o tempo medido de cada emprego](capturas/esteira-grafo.png)
+
+![A execução inteira, concluída com sucesso em 9m43, com os seis empregos verdes na lateral](capturas/esteira-execucao.png)
+
+**Data da captura:** 06/10/2026, execução 42.
+
+O tempo é dominado pelas duas conferências longas do começo, e elas correm lado a lado: o custo é o da
+mais lenta, e não o da soma das três. Menos de dez minutos da mesclagem até a URL no ar é a ordem de
+grandeza que deixa entregar várias vezes num mesmo dia.
 
 ## Voltar atrás
 
 O Container Apps guarda as revisões anteriores, e voltar é reativar uma delas e redirecionar o tráfego para
-ela, sem reconstruir nada. Depois de cada entrega, a esteira desativa a revisão anterior, porque com o
-mínimo de uma réplica ela continuaria rodando sem servir ninguém
-([ADR-0023](adr/0023-uma-replica-sempre-de-pe.md)). Desativada, ela continua guardada, e a volta leva o
-tempo de ela iniciar. Quando a revisão nova não responde na conferência da esteira, a anterior nem chega a
-ser desativada.
+ela, sem reconstruir nada. Depois de cada entrega, a esteira desativa as revisões que ficaram sem tráfego
+e seguram réplica ([ADR-0023](adr/0023-uma-replica-sempre-de-pe.md)). Enquanto o mínimo for zero nenhuma
+segura, e as anteriores continuam ativas e escaladas a zero, guardadas e sem custo. Desativada, uma
+revisão também continua guardada, e a volta leva o tempo de ela iniciar. Quando a revisão nova não
+responde na conferência da esteira, a anterior nem chega a ser desativada.
+
+![Lista de revisões do aplicativo de contêiner: a mais recente com 100% do tráfego e uma réplica, e as anteriores ativas, sem tráfego e sem réplica](capturas/azure-revisoes-e-trafego.png)
+
+**Data da captura:** 06/10/2026.
 
 Migração de banco é versionada em arquivo e não se desfaz sozinha, então mudança destrutiva de esquema
 exige o script de volta escrito à mão. É a razão de a ordem segura ser migração compatível primeiro,
@@ -119,7 +153,12 @@ falha em vez de publicá-lo.
 
 A volta seria criar o projeto, aplicar as migrações e restaurar os dados com o `pg_restore`. A
 restauração não foi ensaiada. O roteiro da cópia é testado na esteira com o contêiner e a API simulados,
-sem banco e sem o segredo; a cópia contra o banco publicado só se prova na primeira execução agendada.
+sem banco e sem o segredo; contra o banco publicado, quem prova é a execução agendada. A primeira delas
+correu sozinha, levou 49 segundos e guardou o artefato.
+
+![Execução agendada da cópia de segurança do banco, concluída com sucesso em 49 segundos, com um artefato](capturas/copia-do-banco-execucao.png)
+
+**Data da captura:** 06/10/2026.
 
 ## A réplica sempre de pé
 
