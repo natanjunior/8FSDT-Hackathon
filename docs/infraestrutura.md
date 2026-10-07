@@ -166,6 +166,10 @@ Do envio do trabalho até o fim da avaliação, a aplicação roda com no mínim
 espera o contêiner iniciar. Medida depois de mais de duas horas sem tráfego, a resposta ficou abaixo de um
 segundo.
 
+![Detalhes da revisão que recebe todo o tráfego, com réplicas mínima e máxima em 1 e 2, e uma réplica em execução](capturas/azure-replica-minima.png)
+
+**Data da captura:** 06/10/2026.
+
 A franquia mensal de computação cobre cerca de 100 horas dessa réplica, pouco mais de quatro dias. O resto
 sai do crédito de estudante. Sem tráfego, a réplica fica abaixo do limite de ociosidade da plataforma, e a
 hora ociosa custa US$ 0,0216, cerca de US$ 13 num mês inteiro. A assinatura tem limite de gasto: o crédito
@@ -194,6 +198,10 @@ produto o limite prático é o custo, e ele é da ordem de um dólar por ano.
 
 O produto envia um e-mail só, o convite pessoal, e ele sai por SMTP. A recuperação de senha sai pelo
 provedor de autenticação, com outra credencial e outra cota, e os dois não se misturam.
+
+![Convite recebido na caixa de entrada, com o remetente do provedor de envio e o link ocultado](capturas/convite-recebido.png)
+
+**Data da captura:** 06/10/2026. O link sai da imagem porque quem o abre entra na organização.
 
 O envio acontece dentro da requisição, um depois do outro, até vinte por vez, porque não há fila. Quando
 o provedor recusa ou demora, nada é gravado, o limite de um por dia por endereço fica intacto, e a tela diz
