@@ -3,7 +3,12 @@
 import { CartesianGrid, LabelList, Line, LineChart, XAxis, YAxis } from "recharts";
 
 import type { UnidadeDoEixo } from "@/interface/componentes/tempo-de-resolucao";
-import { ChartContainer, type ChartConfig } from "@/interface/componentes/ui/chart";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from "@/interface/componentes/ui/chart";
 
 /**
  * ============================================================================
@@ -25,6 +30,9 @@ import { ChartContainer, type ChartConfig } from "@/interface/componentes/ui/cha
  *
  * **`aria-hidden`, sem legenda e sem animação**, pelas razões do gráfico do fluxo. A alternativa textual
  * é a tabela do `Ver dados`.
+ *
+ * **O tooltip é o do quadro 1** (item 134), só de ponteiro: o valor sai na unidade do eixo, que está escrita
+ * nos rótulos dele.
  *
  * **`accessibilityLayer={false}` escrito à mão**, pela razão de `grafico-do-fluxo-mensal.tsx`: no
  * Recharts 3 a camada vem ligada e torna o `svg` focável, e foco dentro de `aria-hidden` é defeito.
@@ -84,6 +92,7 @@ export function GraficoDoTempoDeResolucao({
           width={52}
           tickFormatter={(valor: number) => `${NUMERO.format(valor)} ${unidade.sufixo}`}
         />
+        <ChartTooltip content={<ChartTooltipContent />} />
         {SERIES.map((serie) => {
           const indice = ultimoNaoNulo(pontos, serie.chave);
           const texto = pontas[serie.chave];
