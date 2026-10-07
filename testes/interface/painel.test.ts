@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 import { beforeAll, describe, expect, it } from "vitest";
 
 import { Cartao } from "@/interface/componentes/blocos-do-dashboard";
+import { GraficoDeBarras, type BarraDoGrafico } from "@/interface/componentes/grafico-de-barras";
 import { GraficoDoFluxoMensal } from "@/interface/componentes/grafico-do-fluxo-mensal";
 import { GraficoDoTempoDeResolucao } from "@/interface/componentes/grafico-do-tempo-de-resolucao";
 
@@ -146,5 +147,87 @@ describe("o rótulo de ponta das linhas", () => {
     expect(pontos.map((p) => p.getAttribute("fill"))).toEqual(
       expect.arrayContaining(["var(--color-mediana)", "var(--color-p90)"]),
     );
+  });
+});
+
+function prepararJsdom(): void {
+  globalThis.ResizeObserver ??= class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
+  window.matchMedia ??= ((consulta: string) => ({
+    matches: false,
+    media: consulta,
+    onchange: null,
+    addEventListener() {},
+    removeEventListener() {},
+    addListener() {},
+    removeListener() {},
+    dispatchEvent: () => false,
+  })) as unknown as typeof window.matchMedia;
+  Element.prototype.getBoundingClientRect = function medida(this: Element): DOMRect {
+    const caixa = { x: 0, y: 0, width: 320, height: 200, top: 0, left: 0, right: 320, bottom: 200 };
+    return { ...caixa, toJSON: () => caixa } as DOMRect;
+  };
+}
+
+async function desenhar(barras: readonly BarraDoGrafico[]): Promise<{ conteiner: HTMLElement; fim: () => void }> {
+  const conteiner = document.createElement("div");
+  document.body.append(conteiner);
+  const raiz = createRoot(conteiner);
+  await act(async () => raiz.render(createElement(GraficoDeBarras, { barras, larguraDoRotulo: 120 })));
+  return {
+    conteiner,
+    fim: () => {
+      act(() => raiz.unmount());
+      conteiner.remove();
+    },
+  };
+}
+
+describe("GraficoDeBarras pinta a cor que o quadro passa (critérios 134.7 a 134.10)", () => {
+  // Mesmo preparo do foco.test.ts: sem ele o ResponsiveContainer do Recharts 3 não desenha o svg.
+  beforeAll(prepararJsdom);
+
+  it("sem cor, toda barra é o --chart-1", async () => {
+    const { conteiner, fim } = await desenhar([
+      { chave: "a", rotulo: "Hidráulica", valor: 3, texto: "3" },
+      { chave: "b", rotulo: "Elétrica", valor: 1, texto: "1" },
+    ]);
+    const preenchimentos = [...conteiner.querySelectorAll(".recharts-bar-rectangle path")].map((p) => p.getAttribute("fill"));
+    expect(preenchimentos).toStrictEqual(["var(--chart-1)", "var(--chart-1)"]);
+    fim();
+  });
+
+  it("cada barra veste a própria cor, e o contorno só onde foi pedido", async () => {
+    const { conteiner, fim } = await desenhar([
+      { chave: "aberta", rotulo: "Aberta", valor: 2, texto: "2", cor: "var(--accent)" },
+      { chave: "pausada", rotulo: "Pausada", valor: 1, texto: "1", cor: "var(--atencao)", contorno: "var(--ink-soft)" },
+    ]);
+    const caminhos = [...conteiner.querySelectorAll(".recharts-bar-rectangle path")];
+    expect(caminhos.map((p) => p.getAttribute("fill"))).toStrictEqual(["var(--accent)", "var(--atencao)"]);
+    expect(caminhos[0]?.getAttribute("stroke") ?? "none").toBe("none");
+    expect(caminhos[1]?.getAttribute("stroke")).toBe("var(--ink-soft)");
+    fim();
+  });
+
+  it("a barra a zero não desenha retângulo nem contorno, e o número continua escrito (59.2)", async () => {
+    const { conteiner, fim } = await desenhar([
+      { chave: "aberta", rotulo: "Aberta", valor: 2, texto: "2", cor: "var(--accent)" },
+      { chave: "pausada", rotulo: "Pausada", valor: 0, texto: "0", cor: "var(--atencao)", contorno: "var(--ink-soft)" },
+    ]);
+    expect(conteiner.querySelectorAll(".recharts-bar-rectangle path")).toHaveLength(1);
+    expect(conteiner.querySelector(".recharts-label-list")?.textContent).toContain("0");
+    fim();
+  });
+
+  it("a lista para leitor de tela não muda com a cor", async () => {
+    const { conteiner, fim } = await desenhar([
+      { chave: "a", rotulo: "Nota 5", valor: 4, texto: "4", cor: "var(--chart-1)" },
+      { chave: "b", rotulo: "Nota 4", valor: 1, texto: "1", cor: "var(--chart-1-2)" },
+    ]);
+    expect([...conteiner.querySelectorAll("ul.sr-only li")].map((li) => li.textContent)).toStrictEqual(["Nota 5 4", "Nota 4 1"]);
+    fim();
   });
 });

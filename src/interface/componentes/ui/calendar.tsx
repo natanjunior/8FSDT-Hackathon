@@ -87,8 +87,9 @@ function Calendar({
           "flex h-(--cell-size) w-full items-center justify-center gap-1.5 text-interface font-medium",
           defaultClassNames.dropdowns
         ),
+        // O `<select>` real é `opacity-0`, e o contorno dele não aparece: o anel do envoltório é a marca (134.2).
         dropdown_root: cn(
-          "relative rounded-md border border-input shadow-xs has-[:focus-visible]:border-ring has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
+          "relative rounded-md border border-input shadow-xs has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring",
           defaultClassNames.dropdown_root
         ),
         dropdown: cn(

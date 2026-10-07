@@ -462,6 +462,67 @@ describe("app/globals.css — a paleta categórica de T-07, medida", () => {
 });
 
 /**
+ * **A escala do `--chart-1` — item 134, critério 8 e respostas.md P1.** Os quadros 2 e 7 descem do laranja
+ * cheio a um cinza quente, pela posição da barra. Cada degrau perde croma, e a luminosidade anda só o que o
+ * piso deixa: no escuro a barra fica mais apagada, não mais clara. Dois pisos, em cada modo: 3:1 contra a
+ * superfície, que é o de objeto gráfico, e 0,02 de ΔEok para o vizinho, que é o que impede cinco degraus
+ * que o olho não separa e o teste aprovaria.
+ */
+describe("app/globals.css — a escala do --chart-1, medida (item 134)", () => {
+  const ESCALA = ["--chart-1", "--chart-1-2", "--chart-1-3", "--chart-1-4", "--chart-1-5"] as const;
+  const MODOS = [
+    { nome: "claro", cabecalho: ":root {" },
+    { nome: "escuro", cabecalho: ':root[data-theme="dark"]' },
+    { nome: "alto contraste", cabecalho: ':root[data-contraste="alto"]' },
+  ] as const;
+
+  for (const { nome, cabecalho } of MODOS) {
+    describe(`modo ${nome}`, () => {
+      const tokens = tokensDe(corpoDoBloco(cabecalho));
+      const valor = (token: string): Lab => {
+        const lido = tokens.get(token);
+        if (lido === undefined) throw new Error(`${token} não está declarado em ${cabecalho}`);
+        return oklabDe(lido);
+      };
+      const degraus = ESCALA.map(valor);
+      const superficie = valor("--surface");
+
+      it("cada degrau passa 3:1 contra a superfície", () => {
+        degraus.forEach((cor, indice) => {
+          expect(contraste(cor, superficie), ESCALA[indice]).toBeGreaterThanOrEqual(3);
+        });
+      });
+
+      it("cada degrau se separa do vizinho, e a escala perde croma do primeiro ao último", () => {
+        for (let i = 1; i < degraus.length; i += 1) {
+          const anterior = degraus[i - 1] as Lab;
+          const atual = degraus[i] as Lab;
+          expect(deltaEok(anterior, atual), `${ESCALA[i - 1]} × ${ESCALA[i]}`).toBeGreaterThanOrEqual(0.02);
+          expect(croma(atual), ESCALA[i]).toBeLessThan(croma(anterior));
+        }
+      });
+    });
+  }
+});
+
+/**
+ * **As cores do quadro 6 — item 134, critério 9 e respostas.md P2.** O quadro veste a cor-sinal de cada
+ * selo. O âmbar de *Pausada* fica a 1,90:1 no branco, e quem passa o piso por ela é o contorno em
+ * `--ink-soft`; as outras cinco são o próprio preenchimento.
+ */
+describe("app/globals.css — as cores do quadro 6, medidas (item 134)", () => {
+  const MEDIDAS = ["--accent", "--ink-soft", "--info", "--ok"] as const;
+  for (const cabecalho of TRES_MODOS) {
+    it(`${cabecalho}: o preenchimento das cinco e o contorno de Pausada passam 3:1 contra a superfície`, () => {
+      const cor = corDoModo(cabecalho);
+      for (const token of MEDIDAS) {
+        expect(contraste(cor(token), cor("--surface")), token).toBeGreaterThanOrEqual(3);
+      }
+    });
+  }
+});
+
+/**
  * **As cores dos seis estados, medidas — item 44q, critérios 10 e 11.**
  *
  * O selo aparece sobre três fundos: `--surface` no cartão, `--ground` na linha zebrada de T-03 e
@@ -618,7 +679,10 @@ describe("app/globals.css — o alto contraste, medido (item 85)", () => {
   });
 
   it("a borda, o foco e as séries do gráfico passam 3:1 contra a superfície", () => {
-    for (const token of ["--line", "--ring", "--chart-1", "--chart-2", "--chart-3", "--chart-4"]) {
+    for (const token of [
+      "--line", "--ring", "--chart-1", "--chart-2", "--chart-3", "--chart-4",
+      "--chart-1-2", "--chart-1-3", "--chart-1-4", "--chart-1-5",
+    ]) {
       expect(contraste(cor(token), cor("--surface")), token).toBeGreaterThanOrEqual(3);
     }
   });

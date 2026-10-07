@@ -65,9 +65,10 @@ function InputOTPSlot({
       /* **A casa ativa continua com anel, e é a exceção do item 94.** O `input-otp` põe
          `outline: 0 solid transparent` inline na `<input>` real que recebe o foco, e esse estilo vence o
          `:focus-visible` do `@layer base`: sem o anel da casa, o código ficaria sem indicador nenhum.
-         O anel passou de `ring-[3px] ring-ring/50` para opacidade cheia (critério 94.2). */
+         O anel passou de `ring-[3px] ring-ring/50` para opacidade cheia (critério 94.2), e a borda
+         recolorida saiu (critério 134.2): o anel é a única marca. */
       className={cn(
-        "relative flex h-9 w-9 items-center justify-center border-y border-r border-input text-interface shadow-xs transition-all first:rounded-l-md first:border-l last:rounded-r-md aria-invalid:border-destructive data-[active=true]:z-10 data-[active=true]:border-ring data-[active=true]:ring-2 data-[active=true]:ring-ring data-[active=true]:aria-invalid:border-destructive data-[active=true]:aria-invalid:ring-destructive",
+        "relative flex h-9 w-9 items-center justify-center border-y border-r border-input text-interface shadow-xs transition-all first:rounded-l-md first:border-l last:rounded-r-md aria-invalid:border-destructive data-[active=true]:z-10 data-[active=true]:ring-2 data-[active=true]:ring-ring data-[active=true]:aria-invalid:border-destructive data-[active=true]:aria-invalid:ring-destructive",
         className
       )}
       {...props}

@@ -38,8 +38,9 @@ function AvatarImage({
 }
 
 /**
- * **Neutro, no cromo** (item 105): as iniciais não precisam da cor da marca, e a ficha traz o nome ao
- * lado. O laranja fica para a ação.
+ * **Na cor da marca** (item 134): o dono devolveu o laranja ao avatar em 07/10/2026, depois de ver a tela
+ * neutra do 105. A tinta é `--marca-foreground`, a escura que não inverte entre temas, a 4,61:1 sobre o
+ * `--accent` no claro.
  */
 function AvatarFallback({
   className,
@@ -49,7 +50,7 @@ function AvatarFallback({
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
       className={cn(
-        "flex size-full items-center justify-center rounded-full bg-secondary text-rotulo-peca text-tinta",
+        "flex size-full items-center justify-center rounded-full bg-marca text-rotulo-peca text-marca-foreground",
         className
       )}
       {...props}
