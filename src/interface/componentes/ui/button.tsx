@@ -10,7 +10,7 @@ import { cn } from "@/interface/componentes/utilitarios"
  * principal pede `marca` por escrito.
  */
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-sm text-interface font-medium whitespace-nowrap focus-visible:border-ring disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 active:scale-[0.97] transition-transform duration-(--tempo-pressao) ease-(--curva-pressao)",
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-sm text-interface font-medium whitespace-nowrap disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 active:scale-[0.97] transition-transform duration-(--tempo-pressao) ease-(--curva-pressao)",
   {
     variants: {
       variant: {

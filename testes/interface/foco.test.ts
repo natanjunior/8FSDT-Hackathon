@@ -77,6 +77,19 @@ describe("o contorno da base volta a valer — critérios 94.1, 94.2 e 94.3", ()
   it("a linha clicável continua a exceção legítima, fora de ui/ (D-02)", () => {
     expect(ler(`${COMPONENTES}/linha-clicavel.ts`)).toContain("focus-visible:outline-none");
   });
+
+  it("nenhuma peça de ui/ recolore a própria borda ao focar, porque o contorno já é a marca (critério 134.2)", () => {
+    // O 94 manteve a borda recolorida (spec do 94, §4.1); o 134 a tira: com o contorno a 2 px de recuo,
+    // eram duas linhas. No `input-otp` e no `calendar` o anel da casa e do envoltório é a marca, e fica.
+    const RECOLORE = /\b(?:focus-visible|has-\[:focus-visible\]|data-\[active=true\]):border-ring\b/u;
+    const culpados = arquivos(UI).filter((caminho) => RECOLORE.test(semComentarios(ler(caminho))));
+    expect(culpados, AVISO).toEqual([]);
+  });
+
+  it("o input-otp e o calendar guardam o anel, que é a marca deles (critério 134.2)", () => {
+    expect(semComentarios(ler(`${UI}/input-otp.tsx`))).toContain("data-[active=true]:ring-2 data-[active=true]:ring-ring");
+    expect(semComentarios(ler(`${UI}/calendar.tsx`))).toContain("has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring");
+  });
 });
 
 describe("a gaveta do celular — critério 94.7", () => {
