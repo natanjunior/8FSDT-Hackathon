@@ -5,6 +5,14 @@ description: "O que o Resolve Aí resolve, quem usa, o que cada perfil faz, o ci
 
 # O produto
 
+<div align="center">
+
+![Resolve Aí](marca/logo.png)
+
+O livro de ocorrências da sua organização, aberto para quem cuida.
+
+</div>
+
 O Resolve Aí registra e acompanha ocorrências de um lugar coletivo — um condomínio, uma empresa, um bairro
 — até a resolução, com trilha auditável de cada mudança de estado.
 
