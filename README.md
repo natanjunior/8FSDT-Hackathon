@@ -29,8 +29,7 @@ organizações passa por um ponto único. Ver **[O que está entregue](#o-que-es
 <https://ca-resolve-ai.jollypebble-46a227ca.chilecentral.azurecontainerapps.io>, as contas para entrar
 nele estão em **[A demonstração](#a-demonstração)**.
 
-A aplicação fica com uma réplica sempre de pé enquanto a avaliação durar, então quem abre o endereço não
-espera o servidor iniciar.
+A aplicação roda com no mínimo uma réplica, então quem abre o endereço não espera o servidor iniciar.
 
 O que ainda não existe é o que [O produto](docs/produto.md) corta em letra, com o motivo de cada corte:
 o acesso próprio do Encarregado e as capacidades que caem junto com ele, a nota interna e a conversa
@@ -378,4 +377,18 @@ onde está escrito.
 
 ---
 
-Projeto acadêmico, sem uso comercial. Cinco integrantes, um implementador.
+## Equipe
+
+**Grupo 01 — turma 8FSDT (FIAP)**
+
+- **Dario Lacerda** — rm369195
+- **Larissa Kramer** — rm370062
+- **Mirian Storino** — rm369489
+- **Natanael Dias** — rm369334
+- **Tiago Victor** — rm370117
+
+---
+
+## Licença
+
+MIT License — Projeto Educacional. Ver [LICENSE](LICENSE).

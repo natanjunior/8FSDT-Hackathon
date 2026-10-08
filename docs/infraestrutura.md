@@ -6,9 +6,7 @@ description: "Onde cada peça roda, o que a imagem contém, a ordem da esteira d
 # Infraestrutura
 
 Um contêiner com a aplicação inteira, PostgreSQL e autenticação gerenciados, e um armazenamento de objetos
-para as imagens. A maior parte cabe em franquias gratuitas permanentes, e o crédito de estudante paga o
-resto: a réplica da aplicação que fica sempre de pé, e os centavos do e-mail de conta e do armazenamento
-de imagens. A mesma imagem roda na máquina de quem desenvolve e em produção.
+para as imagens. A mesma imagem roda na máquina de quem desenvolve e em produção.
 
 ## Onde cada peça roda
 
@@ -25,8 +23,19 @@ de imagens. A mesma imagem roda na máquina de quem desenvolve e em produção.
 
 A aplicação roda na região `chilecentral` e o banco em São Paulo, com latência de cerca de 40 ms entre os
 dois. A assinatura de estudante restringe as regiões permitidas a cinco, e a do Brasil não está entre
-elas. Contra o orçamento de resposta do produto esse número é ruído, e fica escrito para que ninguém gaste
-uma tarde tentando mover a aplicação para mais perto.
+elas. Contra o orçamento de resposta do produto esse número é ruído.
+
+A aplicação roda com no mínimo uma réplica, e a resposta fica abaixo de um segundo mesmo depois de horas
+sem tráfego. A decisão e as alternativas estão na
+[ADR-0023](adr/0023-uma-replica-sempre-de-pe.md).
+
+![Detalhes da revisão que recebe todo o tráfego, com réplicas mínima e máxima em 1 e 2, e uma réplica em execução](capturas/azure-replica-minima.png)
+
+**Data da captura:** 06/10/2026.
+
+O projeto de banco pausa depois de sete dias sem atividade, e uma pausa faz a migração da entrega
+seguinte falhar. Uma consulta trivial agendada todo dia mantém o banco ativo, com sete tentativas dentro
+de cada janela.
 
 ## A imagem
 
@@ -159,40 +168,6 @@ correu sozinha, levou 49 segundos e guardou o artefato.
 ![Execução agendada da cópia de segurança do banco, concluída com sucesso em 49 segundos, com um artefato](capturas/copia-do-banco-execucao.png)
 
 **Data da captura:** 06/10/2026.
-
-## A réplica sempre de pé
-
-Do envio do trabalho até o fim da avaliação, a aplicação roda com no mínimo uma réplica, e nenhuma visita
-espera o contêiner iniciar. Medida depois de mais de duas horas sem tráfego, a resposta ficou abaixo de um
-segundo.
-
-![Detalhes da revisão que recebe todo o tráfego, com réplicas mínima e máxima em 1 e 2, e uma réplica em execução](capturas/azure-replica-minima.png)
-
-**Data da captura:** 06/10/2026.
-
-A franquia mensal de computação cobre cerca de 100 horas dessa réplica, pouco mais de quatro dias. O resto
-sai do crédito de estudante. Sem tráfego, a réplica fica abaixo do limite de ociosidade da plataforma, e a
-hora ociosa custa US$ 0,0216, cerca de US$ 13 num mês inteiro. A assinatura tem limite de gasto: o crédito
-zerado a desliga, sem gerar fatura.
-
-Sem o mínimo, a aplicação escala para zero réplicas cerca de cinco minutos depois da última requisição, e
-a primeira chamada seguinte leva por volta de 20 segundos enquanto o contêiner inicia. A decisão e as
-alternativas estão na [ADR-0023](adr/0023-uma-replica-sempre-de-pe.md).
-
-Quem volta à aplicação pelo mesmo navegador conta ainda com o trabalhador de serviço. Ele guarda uma casca
-sem dado nenhum e, quando a última resposta do servidor que ele viu tem mais de quatro minutos, a pinta na
-hora e a troca pela tela assim que o servidor responde.
-
-## O que a franquia gratuita impõe
-
-O projeto de banco na franquia gratuita pausa depois de sete dias de inatividade, e uma pausa derruba a
-migração da entrega seguinte. A mitigação é uma consulta trivial agendada diariamente. Já foi semanal, e
-falhou: sete dias de janela contra sete dias de intervalo dão margem zero, e o agendador é de melhor
-esforço. O intervalo diário dá sete tentativas dentro de cada janela.
-
-O teto de armazenamento do banco na franquia comporta cerca de 55.000 ocorrências, quase trinta vezes o
-alvo declarado em [O produto](produto.md). O armazenamento de imagens não é restrição: na escala deste
-produto o limite prático é o custo, e ele é da ordem de um dólar por ano.
 
 ## O e-mail
 

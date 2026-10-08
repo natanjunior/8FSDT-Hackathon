@@ -111,9 +111,9 @@ O que o produto faz, e o desafio não pediu.
 **Operação**
 
 - Verificadores que comparam o site e a autenticação no ar com o que o repositório declara ([Testes](testes.md))
-- Uma réplica sempre de pé durante o período da avaliação ([Infraestrutura](infraestrutura.md))
-- Consulta diária que mantém o banco acordado ([Infraestrutura](infraestrutura.md))
-- Revisões múltiplas, com volta sem reconstruir, e partida a frio medida ([Infraestrutura](infraestrutura.md))
+- Pausa do banco por inatividade, que derrubaria a migração da entrega seguinte, evitada por consulta
+  diária agendada ([Infraestrutura](infraestrutura.md))
+- Revisões múltiplas, com volta sem reconstruir ([Infraestrutura](infraestrutura.md))
 
 **Interface**
 
