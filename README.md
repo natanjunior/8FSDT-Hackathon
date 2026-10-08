@@ -1,11 +1,19 @@
 # Resolve Aí — Plataforma de Gestão de Ocorrências
 
+<div align="center">
+
+![Resolve Aí](docs/marca/logo.png)
+
+O livro de ocorrências da sua organização, aberto para quem cuida.
+
 [![entrega](https://github.com/natanjunior/8FSDT-Hackathon/actions/workflows/entrega.yml/badge.svg?branch=main)](https://github.com/natanjunior/8FSDT-Hackathon/actions/workflows/entrega.yml)
 ![Next.js 16.3.2](https://img.shields.io/badge/Next.js-16.3.2-black?logo=nextdotjs)
 ![React 19.2.8](https://img.shields.io/badge/React-19.2.8-149eca?logo=react&logoColor=white)
 ![TypeScript 5.9.3](https://img.shields.io/badge/TypeScript-5.9.3-3178c6?logo=typescript&logoColor=white)
 ![Node.js 22 ou mais](https://img.shields.io/badge/Node.js-%3E%3D22-5fa04e?logo=nodedotjs&logoColor=white)
 ![Vitest 4.1.11](https://img.shields.io/badge/Vitest-4.1.11-6e9f18?logo=vitest&logoColor=white)
+
+</div>
 
 Onde um condomínio, uma empresa ou um bairro registra ocorrências (iluminação, vazamento, limpeza,
 segurança, manutenção) e acompanha cada uma até a resolução, com **trilha auditável de toda mudança de

@@ -1,6 +1,6 @@
 import { remarkMdxMermaid } from "fumadocs-core/mdx-plugins";
 import { defineConfig, defineDocs } from "fumadocs-mdx/config";
-import type { Heading, Root } from "mdast";
+import type { Heading, Root, RootContent } from "mdast";
 
 /**
  * ============================================================================
@@ -44,6 +44,46 @@ function remarkSemTituloRepetido() {
   };
 }
 
+/**
+ * Devolve a centralização que o `remark-rehype` joga fora.
+ *
+ * `<div align="center">` é a única forma de centralizar que o GitHub entende, e markdown com HTML dentro
+ * é markdown normal. Só que o par de marcadores chega aqui como nó `html` cru, e o `remark-rehype`
+ * descarta HTML cru por segurança: o conteúdo de dentro sobrevive, a centralização não, e o bloco
+ * aparece solto à esquerda na página enquanto fica centralizado no GitHub. Duas superfícies, dois
+ * resultados, a partir do mesmo arquivo.
+ *
+ * Este plugin reconhece o par, tira os dois marcadores da árvore e envolve o que estava entre eles num
+ * nó que o `remark-rehype` sabe transformar: `hName` escolhe a etiqueta e `hProperties` o atributo. Nada
+ * de HTML cru passa adiante, e o GitHub continua lendo o arquivo como sempre leu.
+ */
+function remarkBlocoCentralizado() {
+  const ABERTURA = /^<div\s+align="center">$/u;
+
+  return (arvore: Root) => {
+    const filhos = arvore.children;
+
+    for (let i = 0; i < filhos.length; i += 1) {
+      const no = filhos[i];
+      if (no?.type !== "html" || !ABERTURA.test(no.value.trim())) continue;
+
+      const fim = filhos.findIndex(
+        (outro, j) => j > i && outro.type === "html" && outro.value.trim() === "</div>",
+      );
+      if (fim === -1) continue;
+
+      const dentro = filhos.slice(i + 1, fim);
+      const bloco = {
+        type: "paragraph",
+        children: dentro,
+        data: { hName: "div", hProperties: { align: "center" } },
+      } as unknown as RootContent;
+
+      filhos.splice(i, fim - i + 1, bloco);
+    }
+  };
+}
+
 export default defineConfig({
   mdxOptions: {
     /**
@@ -56,6 +96,11 @@ export default defineConfig({
      * Rodar antes também tira o texto dos diagramas do índice de busca, que é montado pelos plugins
      * padrão.
      */
-    remarkPlugins: (padroes) => [remarkMdxMermaid, remarkSemTituloRepetido, ...padroes],
+    remarkPlugins: (padroes) => [
+      remarkMdxMermaid,
+      remarkSemTituloRepetido,
+      remarkBlocoCentralizado,
+      ...padroes,
+    ],
   },
 });
